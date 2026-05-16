@@ -263,31 +263,33 @@ class _SkillSelector extends StatefulWidget {
 }
 
 class _SkillSelectorState extends State<_SkillSelector> {
-  String? _pickerValue;
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _pickerValue,
-                hint: const Text('Ajouter une compétence'),
-                items: AppSkills.horecaSkills
+        ElevatedButton.icon(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              builder: (ctx) => ListView(
+                children: AppSkills.horecaSkills
                     .where((s) => !widget.selected.contains(s))
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .map((s) => ListTile(
+                          title: Text(s),
+                          onTap: () {
+                            widget.onChanged([...widget.selected, s]);
+                            Navigator.pop(ctx);
+                          },
+                        ))
                     .toList(),
-                onChanged: (v) {
-                  if (v != null && !widget.selected.contains(v)) {
-                    widget.onChanged([...widget.selected, v]);
-                    setState(() => _pickerValue = null);
-                  }
-                },
               ),
-            ),
-          ],
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Ajouter une compétence'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+          ),
         ),
         if (widget.selected.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -299,8 +301,8 @@ class _SkillSelectorState extends State<_SkillSelector> {
                       label: Text(s, style: const TextStyle(fontSize: 12)),
                       backgroundColor: AppColors.primaryLight,
                       labelStyle: const TextStyle(color: AppColors.primary),
-                      deleteIcon:
-                          const Icon(Icons.close, size: 14, color: AppColors.primary),
+                      deleteIcon: const Icon(Icons.close,
+                          size: 14, color: AppColors.primary),
                       onDeleted: () {
                         final updated = [...widget.selected]..remove(s);
                         widget.onChanged(updated);
