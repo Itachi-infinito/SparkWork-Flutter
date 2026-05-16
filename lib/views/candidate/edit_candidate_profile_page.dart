@@ -51,11 +51,13 @@ class _EditCandidateProfilePageState
             profile.desiredSalaryMin > 0 ? profile.desiredSalaryMin.toString() : '';
         _salaryMaxCtrl.text =
             profile.desiredSalaryMax > 0 ? profile.desiredSalaryMax.toString() : '';
-        _contractType = profile.desiredContractType.isNotEmpty
-            ? profile.desiredContractType
+        _contractType = AppSkills.contractTypes.contains(profile.desiredContractType)
+          ? profile.desiredContractType
+          : null;
+        _level = AppSkills.levels.contains(profile.desiredLevel)
+            ? profile.desiredLevel
             : null;
-        _level = profile.desiredLevel.isNotEmpty ? profile.desiredLevel : null;
-        _remotePreference = profile.remotePreference.isNotEmpty
+        _remotePreference = AppSkills.remoteModes.contains(profile.remotePreference)
             ? profile.remotePreference
             : null;
         _skills = profile.skillList.toList();
