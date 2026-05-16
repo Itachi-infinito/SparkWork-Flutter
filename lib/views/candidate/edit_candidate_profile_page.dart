@@ -238,56 +238,58 @@ class _EditCandidateProfilePageState
   }
 }
 
-class _SkillSelector extends StatefulWidget {
+
+class _SkillSelector extends StatelessWidget {
   final List<String> selected;
   final ValueChanged<List<String>> onChanged;
   const _SkillSelector({required this.selected, required this.onChanged});
 
-  @override
-  State<_SkillSelector> createState() => _SkillSelectorState();
-}
-
-class _SkillSelectorState extends State<_SkillSelector> {
-  String? _value;
+  void _showPicker(BuildContext context) {
+    final available = AppSkills.horecaSkills
+        .toSet()
+        .where((s) => !selected.contains(s))
+        .toList();
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => ListView.builder(
+        itemCount: available.length,
+        itemBuilder: (ctx, i) => ListTile(
+          title: Text(available[i]),
+          onTap: () {
+            onChanged([...selected, available[i]]);
+            Navigator.pop(ctx);
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButton<String>(
-          value: null,
-          hint: const Text('Ajouter une compétence'),
-          isExpanded: true,
-          underline: Container(height: 1, color: AppColors.border),
-          items: AppSkills.horecaSkills
-              .toSet()
-              .where((s) => !widget.selected.contains(s))
-              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-              .toList(),
-          onChanged: (v) {
-            if (v != null && !widget.selected.contains(v)) {
-              widget.onChanged([...widget.selected, v]);
-            }
-          },
+        OutlinedButton.icon(
+          onPressed: () => _showPicker(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Ajouter une compétence'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
+          ),
         ),
-        if (widget.selected.isNotEmpty) ...[
+        if (selected.isNotEmpty) ...[
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 6,
-            children: widget.selected
-                .map((s) => Chip(
-                      label: Text(s, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: AppColors.primaryLight,
-                      labelStyle: const TextStyle(color: AppColors.primary),
-                      deleteIcon: const Icon(Icons.close,
-                          size: 14, color: AppColors.primary),
-                      onDeleted: () {
-                        final updated = [...widget.selected]..remove(s);
-                        widget.onChanged(updated);
-                      },
-                    ))
-                .toList(),
+            children: selected.map((s) => Chip(
+              label: Text(s, style: const TextStyle(fontSize: 12)),
+              backgroundColor: AppColors.primaryLight,
+              labelStyle: const TextStyle(color: AppColors.primary),
+              deleteIcon: const Icon(Icons.close, size: 14, color: AppColors.primary),
+              onDeleted: () => onChanged([...selected]..remove(s)),
+            )).toList(),
           ),
         ],
       ],

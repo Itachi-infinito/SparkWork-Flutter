@@ -187,40 +187,61 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
   }
 }
 
-class _SkillPicker extends StatefulWidget {
+class _SkillPicker extends StatelessWidget {
   final List<String> selected;
   final Color accentColor;
   final Color bgColor;
   final ValueChanged<List<String>> onChanged;
   const _SkillPicker({required this.selected, required this.accentColor, required this.bgColor, required this.onChanged});
 
-  @override
-  State<_SkillPicker> createState() => _SkillPickerState();
-}
-
-class _SkillPickerState extends State<_SkillPicker> {
-  String? _value;
+  void _showPicker(BuildContext context) {
+    final available = AppSkills.horecaSkills
+        .toSet()
+        .where((s) => !selected.contains(s))
+        .toList();
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => ListView.builder(
+        itemCount: available.length,
+        itemBuilder: (ctx, i) => ListTile(
+          title: Text(available[i]),
+          onTap: () {
+            onChanged([...selected, available[i]]);
+            Navigator.pop(ctx);
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      DropdownButton<String>(
-        value: null,
-        isExpanded: true,
-        underline: Container(height: 1, color: AppColors.border),
-        hint: const Text('Sélectionner une compétence'),
-        items: AppSkills.horecaSkills.where((s) => !widget.selected.contains(s)).map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-        onChanged: (v) { if (v != null && !widget.selected.contains(v)) { widget.onChanged([...widget.selected, v]); } },
-      ),
-      if (widget.selected.isNotEmpty) ...[
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 6, children: widget.selected.map((s) => Chip(
-          label: Text(s, style: TextStyle(fontSize: 12, color: widget.accentColor)),
-          backgroundColor: widget.bgColor,
-          deleteIcon: Icon(Icons.close, size: 14, color: widget.accentColor),
-          onDeleted: () { widget.onChanged([...widget.selected]..remove(s)); },
-        )).toList()),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _showPicker(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Ajouter une compétence'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: accentColor,
+            side: BorderSide(color: accentColor),
+          ),
+        ),
+        if (selected.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: selected.map((s) => Chip(
+              label: Text(s, style: TextStyle(fontSize: 12, color: accentColor)),
+              backgroundColor: bgColor,
+              deleteIcon: Icon(Icons.close, size: 14, color: accentColor),
+              onDeleted: () => onChanged([...selected]..remove(s)),
+            )).toList(),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 }
