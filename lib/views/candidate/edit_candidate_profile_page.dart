@@ -254,17 +254,19 @@ class _SkillSelectorState extends State<_SkillSelector> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        DropdownButtonFormField<String>(
-          value: _value,
+        DropdownButton<String>(
+          value: null,
           hint: const Text('Ajouter une compétence'),
+          isExpanded: true,
+          underline: Container(height: 1, color: AppColors.border),
           items: AppSkills.horecaSkills
+              .toSet()
               .where((s) => !widget.selected.contains(s))
               .map((s) => DropdownMenuItem(value: s, child: Text(s)))
               .toList(),
           onChanged: (v) {
             if (v != null && !widget.selected.contains(v)) {
               widget.onChanged([...widget.selected, v]);
-              setState(() => _value = null);
             }
           },
         ),

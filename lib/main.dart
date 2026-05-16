@@ -17,7 +17,7 @@ class SparkWorkApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'SparkWork',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.theme,
       routerConfig: router,
     );
   }

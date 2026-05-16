@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
@@ -17,278 +16,330 @@ import '../shared/nav_bar.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
+
   @override
   ConsumerState<CandidateSwipePage> createState() => _CandidateSwipePageState();
 }
 
 class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
-  final _swiperController = AppinioSwiperController();
+  final AppinioSwiperController _swiperController = AppinioSwiperController();
+
   List<JobOffer> _offers = [];
-  CandidateProfile? _profile;
+  CandidateProfile? _candidateProfile;
+  Map<int, int> _scores = {};
   bool _loading = true;
-  int _currentIndex = 0;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    _loadData();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final session = ref.read(sessionProvider);
-    final profileRepo = ref.read(candidateProfileRepositoryProvider);
-    final offerRepo = ref.read(jobOfferRepositoryProvider);
-    final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
-
-    _profile = await profileRepo.getProfile(session.userId);
-    final all = await offerRepo.getAllOffers();
-    final likedIds = await likeRepo.getLikedJobOfferIds(session.userId);
-
-    setState(() {
-      _offers = all.where((o) => !likedIds.contains(o.jobOfferId)).toList();
-      _currentIndex = 0;
-      _loading = false;
-    });
+  @override
+  void dispose() {
+    _swiperController.dispose();
+    super.dispose();
   }
 
-  Future<void> _handleLike(int index) async {
-    if (index >= _offers.length) return;
-    final offer = _offers[index];
+  Future<void> _loadData() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final session = ref.read(sessionProvider);
+      final userId = session.userId;
+      final jobOfferRepo = ref.read(jobOfferRepositoryProvider);
+      final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
+      final profileRepo = ref.read(candidateProfileRepositoryProvider);
+      final compatService = ref.read(compatibilityServiceProvider);
+
+      final allOffers = await jobOfferRepo.getAllOffers();
+      final likedIds = await likeRepo.getLikedJobOfferIds(userId);
+      final likedSet = likedIds.toSet();
+      final filtered = allOffers.where((o) => !likedSet.contains(o.jobOfferId)).toList();
+      final profile = await profileRepo.getProfile(userId);
+
+      final scores = <int, int>{};
+      if (profile != null) {
+        for (final offer in filtered) {
+          scores[offer.jobOfferId] = compatService.calculateScore(profile, offer);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _offers = filtered;
+          _candidateProfile = profile;
+          _scores = scores;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Erreur lors du chargement des offres.'; _loading = false; });
+    }
+  }
+
+  Future<void> _handleSwipeRight(JobOffer offer) async {
     final session = ref.read(sessionProvider);
+    final candidateUserId = session.userId;
     final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
     final recruiterLikeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
 
-    await likeRepo.addLike(session.userId, offer.jobOfferId);
+    await likeRepo.addLike(candidateUserId, offer.jobOfferId);
 
-    final recruiterLiked = await recruiterLikeRepo.hasRecruiterLikedCandidate(
-      offer.recruiterUserId, session.userId);
+    final recruiterUserId = offer.recruiterUserId;
+    final mutual = await recruiterLikeRepo.hasRecruiterLikedCandidate(
+        recruiterUserId, candidateUserId, offer.jobOfferId);
 
-    if (recruiterLiked) {
-      await matchRepo.addMatch(
-        candidateUserId: session.userId,
-        candidateName: session.userName,
-        recruiterUserId: offer.recruiterUserId,
-        offer: offer,
-      );
-      if (mounted) {
-        context.go('/match', extra: {
-          'participantId': offer.recruiterUserId,
-          'participantName': offer.companyName,
-        });
+    if (mutual) {
+      final alreadyExists = await matchRepo.matchExists(candidateUserId, recruiterUserId, offer.jobOfferId);
+      if (!alreadyExists) {
+        final matchId = await matchRepo.addMatch(
+          candidateUserId: candidateUserId,
+          recruiterUserId: recruiterUserId,
+          jobOfferId: offer.jobOfferId,
+        );
+        if (mounted) {
+          context.push('/match', extra: {
+            'matchId': matchId,
+            'jobOfferTitle': offer.title,
+            'companyName': offer.companyName,
+          });
+        }
       }
     }
   }
 
-  int _score(JobOffer offer) {
-    if (_profile == null) return 0;
-    return ref.read(compatibilityServiceProvider).calculateScore(_profile!, offer);
-  }
-
-  Color _scoreColor(int score) {
-    if (score >= 75) return AppColors.green;
-    if (score >= 45) return AppColors.primary;
-    return AppColors.red;
+  void _onSwipeEnd(int previousIndex, int? targetIndex, SwiperActivity activity) {
+    if (activity is Swipe) {
+      final offer = _offers[previousIndex];
+      if (activity.direction == AxisDirection.right) {
+        _handleSwipeRight(offer);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Découvrir des offres'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : _error != null
+              ? _buildErrorState()
+              : _offers.isEmpty
+                  ? _buildEmptyState()
+                  : _buildSwiper(),
       bottomNavigationBar: const CandidateNavBar(currentIndex: 1),
-      body: SafeArea(
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Découvrir', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
-                    onPressed: _load,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : _offers.isEmpty
-                      ? _buildEmpty()
-                      : AppinioSwiper(
-                          controller: _swiperController,
-                          cardCount: _offers.length,
-                          backgroundCardCount: 2,
-                          backgroundCardScale: 0.92,
-                          backgroundCardOffset: const Offset(0, 16),
-                          onSwipeEnd: (prev, current, activity) {
-                            if (activity is Swipe) {
-                              if (activity.direction == AxisDirection.right) {
-                                _handleLike(prev);
-                              }
-                              setState(() => _currentIndex = current ?? _offers.length);
-                            }
-                          },
-                          cardBuilder: (context, index) => _buildCard(_offers[index]),
-                        ),
-            ),
-            if (!_loading && _offers.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16, top: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _ActionBtn(icon: Icons.close_rounded, color: AppColors.red, size: 52,
-                        onTap: () => _swiperController.swipeLeft()),
-                    const SizedBox(width: 20),
-                    _ActionBtn(icon: Icons.bolt_rounded, color: AppColors.superLike, size: 44,
-                        onTap: () => _swiperController.swipeRight()),
-                    const SizedBox(width: 20),
-                    _ActionBtn(icon: Icons.favorite_rounded, color: AppColors.green, size: 52,
-                        onTap: () => _swiperController.swipeRight()),
-                  ],
-                ),
-              ),
+            const Icon(Icons.error_outline, size: 64, color: AppColors.red),
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            OutlinedButton(onPressed: _loadData, child: const Text('Réessayer')),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCard(JobOffer offer) {
-    final score = _score(offer);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80, height: 80,
+              decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+              child: const Icon(Icons.bolt, color: AppColors.primary, size: 40),
             ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(
-                      width: 72, height: 72,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                      child: Center(
-                        child: Text(offer.initials, style: GoogleFonts.inter(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                      ),
-                    ),
-                  ]),
-                ),
-                Positioned(
-                  top: 12, right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: _scoreColor(score).withOpacity(0.15), borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _scoreColor(score).withOpacity(0.5))),
-                    child: Text('%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: _scoreColor(score))),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 20),
+            const Text('Aucune offre disponible', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 8),
+            const Text('Vous avez tout vu ! Revenez plus tard.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              label: const Text('Actualiser', style: TextStyle(color: AppColors.primary)),
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwiper() {
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: AppinioSwiper(
+              controller: _swiperController,
+              cardCount: _offers.length,
+              onSwipeEnd: _onSwipeEnd,
+              cardBuilder: (context, index) {
+                final offer = _offers[index];
+                final score = _scores[offer.jobOfferId];
+                return _JobOfferCard(offer: offer, score: score);
+              },
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(offer.title, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary), maxLines: 2),
-                const SizedBox(height: 4),
-                Text(offer.companyName, style: GoogleFonts.inter(fontSize: 15, color: AppColors.primary, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Row(children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(offer.location, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
-                ]),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  if (offer.contractType.isNotEmpty) _Badge(offer.contractType, AppColors.primaryLight, AppColors.primary),
-                  if (offer.level.isNotEmpty) _Badge(offer.level, AppColors.greenLight, AppColors.green),
-                  if (offer.remoteMode.isNotEmpty) _Badge(offer.remoteMode, const Color(0xFFFFF8E1), const Color(0xFFF59E0B)),
-                ]),
-                if (offer.hasSalary) ...[
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    const Icon(Icons.euro_rounded, size: 16, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(offer.salaryDisplay, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                  ]),
-                ],
-                if (offer.requiredSkillList.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text('Compétences requises', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                  const SizedBox(height: 6),
-                  Wrap(spacing: 6, runSpacing: 6, children: offer.requiredSkillList.take(5)
-                      .map((s) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.border)),
-                            child: Text(s, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textPrimary)),
-                          ))
-                      .toList()),
-                ],
-                if (offer.description.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(offer.description, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.5), maxLines: 3, overflow: TextOverflow.ellipsis),
-                ],
-              ]),
+        ),
+        _buildActionButtons(),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          GestureDetector(
+            onTap: () => _swiperController.swipeLeft(),
+            child: Container(
+              width: 60, height: 60,
+              decoration: const BoxDecoration(color: AppColors.redLight, shape: BoxShape.circle),
+              child: const Icon(Icons.close, color: AppColors.red, size: 30),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _swiperController.swipeRight(),
+            child: Container(
+              width: 50, height: 50,
+              decoration: const BoxDecoration(color: Color(0xFFFEF3C7), shape: BoxShape.circle),
+              child: const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 26),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _swiperController.swipeRight(),
+            child: Container(
+              width: 60, height: 60,
+              decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+              child: const Icon(Icons.favorite, color: AppColors.primary, size: 30),
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.search_off_rounded, size: 72, color: AppColors.textLight),
-          const SizedBox(height: 16),
-          Text('Plus d\'offres disponibles', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text('Reviens bientôt pour de nouvelles offres.', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary), textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text('Actualiser')),
-        ]),
-      ),
-    );
-  }
 }
 
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final double size;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.color, required this.size, required this.onTap});
+class _JobOfferCard extends StatelessWidget {
+  final JobOffer offer;
+  final int? score;
+  const _JobOfferCard({required this.offer, this.score});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle,
-            border: Border.all(color: AppColors.border, width: 1.5),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))]),
-        child: Icon(icon, color: color, size: size * 0.45),
+    final requiredSkills = offer.requiredSkillList;
+    final shownSkills = requiredSkills.take(3).toList();
+    final extraSkillsCount = requiredSkills.length - shownSkills.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 160,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            ),
+            child: Stack(
+              children: [
+                Center(child: Text(offer.initials, style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.bold, letterSpacing: 2))),
+                if (score != null)
+                  Positioned(
+                    top: 14, right: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: score! >= 70 ? AppColors.green : const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bolt, color: Colors.white, size: 14),
+                          const SizedBox(width: 2),
+                          Text('$score%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(offer.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const SizedBox(height: 4),
+                  Text(offer.companyName, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(offer.location, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 6, runSpacing: 6, children: [
+                    if (offer.contractType.isNotEmpty) _Badge(label: offer.contractType),
+                    if (offer.level.isNotEmpty) _Badge(label: offer.level),
+                    if (offer.remoteMode.isNotEmpty) _Badge(label: offer.remoteMode),
+                  ]),
+                  if (offer.hasSalary) ...[
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      const Icon(Icons.euro, size: 16, color: AppColors.green),
+                      const SizedBox(width: 6),
+                      Text(offer.salaryDisplay, style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w600, fontSize: 14)),
+                    ]),
+                  ],
+                  if (shownSkills.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      ...shownSkills.map((s) => _SkillChip(label: s)),
+                      if (extraSkillsCount > 0) _SkillChip(label: '+$extraSkillsCount'),
+                    ]),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(offer.description, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -296,16 +347,28 @@ class _ActionBtn extends StatelessWidget {
 
 class _Badge extends StatelessWidget {
   final String label;
-  final Color bg;
-  final Color fg;
-  const _Badge(this.label, this.bg, this.fg);
+  const _Badge({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.border)),
+      child: Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+    );
+  }
+}
+
+class _SkillChip extends StatelessWidget {
+  final String label;
+  const _SkillChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500)),
     );
   }
 }
