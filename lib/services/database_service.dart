@@ -1,95 +1,154 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 import '../models/user.dart';
-import '../models/candidate_profile.dart';
-import '../models/job_offer.dart';
-import '../models/match.dart';
-import '../models/message.dart';
+
+final databaseServiceProvider = Provider<DatabaseService>((ref) {
+  return DatabaseService();
+});
 
 class DatabaseService {
-  Database? _db;
+  static Database? _database;
 
   Future<Database> get database async {
-    _db ??= await _init();
-    return _db!;
+    _database ??= await _initDatabase();
+    return _database!;
   }
 
-  Future<Database> _init() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final path = join(dir.path, 'sparkwork.db');
-    return openDatabase(path, version: 1, onCreate: _onCreate);
+  Future<Database> _initDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'sparkwork.db');
+
+    return openDatabase(
+      path,
+      version: 1,
+      onCreate: _createTables,
+    );
   }
 
-  Future<void> _onCreate(Database db, int version) async {
-    await db.execute('''CREATE TABLE users(
-      userId INTEGER PRIMARY KEY AUTOINCREMENT,
-      fullName TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
-      passwordHash TEXT NOT NULL, role TEXT NOT NULL)''');
+  Future<void> _createTables(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE users (
+        userId INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullName TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        passwordHash TEXT NOT NULL,
+        role TEXT NOT NULL
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE candidate_profiles(
-      profileId INTEGER PRIMARY KEY AUTOINCREMENT,
-      userId INTEGER NOT NULL, fullName TEXT, email TEXT, bio TEXT DEFAULT '',
-      skills TEXT DEFAULT '', desiredContractType TEXT DEFAULT '',
-      experienceLevel TEXT DEFAULT '', desiredSalaryMin INTEGER DEFAULT 0,
-      desiredSalaryMax INTEGER DEFAULT 0, maxDistanceKm INTEGER DEFAULT 25,
-      latitude REAL DEFAULT 0, longitude REAL DEFAULT 0,
-      experienceTitle1 TEXT DEFAULT '', experienceCompany1 TEXT DEFAULT '',
-      experiencePeriod1 TEXT DEFAULT '', experienceTitle2 TEXT DEFAULT '',
-      experienceCompany2 TEXT DEFAULT '', experiencePeriod2 TEXT DEFAULT '')''');
+    await db.execute('''
+      CREATE TABLE candidate_profiles (
+        profileId INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL UNIQUE,
+        fullName TEXT NOT NULL,
+        location TEXT NOT NULL DEFAULT '',
+        desiredContractType TEXT NOT NULL DEFAULT '',
+        desiredLevel TEXT NOT NULL DEFAULT '',
+        skills TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL DEFAULT '',
+        desiredSalaryMin INTEGER NOT NULL DEFAULT 0,
+        desiredSalaryMax INTEGER NOT NULL DEFAULT 0,
+        remotePreference TEXT NOT NULL DEFAULT '',
+        latitude REAL NOT NULL DEFAULT 0,
+        longitude REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY (userId) REFERENCES users(userId)
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE job_offers(
-      jobOfferId INTEGER PRIMARY KEY AUTOINCREMENT,
-      recruiterUserId INTEGER NOT NULL, title TEXT NOT NULL,
-      companyName TEXT NOT NULL, location TEXT DEFAULT '', contractType TEXT DEFAULT '',
-      description TEXT DEFAULT '', address TEXT DEFAULT '',
-      latitude REAL DEFAULT 0, longitude REAL DEFAULT 0,
-      salaryMin INTEGER DEFAULT 0, salaryMax INTEGER DEFAULT 0,
-      requiredSkills TEXT DEFAULT '', niceToHaveSkills TEXT DEFAULT '',
-      remoteMode TEXT DEFAULT '', level TEXT DEFAULT '')''');
+    await db.execute('''
+      CREATE TABLE job_offers (
+        jobOfferId INTEGER PRIMARY KEY AUTOINCREMENT,
+        recruiterUserId INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        companyName TEXT NOT NULL,
+        location TEXT NOT NULL,
+        contractType TEXT NOT NULL,
+        description TEXT NOT NULL,
+        address TEXT NOT NULL DEFAULT '',
+        latitude REAL NOT NULL DEFAULT 0,
+        longitude REAL NOT NULL DEFAULT 0,
+        salaryMin INTEGER NOT NULL DEFAULT 0,
+        salaryMax INTEGER NOT NULL DEFAULT 0,
+        requiredSkills TEXT NOT NULL DEFAULT '',
+        niceToHaveSkills TEXT NOT NULL DEFAULT '',
+        remoteMode TEXT NOT NULL DEFAULT '',
+        level TEXT NOT NULL DEFAULT '',
+        FOREIGN KEY (recruiterUserId) REFERENCES users(userId)
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE matches(
-      matchId INTEGER PRIMARY KEY AUTOINCREMENT,
-      candidateUserId INTEGER NOT NULL, candidateName TEXT NOT NULL,
-      recruiterUserId INTEGER NOT NULL, companyName TEXT NOT NULL,
-      jobTitle TEXT NOT NULL, jobOfferId INTEGER NOT NULL,
-      animationSeenByCandidate INTEGER DEFAULT 0,
-      animationSeenByRecruiter INTEGER DEFAULT 0)''');
+    await db.execute('''
+      CREATE TABLE matches (
+        matchId INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidateUserId INTEGER NOT NULL,
+        recruiterUserId INTEGER NOT NULL,
+        jobOfferId INTEGER NOT NULL,
+        candidateAnimationSeen INTEGER NOT NULL DEFAULT 0,
+        recruiterAnimationSeen INTEGER NOT NULL DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (candidateUserId) REFERENCES users(userId),
+        FOREIGN KEY (recruiterUserId) REFERENCES users(userId),
+        FOREIGN KEY (jobOfferId) REFERENCES job_offers(jobOfferId)
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE messages(
-      messageId INTEGER PRIMARY KEY AUTOINCREMENT,
-      matchId INTEGER NOT NULL, senderUserId INTEGER NOT NULL,
-      content TEXT NOT NULL, sentAt TEXT NOT NULL)''');
+    await db.execute('''
+      CREATE TABLE messages (
+        messageId INTEGER PRIMARY KEY AUTOINCREMENT,
+        matchId INTEGER NOT NULL,
+        senderUserId INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        sentAt TEXT NOT NULL,
+        FOREIGN KEY (matchId) REFERENCES matches(matchId)
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE candidate_job_likes(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      candidateUserId INTEGER NOT NULL, jobOfferId INTEGER NOT NULL)''');
+    await db.execute('''
+      CREATE TABLE candidate_job_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidateUserId INTEGER NOT NULL,
+        jobOfferId INTEGER NOT NULL,
+        UNIQUE(candidateUserId, jobOfferId)
+      )
+    ''');
 
-    await db.execute('''CREATE TABLE recruiter_candidate_likes(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      recruiterUserId INTEGER NOT NULL, candidateUserId INTEGER NOT NULL,
-      isSuperLike INTEGER DEFAULT 0)''');
-  }
-
-  Future<int> insertUser(User u) async {
-    final db = await database;
-    return db.insert('users', u.toMap());
+    await db.execute('''
+      CREATE TABLE recruiter_candidate_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recruiterUserId INTEGER NOT NULL,
+        candidateUserId INTEGER NOT NULL,
+        jobOfferId INTEGER NOT NULL,
+        UNIQUE(recruiterUserId, candidateUserId, jobOfferId)
+      )
+    ''');
   }
 
   Future<User?> getUserByEmail(String email) async {
     final db = await database;
-    final rows = await db.query('users', where: 'email = ?', whereArgs: [email]);
-    if (rows.isEmpty) return null;
-    return User.fromMap(rows.first);
+    final results = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return User.fromMap(results.first);
   }
 
-  Future<User?> getUserById(int id) async {
+  Future<User?> getUserById(int userId) async {
     final db = await database;
-    final rows = await db.query('users', where: 'userId = ?', whereArgs: [id]);
-    if (rows.isEmpty) return null;
-    return User.fromMap(rows.first);
+    final results = await db.query(
+      'users',
+      where: 'userId = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return User.fromMap(results.first);
+  }
+  Future<int> insertUser(Map<String, dynamic> userMap) async {
+    final db = await database;
+    return db.insert('users', userMap);
   }
 }
-
-final databaseServiceProvider = Provider<DatabaseService>((ref) => DatabaseService());

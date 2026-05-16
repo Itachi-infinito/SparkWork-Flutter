@@ -1,25 +1,31 @@
-﻿import 'package:sqflite/sqflite.dart';
-
-class User {
+﻿class User {
   final int userId;
   final String fullName;
   final String email;
   final String passwordHash;
-  final String role;
+  final String role; // 'candidate' or 'recruiter'
 
-  User({this.userId = 0, required this.fullName, required this.email, required this.passwordHash, required this.role});
+  const User({
+    required this.userId,
+    required this.fullName,
+    required this.email,
+    required this.passwordHash,
+    required this.role,
+  });
 
   Map<String, dynamic> toMap() => {
-    'userId': userId == 0 ? null : userId,
-    'fullName': fullName, 'email': email,
-    'passwordHash': passwordHash, 'role': role,
-  };
+        'userId': userId,
+        'fullName': fullName,
+        'email': email,
+        'passwordHash': passwordHash,
+        'role': role,
+      };
 
-  factory User.fromMap(Map<String, dynamic> m) => User(
-    userId: m['userId'] as int,
-    fullName: m['fullName'] as String,
-    email: m['email'] as String,
-    passwordHash: m['passwordHash'] as String,
-    role: m['role'] as String,
-  );
+  factory User.fromMap(Map<String, dynamic> map) => User(
+        userId: map['userId'] as int,
+        fullName: map['fullName'] as String,
+        email: map['email'] as String,
+        passwordHash: map['passwordHash'] as String,
+        role: map['role'] as String,
+      );
 }

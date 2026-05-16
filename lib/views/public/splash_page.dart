@@ -1,9 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/session_service.dart';
 import '../../core/constants/app_colors.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../services/session_service.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
@@ -30,22 +29,18 @@ class _SplashPageState extends ConsumerState<SplashPage>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
     _controller.forward();
-    _navigate();
+    _init();
   }
 
-  Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+  Future<void> _init() async {
+    await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
-    final session = ref.read(sessionProvider.notifier);
-    final hasSession = await session.restoreSession();
+    final restored =
+        await ref.read(sessionProvider.notifier).restoreSession();
     if (!mounted) return;
-    if (hasSession) {
+    if (restored) {
       final role = ref.read(sessionProvider).userRole;
-      if (role.toLowerCase() == 'candidate') {
-        context.go('/candidate/home');
-      } else {
-        context.go('/recruiter/home');
-      }
+      context.go(role == 'recruiter' ? '/recruiter/home' : '/candidate/home');
     } else {
       context.go('/welcome');
     }
@@ -73,32 +68,27 @@ class _SplashPageState extends ConsumerState<SplashPage>
                   width: 90,
                   height: 90,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    size: 52,
-                    color: AppColors.primary,
-                  ),
+                  child: const Icon(Icons.bolt, color: Colors.white, size: 52),
                 ),
                 const SizedBox(height: 20),
-                Text(
+                const Text(
                   'SparkWork',
-                  style: GoogleFonts.inter(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
+                  style: TextStyle(
                     color: Colors.white,
-                    letterSpacing: -1,
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Le recrutement qui matche',
-                  style: GoogleFonts.inter(
+                  'Le recrutement Horeca',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
                     fontSize: 15,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],

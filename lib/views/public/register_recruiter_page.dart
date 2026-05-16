@@ -1,62 +1,56 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/auth_service.dart';
-import '../../services/session_service.dart';
-import '../../services/database_service.dart';
 
 class RegisterRecruiterPage extends ConsumerStatefulWidget {
   const RegisterRecruiterPage({super.key});
+
   @override
-  ConsumerState<RegisterRecruiterPage> createState() => _RegisterRecruiterPageState();
+  ConsumerState<RegisterRecruiterPage> createState() =>
+      _RegisterRecruiterPageState();
 }
 
-class _RegisterRecruiterPageState extends ConsumerState<RegisterRecruiterPage> {
+class _RegisterRecruiterPageState
+    extends ConsumerState<RegisterRecruiterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _companyCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
+  final _companyCtrl = TextEditingController();
   bool _loading = false;
-  bool _obscure = true;
   String? _error;
+  bool _obscure = true;
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose();
-    _companyCtrl.dispose(); _passwordCtrl.dispose(); _confirmCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _companyCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_passwordCtrl.text != _confirmCtrl.text) {
-      setState(() => _error = 'Les mots de passe ne correspondent pas.');
-      return;
-    }
     setState(() { _loading = true; _error = null; });
     try {
-      final auth = ref.read(authServiceProvider);
-      final (success, msg) = await auth.register(
-        fullName: _nameCtrl.text, email: _emailCtrl.text,
-        password: _passwordCtrl.text, role: 'Recruiter',
-      );
-      if (!success) { setState(() { _error = msg; _loading = false; }); return; }
-
-      final user = await ref.read(databaseServiceProvider).getUserByEmail(_emailCtrl.text.trim().toLowerCase());
-      if (user == null) { setState(() { _error = 'Erreur création compte.'; _loading = false; }); return; }
-
-      await ref.read(sessionProvider.notifier).login(
-        userId: user.userId, userName: user.fullName,
-        userEmail: user.email, userRole: user.role,
+      final fullName = '${_nameCtrl.text.trim()} - ${_companyCtrl.text.trim()}';
+      final (ok, msg) = await ref.read(authServiceProvider).register(
+        fullName: fullName,
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        role: 'recruiter',
       );
       if (!mounted) return;
-      context.go('/recruiter/home');
-    } catch (e) {
-      setState(() { _error = 'Erreur : '; _loading = false; });
+      if (!ok) {
+        setState(() { _error = msg; });
+      } else {
+        context.go('/recruiter/home');
+      }
+    } finally {
+      if (mounted) setState(() { _loading = false; });
     }
   }
 
@@ -65,61 +59,108 @@ class _RegisterRecruiterPageState extends ConsumerState<RegisterRecruiterPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: () => context.go('/register')),
-        title: Text('Inscription recruteur', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: const Text('Compte recruteur'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Form(
-            key: _formKey,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(height: 8),
-              Text('Ton profil recruteur', style: GoogleFonts.inter(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Text('Créez votre compte recruteur',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  )),
               const SizedBox(height: 6),
-              Text('Publie tes offres et trouve tes talents.', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+              const Text('Trouvez les meilleurs talents Horeca',
+                  style: TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 32),
-              _label('Nom complet'),
-              const SizedBox(height: 8),
-              TextFormField(controller: _nameCtrl, decoration: const InputDecoration(hintText: 'Marie Martin', prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.textLight)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null),
-              const SizedBox(height: 20),
-              _label('Entreprise'),
-              const SizedBox(height: 8),
-              TextFormField(controller: _companyCtrl, decoration: const InputDecoration(hintText: 'Mon Entreprise SA', prefixIcon: Icon(Icons.business_outlined, color: AppColors.textLight)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null),
-              const SizedBox(height: 20),
-              _label('Email professionnel'),
-              const SizedBox(height: 8),
-              TextFormField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(hintText: 'rh@entreprise.com', prefixIcon: Icon(Icons.email_outlined, color: AppColors.textLight)), validator: (v) => (v == null || !v.contains('@')) ? 'Email invalide' : null),
-              const SizedBox(height: 20),
-              _label('Mot de passe'),
-              const SizedBox(height: 8),
+              if (_error != null)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: AppColors.redLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(_error!,
+                      style: const TextStyle(color: AppColors.red)),
+                ),
               TextFormField(
-                controller: _passwordCtrl, obscureText: _obscure,
-                decoration: InputDecoration(hintText: '••••••••', prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textLight), suffixIcon: IconButton(icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textLight), onPressed: () => setState(() => _obscure = !_obscure))),
-                validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null,
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Votre nom complet *',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().length < 2) ? 'Nom requis' : null,
               ),
-              const SizedBox(height: 20),
-              _label('Confirmer le mot de passe'),
-              const SizedBox(height: 8),
-              TextFormField(controller: _confirmCtrl, obscureText: true, decoration: const InputDecoration(hintText: '••••••••', prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.textLight)), validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.redLight, borderRadius: BorderRadius.circular(10)), child: Row(children: [const Icon(Icons.error_outline_rounded, color: AppColors.red, size: 18), const SizedBox(width: 8), Expanded(child: Text(_error!, style: GoogleFonts.inter(color: AppColors.red, fontSize: 13)))])),
-              ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _companyCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Nom de l\'établissement *',
+                  prefixIcon: Icon(Icons.business_outlined),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().length < 2) ? 'Nom établissement requis' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email professionnel *',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Email requis';
+                  if (!v.contains('@')) return 'Email invalide';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _passwordCtrl,
+                obscureText: _obscure,
+                decoration: InputDecoration(
+                  labelText: 'Mot de passe *',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.length < 6) return 'Minimum 6 caractères';
+                  return null;
+                },
+              ),
               const SizedBox(height: 32),
-              SizedBox(width: double.infinity, child: ElevatedButton(
+              ElevatedButton(
                 onPressed: _loading ? null : _register,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.green),
-                child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Créer mon compte recruteur'),
-              )),
-              const SizedBox(height: 32),
-            ]),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green),
+                    child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Créer mon compte recruteur'),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
     );
   }
-
-  Widget _label(String text) => Text(text, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary));
 }

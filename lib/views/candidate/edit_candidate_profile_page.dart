@@ -1,8 +1,294 @@
 ﻿import 'package:flutter/material.dart';
-class EditCandidateProfilePage extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_skills.dart';
+import '../../models/candidate_profile.dart';
+import '../../repositories/candidate_profile_repository.dart';
+import '../../services/session_service.dart';
+
+class EditCandidateProfilePage extends ConsumerStatefulWidget {
   const EditCandidateProfilePage({super.key});
+
+  @override
+  ConsumerState<EditCandidateProfilePage> createState() =>
+      _EditCandidateProfilePageState();
+}
+
+class _EditCandidateProfilePageState
+    extends ConsumerState<EditCandidateProfilePage> {
+  final _formKey = GlobalKey<FormState>();
+  final _locationCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
+  final _salaryMinCtrl = TextEditingController();
+  final _salaryMaxCtrl = TextEditingController();
+
+  CandidateProfile? _profile;
+  String? _contractType;
+  String? _level;
+  String? _remotePreference;
+  List<String> _skills = [];
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final userId = ref.read(sessionProvider).userId;
+    final profile = await ref
+        .read(candidateProfileRepositoryProvider)
+        .getProfile(userId);
+    if (profile != null && mounted) {
+      setState(() {
+        _profile = profile;
+        _locationCtrl.text = profile.location;
+        _bioCtrl.text = profile.bio;
+        _salaryMinCtrl.text =
+            profile.desiredSalaryMin > 0 ? profile.desiredSalaryMin.toString() : '';
+        _salaryMaxCtrl.text =
+            profile.desiredSalaryMax > 0 ? profile.desiredSalaryMax.toString() : '';
+        _contractType = profile.desiredContractType.isNotEmpty
+            ? profile.desiredContractType
+            : null;
+        _level = profile.desiredLevel.isNotEmpty ? profile.desiredLevel : null;
+        _remotePreference = profile.remotePreference.isNotEmpty
+            ? profile.remotePreference
+            : null;
+        _skills = profile.skillList.toList();
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _profile == null) return;
+    setState(() => _saving = true);
+    try {
+      final updated = _profile!.copyWith(
+        location: _locationCtrl.text.trim(),
+        bio: _bioCtrl.text.trim(),
+        desiredSalaryMin: int.tryParse(_salaryMinCtrl.text.trim()) ?? 0,
+        desiredSalaryMax: int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0,
+        desiredContractType: _contractType ?? '',
+        desiredLevel: _level ?? '',
+        remotePreference: _remotePreference ?? '',
+        skills: AppSkills.formatSkills(_skills),
+      );
+      await ref.read(candidateProfileRepositoryProvider).updateProfile(updated);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profil mis à jour !'),
+          backgroundColor: AppColors.green,
+        ),
+      );
+      context.pop();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationCtrl.dispose();
+    _bioCtrl.dispose();
+    _salaryMinCtrl.dispose();
+    _salaryMaxCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('EditCandidateProfilePage')), body: const Center(child: Text('En construction...')));
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Modifier le profil'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => context.pop(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Sauvegarder',
+                    style: TextStyle(
+                        color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _locationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Ville / Région',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _contractType,
+                      
+                      decoration: const InputDecoration(
+                          labelText: 'Type de contrat souhaité'),
+                      items: AppSkills.contractTypes
+                          .map((c) =>
+                              DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _contractType = v),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _level,
+                      decoration: const InputDecoration(
+                          labelText: "Niveau d'expérience"),
+                      items: AppSkills.levels
+                          .map((l) =>
+                              DropdownMenuItem(value: l, child: Text(l)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _level = v),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _remotePreference,
+                      decoration: const InputDecoration(
+                          labelText: 'Préférence télétravail'),
+                      items: AppSkills.remoteModes
+                          .map((r) =>
+                              DropdownMenuItem(value: r, child: Text(r)))
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => _remotePreference = v),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Prétentions salariales (€/mois)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _salaryMinCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(labelText: 'Min'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _salaryMaxCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(labelText: 'Max'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Compétences',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    _SkillSelector(
+                      selected: _skills,
+                      onChanged: (updated) =>
+                          setState(() => _skills = updated),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Bio',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _bioCtrl,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        hintText: 'Présentez-vous...',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _SkillSelector extends StatefulWidget {
+  final List<String> selected;
+  final ValueChanged<List<String>> onChanged;
+  const _SkillSelector({required this.selected, required this.onChanged});
+
+  @override
+  State<_SkillSelector> createState() => _SkillSelectorState();
+}
+
+class _SkillSelectorState extends State<_SkillSelector> {
+  String? _value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          value: _value,
+          hint: const Text('Ajouter une compétence'),
+          items: AppSkills.horecaSkills
+              .where((s) => !widget.selected.contains(s))
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+              .toList(),
+          onChanged: (v) {
+            if (v != null && !widget.selected.contains(v)) {
+              widget.onChanged([...widget.selected, v]);
+              setState(() => _value = null);
+            }
+          },
+        ),
+        if (widget.selected.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: widget.selected
+                .map((s) => Chip(
+                      label: Text(s, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: AppColors.primaryLight,
+                      labelStyle: const TextStyle(color: AppColors.primary),
+                      deleteIcon: const Icon(Icons.close,
+                          size: 14, color: AppColors.primary),
+                      onDeleted: () {
+                        final updated = [...widget.selected]..remove(s);
+                        widget.onChanged(updated);
+                      },
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
+    );
   }
 }

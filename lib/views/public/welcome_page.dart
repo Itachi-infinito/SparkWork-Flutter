@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -17,77 +16,64 @@ class WelcomePage extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               Container(
-                width: 100,
-                height: 100,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Icon(Icons.bolt_rounded, size: 58, color: Colors.white),
+                child: const Icon(Icons.bolt, color: Colors.white, size: 48),
               ),
-              const SizedBox(height: 32),
-              Text(
+              const SizedBox(height: 20),
+              const Text(
                 'SparkWork',
-                style: GoogleFonts.inter(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
-                  letterSpacing: -1.5,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
-                'La plateforme de recrutement\nqui matche candidats et recruteurs.',
+                'Trouvez votre prochain emploi\ndans la restauration et l\'hôtellerie',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: 15,
                   color: AppColors.textSecondary,
-                  height: 1.6,
+                  height: 1.5,
                 ),
               ),
               const Spacer(flex: 2),
               _FeatureRow(
-                icon: Icons.swipe_rounded,
+                icon: Icons.swipe,
                 color: AppColors.primary,
-                title: 'Swipe les offres',
-                subtitle: 'Trouve ton job idéal en un geste',
+                title: 'Swipe pour matcher',
+                subtitle: 'Explorez les offres d\'un geste',
               ),
               const SizedBox(height: 16),
               _FeatureRow(
-                icon: Icons.favorite_rounded,
+                icon: Icons.favorite,
                 color: AppColors.red,
-                title: 'Matching intelligent',
-                subtitle: 'Score de compatibilité en temps réel',
+                title: 'Matchs instantanés',
+                subtitle: 'Connectez-vous dès qu\'il y a accord',
               ),
               const SizedBox(height: 16),
               _FeatureRow(
-                icon: Icons.chat_bubble_rounded,
+                icon: Icons.chat_bubble,
                 color: AppColors.green,
                 title: 'Messagerie intégrée',
-                subtitle: 'Discute directement avec les recruteurs',
+                subtitle: 'Échangez directement avec les recruteurs',
               ),
               const Spacer(flex: 3),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Se connecter'),
-                ),
+              ElevatedButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Se connecter'),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.go('/register'),
-                  child: const Text('Créer un compte'),
-                ),
+              OutlinedButton(
+                onPressed: () => context.push('/register'),
+                child: const Text('Créer un compte'),
               ),
               const SizedBox(height: 32),
             ],
@@ -116,13 +102,13 @@ class _FeatureRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: color, size: 22),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -130,13 +116,13 @@ class _FeatureRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: GoogleFonts.inter(
-                      fontSize: 14,
+                  style: const TextStyle(
                       fontWeight: FontWeight.w600,
+                      fontSize: 14,
                       color: AppColors.textPrimary)),
               Text(subtitle,
-                  style: GoogleFonts.inter(
-                      fontSize: 13, color: AppColors.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
             ],
           ),
         ),

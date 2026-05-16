@@ -3,24 +3,29 @@
   final int matchId;
   final int senderUserId;
   final String content;
-  final DateTime sentAt;
+  final String sentAt;
 
-  Message({
-    this.messageId = 0, required this.matchId,
-    required this.senderUserId, required this.content, required this.sentAt,
+  const Message({
+    required this.messageId,
+    required this.matchId,
+    required this.senderUserId,
+    required this.content,
+    required this.sentAt,
   });
 
   Map<String, dynamic> toMap() => {
-    'messageId': messageId == 0 ? null : messageId,
-    'matchId': matchId, 'senderUserId': senderUserId,
-    'content': content, 'sentAt': sentAt.toIso8601String(),
-  };
+        'messageId': messageId,
+        'matchId': matchId,
+        'senderUserId': senderUserId,
+        'content': content,
+        'sentAt': sentAt,
+      };
 
-  factory Message.fromMap(Map<String, dynamic> m) => Message(
-    messageId: m['messageId'] as int? ?? 0,
-    matchId: m['matchId'] as int,
-    senderUserId: m['senderUserId'] as int,
-    content: m['content'] as String,
-    sentAt: DateTime.parse(m['sentAt'] as String),
-  );
+  factory Message.fromMap(Map<String, dynamic> map) => Message(
+        messageId: map['messageId'] as int,
+        matchId: map['matchId'] as int,
+        senderUserId: map['senderUserId'] as int,
+        content: map['content'] as String,
+        sentAt: map['sentAt'] as String,
+      );
 }
