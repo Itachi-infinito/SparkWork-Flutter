@@ -368,8 +368,10 @@ class _SkillPickerState extends State<_SkillPicker> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        DropdownButtonFormField<String>(
-          value: _value,
+        DropdownButton<String>(
+          value: null,
+          isExpanded: true,
+          underline: Container(height: 1, color: AppColors.border),
           hint: const Text('Sélectionner une compétence'),
           items: AppSkills.horecaSkills
               .where((s) => !widget.selected.contains(s))
@@ -378,7 +380,7 @@ class _SkillPickerState extends State<_SkillPicker> {
           onChanged: (v) {
             if (v != null && !widget.selected.contains(v)) {
               widget.onChanged([...widget.selected, v]);
-              setState(() => _value = null);
+              
             }
           },
         ),
