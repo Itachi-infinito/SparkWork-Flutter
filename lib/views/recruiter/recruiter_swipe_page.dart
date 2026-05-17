@@ -55,7 +55,14 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         if (mounted) setState(() { _loading = false; _items = []; _activeItems = []; });
         return;
       }
-      _selectedOffer ??= _myOffers.first;
+      if (_selectedOffer == null) {
+        _selectedOffer = _myOffers.first;
+      } else {
+        _selectedOffer = _myOffers.firstWhere(
+          (o) => o.jobOfferId == _selectedOffer!.jobOfferId,
+          orElse: () => _myOffers.first,
+        );
+      }
 
       final allProfiles = await profileRepo.getAllProfiles();
       final likedIds = await repo.getLikedCandidateIds(session.userId);

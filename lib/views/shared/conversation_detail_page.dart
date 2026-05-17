@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/message.dart';
 import '../../repositories/job_offer_repository.dart';
@@ -80,6 +81,15 @@ class _ConversationDetailPageState
     });
   }
 
+  void _goBack(BuildContext context) {
+    if (Navigator.canPop(context)) {
+      context.pop();
+    } else {
+      final role = ref.read(sessionProvider).userRole;
+      context.go(role == 'candidate' ? '/candidate/home' : '/recruiter/home');
+    }
+  }
+
   @override
   void dispose() {
     _msgCtrl.dispose();
@@ -96,6 +106,23 @@ class _ConversationDetailPageState
         title: Text(_title, overflow: TextOverflow.ellipsis),
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => _goBack(context),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              session.isCandidate ? Icons.home_outlined : Icons.home_outlined,
+            ),
+            onPressed: () {
+              final role = ref.read(sessionProvider).userRole;
+              context.go(role == 'candidate'
+                  ? '/candidate/home'
+                  : '/recruiter/home');
+            },
+          ),
+        ],
       ),
       body: _loading
           ? const Center(
@@ -108,8 +135,7 @@ class _ConversationDetailPageState
                           child: Text(
                             'Aucun message.\nCommencez la conversation !',
                             textAlign: TextAlign.center,
-                            style:
-                                TextStyle(color: AppColors.textHint),
+                            style: TextStyle(color: AppColors.textHint),
                           ),
                         )
                       : ListView.builder(
@@ -140,15 +166,13 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment:
-          isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 14, vertical: 10),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
-            maxWidth:
-                MediaQuery.of(context).size.width * 0.72),
+            maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(
           color: isMe ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
@@ -157,16 +181,14 @@ class _Bubble extends StatelessWidget {
             bottomLeft: Radius.circular(isMe ? 16 : 4),
             bottomRight: Radius.circular(isMe ? 4 : 16),
           ),
-          border:
-              isMe ? null : Border.all(color: AppColors.border),
+          border: isMe ? null : Border.all(color: AppColors.border),
         ),
         child: Text(
           message.content,
           style: TextStyle(
-              color: isMe
-                  ? Colors.white
-                  : AppColors.textPrimary,
-              fontSize: 14),
+            color: isMe ? Colors.white : AppColors.textPrimary,
+            fontSize: 14,
+          ),
         ),
       ),
     );
@@ -176,8 +198,7 @@ class _Bubble extends StatelessWidget {
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
-  const _InputBar(
-      {required this.controller, required this.onSend});
+  const _InputBar({required this.controller, required this.onSend});
 
   @override
   Widget build(BuildContext context) {
@@ -187,8 +208,7 @@ class _InputBar extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          border:
-              Border(top: BorderSide(color: AppColors.border)),
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: Row(
           children: [
@@ -197,15 +217,14 @@ class _InputBar extends StatelessWidget {
                 controller: controller,
                 decoration: InputDecoration(
                   hintText: 'Écrivez un message...',
-                  hintStyle: const TextStyle(
-                      color: AppColors.textHint),
+                  hintStyle:
+                      const TextStyle(color: AppColors.textHint),
                   filled: true,
                   fillColor: AppColors.background,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 10),
                   border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none),
                 ),
                 maxLines: null,
@@ -219,8 +238,7 @@ class _InputBar extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle),
+                    color: AppColors.primary, shape: BoxShape.circle),
                 child: const Icon(Icons.send_rounded,
                     color: Colors.white, size: 20),
               ),
