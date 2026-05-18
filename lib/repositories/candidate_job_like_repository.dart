@@ -41,4 +41,26 @@ class CandidateJobLikeRepository {
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   }
+
+  Future<int> countLikesForOffers(List<int> jobOfferIds) async {
+    if (jobOfferIds.isEmpty) return 0;
+    final db = await _db.database;
+    final placeholders = jobOfferIds.map((_) => '?').join(',');
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM candidate_job_likes WHERE jobOfferId IN ($placeholders)',
+      jobOfferIds,
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<Map<int, int>> getLikeCountPerOffer(List<int> jobOfferIds) async {
+    if (jobOfferIds.isEmpty) return {};
+    final db = await _db.database;
+    final placeholders = jobOfferIds.map((_) => '?').join(',');
+    final results = await db.rawQuery(
+      'SELECT jobOfferId, COUNT(*) as count FROM candidate_job_likes WHERE jobOfferId IN ($placeholders) GROUP BY jobOfferId',
+      jobOfferIds,
+    );
+    return {for (final r in results) r['jobOfferId'] as int: r['count'] as int};
+  }
 }

@@ -194,6 +194,16 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _QuickAction(
+                icon: Icons.bar_chart_outlined,
+                label: 'Statistiques',
+                color: AppColors.primary,
+                onTap: () => context.push('/recruiter/stats'),
+              ),
+            ),
           ],
         ),
       ),
