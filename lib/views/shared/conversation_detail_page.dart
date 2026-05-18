@@ -7,6 +7,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/message_repository.dart';
 import '../../services/session_service.dart';
+import '../../services/unread_service.dart';
 
 class ConversationDetailPage extends ConsumerStatefulWidget {
   final int matchId;
@@ -52,6 +53,8 @@ class _ConversationDetailPageState
         setState(() => _title = offer.title);
       }
     } catch (_) {}
+    await markMessagesAsSeen(session.userId);
+    ref.invalidate(unreadMessagesProvider);
     if (mounted) setState(() { _messages = msgs; _loading = false; });
     _scrollToBottom();
   }

@@ -4,12 +4,43 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../repositories/job_offer_repository.dart';
+import '../../repositories/match_repository.dart';
 
-class CandidateHomePage extends ConsumerWidget {
+class CandidateHomePage extends ConsumerStatefulWidget {
   const CandidateHomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CandidateHomePage> createState() => _CandidateHomePageState();
+}
+
+class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingMatch());
+  }
+
+  Future<void> _checkPendingMatch() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isLoggedIn || !mounted) return;
+    final pending = await ref
+        .read(matchRepositoryProvider)
+        .getPendingMatchAnimation(session.userId, session.userRole);
+    if (pending == null || !mounted) return;
+    final offer = await ref
+        .read(jobOfferRepositoryProvider)
+        .getOfferById(pending.jobOfferId);
+    if (!mounted) return;
+    context.push('/match', extra: {
+      'matchId': pending.matchId,
+      'jobOfferTitle': offer?.title ?? 'Poste',
+      'companyName': offer?.companyName ?? '',
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
 
     return Scaffold(

@@ -1,13 +1,17 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../services/unread_service.dart';
 
-class CandidateNavBar extends StatelessWidget {
+class CandidateNavBar extends ConsumerWidget {
   final int currentIndex;
   const CandidateNavBar({super.key, required this.currentIndex});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasUnread = ref.watch(unreadMessagesProvider).value ?? false;
+
     return NavigationBar(
       selectedIndex: currentIndex,
       backgroundColor: AppColors.surface,
@@ -21,23 +25,51 @@ class CandidateNavBar extends StatelessWidget {
           case 4: context.go('/candidate/profile'); break;
         }
       },
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Accueil'),
-        NavigationDestination(icon: Icon(Icons.swipe_outlined), selectedIcon: Icon(Icons.swipe_rounded), label: 'Swipe'),
-        NavigationDestination(icon: Icon(Icons.favorite_outline_rounded), selectedIcon: Icon(Icons.favorite_rounded), label: 'Matches'),
-        NavigationDestination(icon: Icon(Icons.chat_bubble_outline_rounded), selectedIcon: Icon(Icons.chat_bubble_rounded), label: 'Messages'),
-        NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profil'),
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home_rounded),
+          label: 'Accueil',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.swipe_outlined),
+          selectedIcon: Icon(Icons.swipe_rounded),
+          label: 'Swipe',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.favorite_outline_rounded),
+          selectedIcon: Icon(Icons.favorite_rounded),
+          label: 'Matches',
+        ),
+        NavigationDestination(
+          icon: Badge(
+            isLabelVisible: hasUnread,
+            child: const Icon(Icons.chat_bubble_outline_rounded),
+          ),
+          selectedIcon: Badge(
+            isLabelVisible: hasUnread,
+            child: const Icon(Icons.chat_bubble_rounded),
+          ),
+          label: 'Messages',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.person_outline_rounded),
+          selectedIcon: Icon(Icons.person_rounded),
+          label: 'Profil',
+        ),
       ],
     );
   }
 }
 
-class RecruiterNavBar extends StatelessWidget {
+class RecruiterNavBar extends ConsumerWidget {
   final int currentIndex;
   const RecruiterNavBar({super.key, required this.currentIndex});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasUnread = ref.watch(unreadMessagesProvider).value ?? false;
+
     return NavigationBar(
       selectedIndex: currentIndex,
       backgroundColor: AppColors.surface,
@@ -51,12 +83,38 @@ class RecruiterNavBar extends StatelessWidget {
           case 4: context.go('/recruiter/profile'); break;
         }
       },
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Accueil'),
-        NavigationDestination(icon: Icon(Icons.swipe_outlined), selectedIcon: Icon(Icons.swipe_rounded), label: 'Swipe'),
-        NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Offres'),
-        NavigationDestination(icon: Icon(Icons.favorite_outline_rounded), selectedIcon: Icon(Icons.favorite_rounded), label: 'Matches'),
-        NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profil'),
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home_rounded),
+          label: 'Accueil',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.swipe_outlined),
+          selectedIcon: Icon(Icons.swipe_rounded),
+          label: 'Swipe',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.work_outline_rounded),
+          selectedIcon: Icon(Icons.work_rounded),
+          label: 'Offres',
+        ),
+        NavigationDestination(
+          icon: Badge(
+            isLabelVisible: hasUnread,
+            child: const Icon(Icons.favorite_outline_rounded),
+          ),
+          selectedIcon: Badge(
+            isLabelVisible: hasUnread,
+            child: const Icon(Icons.favorite_rounded),
+          ),
+          label: 'Matches',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.person_outline_rounded),
+          selectedIcon: Icon(Icons.person_rounded),
+          label: 'Profil',
+        ),
       ],
     );
   }

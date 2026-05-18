@@ -10,6 +10,7 @@ import '../../repositories/match_repository.dart';
 import '../../repositories/message_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../services/unread_service.dart';
 
 class MessagesPage extends ConsumerStatefulWidget {
   const MessagesPage({super.key});
@@ -45,6 +46,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       final last = await msgRepo.getLastMessage(m.matchId);
       items.add(_ConvItem(match: m, offer: offer, lastMessage: last));
     }
+    await markMessagesAsSeen(session.userId);
+    ref.invalidate(unreadMessagesProvider);
     if (mounted) setState(() { _items = items; _loading = false; });
   }
 
