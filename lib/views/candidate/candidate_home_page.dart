@@ -2,10 +2,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../services/session_service.dart';
-import '../shared/nav_bar.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
+import '../../services/session_service.dart';
+import '../shared/nav_bar.dart';
 
 class CandidateHomePage extends ConsumerStatefulWidget {
   const CandidateHomePage({super.key});
@@ -23,19 +23,19 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
 
   Future<void> _checkPendingMatch() async {
     final session = ref.read(sessionProvider);
-    if (!session.isLoggedIn || !mounted) return;
-    final pending = await ref
-        .read(matchRepositoryProvider)
-        .getPendingMatchAnimation(session.userId, session.userRole);
+    final matchRepo = ref.read(matchRepositoryProvider);
+    final offerRepo = ref.read(jobOfferRepositoryProvider);
+
+    final pending = await matchRepo.getPendingMatchAnimation(session.userId, session.userRole);
     if (pending == null || !mounted) return;
-    final offer = await ref
-        .read(jobOfferRepositoryProvider)
-        .getOfferById(pending.jobOfferId);
-    if (!mounted) return;
+
+    final offer = await offerRepo.getOfferById(pending.jobOfferId);
+    if (offer == null || !mounted) return;
+
     context.push('/match', extra: {
       'matchId': pending.matchId,
-      'jobOfferTitle': offer?.title ?? 'Poste',
-      'companyName': offer?.companyName ?? '',
+      'jobOfferTitle': offer.title,
+      'companyName': offer.companyName,
     });
   }
 
@@ -71,7 +71,6 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 24),
 
-            // CTA swipe card
             GestureDetector(
               onTap: () => context.go('/candidate/swipe'),
               child: Container(
@@ -98,25 +97,16 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                     ),
                     const SizedBox(height: 16),
                     const Text('Découvrir des offres',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     Text('Swipez pour trouver votre prochain emploi',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.85), fontSize: 13)),
+                        style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
                       child: const Text('Commencer',
-                          style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -125,10 +115,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
             const SizedBox(height: 24),
 
             const Text('Accès rapide',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: AppColors.textPrimary)),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -168,18 +155,18 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 color: AppColors.orangeLight,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.lightbulb_outline, color: AppColors.orange),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  Icon(Icons.lightbulb_outline, color: AppColors.orange),
+                  SizedBox(width: 12),
+                  Expanded(
                     child: Text(
                       'Astuce : Complétez votre profil pour augmenter vos chances de match !',
                       style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                     ),
                   ),
                 ],
-                ),
+              ),
             ),
           ],
         ),
@@ -217,8 +204,7 @@ class _QuickAction extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 26),
             const SizedBox(height: 6),
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ],
         ),
       ),

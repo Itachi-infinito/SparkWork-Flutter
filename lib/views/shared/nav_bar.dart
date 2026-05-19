@@ -26,37 +26,15 @@ class CandidateNavBar extends ConsumerWidget {
         }
       },
       destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: 'Accueil',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.swipe_outlined),
-          selectedIcon: Icon(Icons.swipe_rounded),
-          label: 'Swipe',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.favorite_outline_rounded),
-          selectedIcon: Icon(Icons.favorite_rounded),
-          label: 'Matches',
-        ),
+        const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Accueil'),
+        const NavigationDestination(icon: Icon(Icons.swipe_outlined), selectedIcon: Icon(Icons.swipe_rounded), label: 'Swipe'),
+        const NavigationDestination(icon: Icon(Icons.favorite_outline_rounded), selectedIcon: Icon(Icons.favorite_rounded), label: 'Matches'),
         NavigationDestination(
-          icon: Badge(
-            isLabelVisible: hasUnread,
-            child: const Icon(Icons.chat_bubble_outline_rounded),
-          ),
-          selectedIcon: Badge(
-            isLabelVisible: hasUnread,
-            child: const Icon(Icons.chat_bubble_rounded),
-          ),
+          icon: Badge(isLabelVisible: hasUnread, child: const Icon(Icons.chat_bubble_outline_rounded)),
+          selectedIcon: Badge(isLabelVisible: hasUnread, child: const Icon(Icons.chat_bubble_rounded)),
           label: 'Messages',
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profil',
-        ),
+        const NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profil'),
       ],
     );
   }
@@ -84,37 +62,15 @@ class RecruiterNavBar extends ConsumerWidget {
         }
       },
       destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: 'Accueil',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.swipe_outlined),
-          selectedIcon: Icon(Icons.swipe_rounded),
-          label: 'Swipe',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.work_outline_rounded),
-          selectedIcon: Icon(Icons.work_rounded),
-          label: 'Offres',
-        ),
+        const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Accueil'),
+        const NavigationDestination(icon: Icon(Icons.swipe_outlined), selectedIcon: Icon(Icons.swipe_rounded), label: 'Swipe'),
+        const NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Offres'),
         NavigationDestination(
-          icon: Badge(
-            isLabelVisible: hasUnread,
-            child: const Icon(Icons.favorite_outline_rounded),
-          ),
-          selectedIcon: Badge(
-            isLabelVisible: hasUnread,
-            child: const Icon(Icons.favorite_rounded),
-          ),
+          icon: Badge(isLabelVisible: hasUnread, child: const Icon(Icons.favorite_outline_rounded)),
+          selectedIcon: Badge(isLabelVisible: hasUnread, child: const Icon(Icons.favorite_rounded)),
           label: 'Matches',
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profil',
-        ),
+        const NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profil'),
       ],
     );
   }

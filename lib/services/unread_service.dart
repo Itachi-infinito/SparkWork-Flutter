@@ -8,28 +8,25 @@ final unreadMessagesProvider = FutureProvider<bool>((ref) async {
   final session = ref.watch(sessionProvider);
   if (!session.isLoggedIn) return false;
 
+  final userId = session.userId;
   final prefs = await SharedPreferences.getInstance();
-  final lastSeenStr =
-      prefs.getString('last_seen_messages_${session.userId}');
-  final lastSeen = lastSeenStr != null
-      ? DateTime.tryParse(lastSeenStr) ??
-          DateTime.fromMillisecondsSinceEpoch(0)
-      : DateTime.fromMillisecondsSinceEpoch(0);
+  final lastSeenStr = prefs.getString('last_seen_messages_$userId');
+  final lastSeen = lastSeenStr != null ? DateTime.tryParse(lastSeenStr) : null;
 
   final matchRepo = ref.read(matchRepositoryProvider);
   final msgRepo = ref.read(messageRepositoryProvider);
 
   final matches = session.isCandidate
-      ? await matchRepo.getMatchesByCandidate(session.userId)
-      : await matchRepo.getMatchesByRecruiter(session.userId);
+      ? await matchRepo.getMatchesByCandidate(userId)
+      : await matchRepo.getMatchesByRecruiter(userId);
 
-  for (final m in matches) {
-    final last = await msgRepo.getLastMessage(m.matchId);
-    if (last != null &&
-        last.senderUserId != session.userId &&
-        (DateTime.tryParse(last.sentAt)?.isAfter(lastSeen) ?? false)) {
-      return true;
-    }
+  for (final match in matches) {
+    final last = await msgRepo.getLastMessage(match.matchId);
+    if (last == null) continue;
+    if (last.senderUserId == userId) continue;
+    if (lastSeen == null) return true;
+    final sentAt = DateTime.tryParse(last.sentAt);
+    if (sentAt != null && sentAt.isAfter(lastSeen)) return true;
   }
   return false;
 });

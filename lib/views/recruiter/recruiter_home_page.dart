@@ -2,10 +2,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../services/session_service.dart';
-import '../shared/nav_bar.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
+import '../../services/session_service.dart';
+import '../shared/nav_bar.dart';
 
 class RecruiterHomePage extends ConsumerStatefulWidget {
   const RecruiterHomePage({super.key});
@@ -23,19 +23,19 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
 
   Future<void> _checkPendingMatch() async {
     final session = ref.read(sessionProvider);
-    if (!session.isLoggedIn || !mounted) return;
-    final pending = await ref
-        .read(matchRepositoryProvider)
-        .getPendingMatchAnimation(session.userId, session.userRole);
+    final matchRepo = ref.read(matchRepositoryProvider);
+    final offerRepo = ref.read(jobOfferRepositoryProvider);
+
+    final pending = await matchRepo.getPendingMatchAnimation(session.userId, session.userRole);
     if (pending == null || !mounted) return;
-    final offer = await ref
-        .read(jobOfferRepositoryProvider)
-        .getOfferById(pending.jobOfferId);
-    if (!mounted) return;
+
+    final offer = await offerRepo.getOfferById(pending.jobOfferId);
+    if (offer == null || !mounted) return;
+
     context.push('/match', extra: {
       'matchId': pending.matchId,
-      'jobOfferTitle': offer?.title ?? 'Poste',
-      'companyName': offer?.companyName ?? '',
+      'jobOfferTitle': offer.title,
+      'companyName': offer.companyName,
     });
   }
 
