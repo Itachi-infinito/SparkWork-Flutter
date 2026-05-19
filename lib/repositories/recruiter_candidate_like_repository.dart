@@ -23,6 +23,17 @@ class RecruiterCandidateLikeRepository {
     );
     return results.isNotEmpty;
   }
+  Future<bool> hasRecruiterLikedCandidateAny(
+    int recruiterUserId, int candidateUserId) async {
+  final db = await _db.database;
+  final results = await db.query(
+    'recruiter_candidate_likes',
+    where: 'recruiterUserId = ? AND candidateUserId = ?',
+    whereArgs: [recruiterUserId, candidateUserId],
+    limit: 1,
+  );
+  return results.isNotEmpty;
+}
 
   Future<void> addLike(
       int recruiterUserId, int candidateUserId, int jobOfferId) async {

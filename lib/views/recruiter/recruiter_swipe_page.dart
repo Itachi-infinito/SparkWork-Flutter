@@ -104,7 +104,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           context.push('/match', extra: {
             'matchId': matchId,
             'jobOfferTitle': _selectedOffer!.title,
-            'companyName': _selectedOffer!.companyName,
+            'companyName': item.profile.fullName,
           });
         }
       }

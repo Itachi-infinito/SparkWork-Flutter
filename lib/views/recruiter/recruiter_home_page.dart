@@ -6,6 +6,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../repositories/candidate_profile_repository.dart';
 
 class RecruiterHomePage extends ConsumerStatefulWidget {
   const RecruiterHomePage({super.key});
@@ -25,6 +26,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
     final session = ref.read(sessionProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
     final offerRepo = ref.read(jobOfferRepositoryProvider);
+    final profileRepo = ref.read(candidateProfileRepositoryProvider);
 
     final pending = await matchRepo.getPendingMatchAnimation(session.userId, session.userRole);
     if (pending == null || !mounted) return;
@@ -32,10 +34,14 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
     final offer = await offerRepo.getOfferById(pending.jobOfferId);
     if (offer == null || !mounted) return;
 
+    final candidateProfile = await profileRepo.getProfile(pending.candidateUserId);
+    final candidateName = candidateProfile?.fullName ?? 'Un candidat';
+
+    if (!mounted) return;
     context.push('/match', extra: {
       'matchId': pending.matchId,
       'jobOfferTitle': offer.title,
-      'companyName': offer.companyName,
+      'companyName': candidateName,
     });
   }
 

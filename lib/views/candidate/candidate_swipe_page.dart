@@ -250,8 +250,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
     await likeRepo.addLike(candidateUserId, offer.jobOfferId);
 
     final recruiterUserId = offer.recruiterUserId;
-    final mutual = await recruiterLikeRepo.hasRecruiterLikedCandidate(
-        recruiterUserId, candidateUserId, offer.jobOfferId);
+    final mutual = await recruiterLikeRepo.hasRecruiterLikedCandidateAny(
+    recruiterUserId, candidateUserId);
 
     if (mutual) {
       final alreadyExists = await matchRepo.matchExists(candidateUserId, recruiterUserId, offer.jobOfferId);
