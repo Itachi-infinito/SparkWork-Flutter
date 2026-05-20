@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/job_offer.dart';
 import '../../models/match.dart';
@@ -21,12 +22,21 @@ class MessagesPage extends ConsumerStatefulWidget {
 
 class _MessagesPageState extends ConsumerState<MessagesPage> {
   List<_ConvItem> _items = [];
+  List<_ConvItem> _filtered = [];
   bool _loading = true;
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -46,9 +56,48 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       final last = await msgRepo.getLastMessage(m.matchId);
       items.add(_ConvItem(match: m, offer: offer, lastMessage: last));
     }
+    items.sort((a, b) {
+      final aTime = a.lastMessage?.sentAt ?? a.match.createdAt;
+      final bTime = b.lastMessage?.sentAt ?? b.match.createdAt;
+      return bTime.compareTo(aTime);
+    });
     await markMessagesAsSeen(session.userId);
     ref.invalidate(unreadMessagesProvider);
-    if (mounted) setState(() { _items = items; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+      _applySearch(_searchQuery);
+    }
+  }
+
+  void _applySearch(String query) {
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _filtered = _items;
+      } else {
+        final q = query.toLowerCase();
+        _filtered = _items.where((item) {
+          final title = item.offer?.title.toLowerCase() ?? '';
+          final company = item.offer?.companyName.toLowerCase() ?? '';
+          return title.contains(q) || company.contains(q);
+        }).toList();
+      }
+    });
+  }
+
+  String _formatPreviewTime(String? sentAt) {
+    if (sentAt == null) return '';
+    final dt = DateTime.tryParse(sentAt)?.toLocal();
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDay = DateTime(dt.year, dt.month, dt.day);
+    if (msgDay == today) return DateFormat('HH:mm').format(dt);
+    if (msgDay == today.subtract(const Duration(days: 1))) return 'Hier';
+    return DateFormat('d MMM', 'fr_FR').format(dt);
   }
 
   @override
@@ -64,9 +113,53 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
-          : _items.isEmpty
-              ? _buildEmpty()
-              : _buildList(session.userId),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: _applySearch,
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher une conversation...',
+                      hintStyle:
+                          const TextStyle(color: AppColors.textHint, fontSize: 14),
+                      prefixIcon: const Icon(Icons.search,
+                          color: AppColors.textHint, size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close,
+                                  color: AppColors.textHint, size: 18),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                _applySearch('');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.primary)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _filtered.isEmpty
+                      ? _buildEmpty()
+                      : _buildList(session.userId),
+                ),
+              ],
+            ),
       bottomNavigationBar: session.isCandidate
           ? const CandidateNavBar(currentIndex: 3)
           : const RecruiterNavBar(currentIndex: 3),
@@ -83,22 +176,28 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 width: 80,
                 height: 80,
                 decoration: const BoxDecoration(
-                    color: AppColors.primaryLight,
-                    shape: BoxShape.circle),
+                    color: AppColors.primaryLight, shape: BoxShape.circle),
                 child: const Icon(Icons.chat_bubble_outline,
                     color: AppColors.primary, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Aucune conversation',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'Aucun résultat'
+                    : 'Aucune conversation',
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
+              ),
               const SizedBox(height: 8),
-              const Text(
-                  'Vos conversations apparaîtront ici après un match.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary)),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'Aucune conversation ne correspond à "$_searchQuery".'
+                    : 'Vos conversations apparaîtront ici après un match.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
             ],
           ),
         ),
@@ -108,11 +207,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         onRefresh: _load,
         color: AppColors.primary,
         child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          itemCount: _filtered.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) {
-            final item = _items[i];
+            final item = _filtered[i];
             final title = item.offer?.title ?? 'Offre supprimée';
             final company = item.offer?.companyName ?? '';
             final initials = item.offer?.initials ?? '?';
@@ -121,10 +220,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
             final preview = lastMsg == null
                 ? 'Commencez la conversation !'
                 : '${isFromMe ? 'Vous : ' : ''}${lastMsg.content}';
+            final timeStr = _formatPreviewTime(lastMsg?.sentAt);
 
             return GestureDetector(
-              onTap: () =>
-                  context.push('/messages/${item.match.matchId}'),
+              onTap: () => context.push('/messages/${item.match.matchId}'),
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -148,11 +247,24 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(title,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: AppColors.textPrimary),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              if (timeStr.isNotEmpty)
+                                Text(timeStr,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textHint)),
+                            ],
+                          ),
                           if (company.isNotEmpty)
                             Text(company,
                                 style: const TextStyle(
@@ -162,14 +274,19 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                           Text(preview,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textHint)),
+                                  color: isFromMe
+                                      ? AppColors.textHint
+                                      : AppColors.textSecondary,
+                                  fontStyle: lastMsg == null
+                                      ? FontStyle.italic
+                                      : FontStyle.normal)),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right,
-                        color: AppColors.textHint),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.chevron_right, color: AppColors.textHint),
                   ],
                 ),
               ),
