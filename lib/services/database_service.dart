@@ -21,9 +21,18 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createTables,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE recruiter_candidate_likes ADD COLUMN isSuperLike INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   Future<void> _createTables(Database db, int version) async {
@@ -119,6 +128,7 @@ class DatabaseService {
         recruiterUserId INTEGER NOT NULL,
         candidateUserId INTEGER NOT NULL,
         jobOfferId INTEGER NOT NULL,
+        isSuperLike INTEGER NOT NULL DEFAULT 0,
         UNIQUE(recruiterUserId, candidateUserId, jobOfferId)
       )
     ''');
@@ -147,6 +157,7 @@ class DatabaseService {
     if (results.isEmpty) return null;
     return User.fromMap(results.first);
   }
+
   Future<int> insertUser(Map<String, dynamic> userMap) async {
     final db = await database;
     return db.insert('users', userMap);

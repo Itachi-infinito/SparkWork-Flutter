@@ -1,5 +1,6 @@
 ﻿import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
@@ -82,18 +83,25 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     }
   }
 
-  Future<void> _handleLike(_SwipeItem item) async {
+  Future<void> _handleLike(_SwipeItem item, {bool isSuperLike = false}) async {
     if (_selectedOffer == null) return;
     final session = ref.read(sessionProvider);
     final likeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final candidateLikeRepo = ref.read(candidateJobLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
 
-    await likeRepo.addLike(session.userId, item.profile.userId, _selectedOffer!.jobOfferId);
+    await likeRepo.addLike(
+      session.userId,
+      item.profile.userId,
+      _selectedOffer!.jobOfferId,
+      isSuperLike: isSuperLike,
+    );
 
-    final candidateAlsoLiked = await candidateLikeRepo.hasLiked(item.profile.userId, _selectedOffer!.jobOfferId);
+    final candidateAlsoLiked = await candidateLikeRepo.hasLiked(
+        item.profile.userId, _selectedOffer!.jobOfferId);
     if (candidateAlsoLiked) {
-      final alreadyMatched = await matchRepo.matchExists(item.profile.userId, session.userId, _selectedOffer!.jobOfferId);
+      final alreadyMatched = await matchRepo.matchExists(
+          item.profile.userId, session.userId, _selectedOffer!.jobOfferId);
       if (!alreadyMatched) {
         final matchId = await matchRepo.addMatch(
           candidateUserId: item.profile.userId,
@@ -113,8 +121,17 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
   void _onSwipeEnd(int prev, int? target, SwiperActivity activity) async {
     if (activity is Swipe) {
-      if (activity.direction == AxisDirection.right || activity.direction == AxisDirection.up) {
-        if (prev < _activeItems.length) await _handleLike(_activeItems[prev]);
+      if (prev < _activeItems.length) {
+        final item = _activeItems[prev];
+        if (activity.direction == AxisDirection.right) {
+          HapticFeedback.mediumImpact();
+          await _handleLike(item);
+        } else if (activity.direction == AxisDirection.up) {
+          HapticFeedback.heavyImpact();
+          await _handleLike(item, isSuperLike: true);
+        } else if (activity.direction == AxisDirection.left) {
+          HapticFeedback.lightImpact();
+        }
       }
     }
     if (target != null && target >= _activeItems.length) {
@@ -138,14 +155,27 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: DropdownButtonFormField<JobOffer>(
                 value: _selectedOffer,
-                decoration: const InputDecoration(labelText: 'Offre associée', prefixIcon: Icon(Icons.work_outline)),
-                items: _myOffers.map((o) => DropdownMenuItem(value: o, child: Text(o.title, overflow: TextOverflow.ellipsis))).toList(),
-                onChanged: (o) { setState(() { _selectedOffer = o; _activeItems = []; }); _load(); },
+                decoration: const InputDecoration(
+                    labelText: 'Offre associée',
+                    prefixIcon: Icon(Icons.work_outline)),
+                items: _myOffers
+                    .map((o) => DropdownMenuItem(
+                        value: o,
+                        child: Text(o.title, overflow: TextOverflow.ellipsis)))
+                    .toList(),
+                onChanged: (o) {
+                  setState(() {
+                    _selectedOffer = o;
+                    _activeItems = [];
+                  });
+                  _load();
+                },
               ),
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.green))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.green))
                 : _activeItems.isEmpty
                     ? _buildEmpty()
                     : _buildSwiper(),
@@ -163,19 +193,28 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         children: [
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(color: AppColors.greenLight, shape: BoxShape.circle),
-            child: const Icon(Icons.people_outline, color: AppColors.green, size: 48),
+            decoration: const BoxDecoration(
+                color: AppColors.greenLight, shape: BoxShape.circle),
+            child: const Icon(Icons.people_outline,
+                color: AppColors.green, size: 48),
           ),
           const SizedBox(height: 20),
-          const Text('Aucun candidat disponible', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          const Text('Aucun candidat disponible',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          const Text('Revenez plus tard !', style: TextStyle(color: AppColors.textSecondary)),
+          const Text('Revenez plus tard !',
+              style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh, color: AppColors.green),
-            label: const Text('Actualiser', style: TextStyle(color: AppColors.green)),
-            style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.green)),
+            label: const Text('Actualiser',
+                style: TextStyle(color: AppColors.green)),
+            style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.green)),
           ),
         ],
       ),
@@ -201,9 +240,33 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _ActionButton(icon: Icons.close, color: AppColors.red, size: 56, onTap: () => _controller.swipeLeft()),
-              _ActionButton(icon: Icons.bolt, color: AppColors.orange, size: 46, onTap: () => _controller.swipeRight()),
-              _ActionButton(icon: Icons.favorite, color: AppColors.green, size: 56, onTap: () => _controller.swipeRight()),
+              _ActionButton(
+                icon: Icons.close,
+                color: AppColors.red,
+                size: 56,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _controller.swipeLeft();
+                },
+              ),
+              _ActionButton(
+                icon: Icons.bolt,
+                color: AppColors.orange,
+                size: 46,
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  _controller.swipeUp();
+                },
+              ),
+              _ActionButton(
+                icon: Icons.favorite,
+                color: AppColors.green,
+                size: 56,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  _controller.swipeRight();
+                },
+              ),
             ],
           ),
         ),
@@ -213,14 +276,20 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
   Widget _buildCard(_SwipeItem item) {
     final p = item.profile;
-    final scoreColor = item.score >= 70 ? AppColors.green : AppColors.orange;
+    final scoreColor =
+        item.score >= 70 ? AppColors.green : AppColors.orange;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,17 +297,34 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           Container(
             height: 140,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.green, Color(0xFF059669)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              gradient: LinearGradient(
+                  colors: [AppColors.green, Color(0xFF059669)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Stack(children: [
-              Center(child: Text(p.initials, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold))),
+              Center(
+                  child: Text(p.initials,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold))),
               Positioned(
-                top: 12, right: 12,
+                top: 12,
+                right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: scoreColor, borderRadius: BorderRadius.circular(20)),
-                  child: Text('${item.score}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                      color: scoreColor,
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text('${item.score}%',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12)),
                 ),
               ),
             ]),
@@ -246,30 +332,58 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.fullName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                if (p.location.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(p.location, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.fullName,
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary)),
+                    if (p.location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        const Icon(Icons.location_on_outlined,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(p.location,
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13)),
+                      ]),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 6, runSpacing: 4, children: [
+                      if (p.desiredContractType.isNotEmpty)
+                        _Badge(p.desiredContractType,
+                            AppColors.primaryLight, AppColors.primary),
+                      if (p.desiredLevel.isNotEmpty)
+                        _Badge(p.desiredLevel, AppColors.greenLight,
+                            AppColors.green),
+                    ]),
+                    if (p.skillList.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: p.skillList
+                              .take(5)
+                              .map((s) => _Badge(
+                                  s,
+                                  AppColors.primaryLight,
+                                  AppColors.primary))
+                              .toList()),
+                    ],
+                    if (p.bio.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(p.bio,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13)),
+                    ],
                   ]),
-                ],
-                const SizedBox(height: 12),
-                Wrap(spacing: 6, runSpacing: 4, children: [
-                  if (p.desiredContractType.isNotEmpty) _Badge(p.desiredContractType, AppColors.primaryLight, AppColors.primary),
-                  if (p.desiredLevel.isNotEmpty) _Badge(p.desiredLevel, AppColors.greenLight, AppColors.green),
-                ]),
-                if (p.skillList.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 6, runSpacing: 4, children: p.skillList.take(5).map((s) => _Badge(s, AppColors.primaryLight, AppColors.primary)).toList()),
-                ],
-                if (p.bio.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(p.bio, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                ],
-              ]),
             ),
           ),
         ],
@@ -294,7 +408,8 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(text, style: TextStyle(fontSize: 11, color: fg)),
     );
   }
@@ -305,15 +420,23 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final double size;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.color, required this.size, required this.onTap});
+  const _ActionButton(
+      {required this.icon,
+      required this.color,
+      required this.size,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: color, width: 2)),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 2)),
         child: Icon(icon, color: color, size: size * 0.45),
       ),
     );

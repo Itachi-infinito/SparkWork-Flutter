@@ -23,20 +23,34 @@ class RecruiterCandidateLikeRepository {
     );
     return results.isNotEmpty;
   }
-  Future<bool> hasRecruiterLikedCandidateAny(
-    int recruiterUserId, int candidateUserId) async {
-  final db = await _db.database;
-  final results = await db.query(
-    'recruiter_candidate_likes',
-    where: 'recruiterUserId = ? AND candidateUserId = ?',
-    whereArgs: [recruiterUserId, candidateUserId],
-    limit: 1,
-  );
-  return results.isNotEmpty;
-}
 
-  Future<void> addLike(
+  Future<bool> hasRecruiterLikedCandidateAny(
+      int recruiterUserId, int candidateUserId) async {
+    final db = await _db.database;
+    final results = await db.query(
+      'recruiter_candidate_likes',
+      where: 'recruiterUserId = ? AND candidateUserId = ?',
+      whereArgs: [recruiterUserId, candidateUserId],
+      limit: 1,
+    );
+    return results.isNotEmpty;
+  }
+
+  Future<bool> hasSuperLiked(
       int recruiterUserId, int candidateUserId, int jobOfferId) async {
+    final db = await _db.database;
+    final results = await db.query(
+      'recruiter_candidate_likes',
+      where:
+          'recruiterUserId = ? AND candidateUserId = ? AND jobOfferId = ? AND isSuperLike = 1',
+      whereArgs: [recruiterUserId, candidateUserId, jobOfferId],
+      limit: 1,
+    );
+    return results.isNotEmpty;
+  }
+
+  Future<void> addLike(int recruiterUserId, int candidateUserId, int jobOfferId,
+      {bool isSuperLike = false}) async {
     final db = await _db.database;
     await db.insert(
       'recruiter_candidate_likes',
@@ -44,6 +58,7 @@ class RecruiterCandidateLikeRepository {
         'recruiterUserId': recruiterUserId,
         'candidateUserId': candidateUserId,
         'jobOfferId': jobOfferId,
+        'isSuperLike': isSuperLike ? 1 : 0,
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
