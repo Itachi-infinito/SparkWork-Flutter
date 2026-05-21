@@ -8,6 +8,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../core/widgets/app_avatar.dart';
 
 class CandidateMatchesPage extends ConsumerStatefulWidget {
   const CandidateMatchesPage({super.key});
@@ -158,11 +159,7 @@ class _MatchCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              width: 56, height: 56,
-              decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-              child: Center(child: Text(initials, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18))),
-            ),
+            AppAvatar(name: title, radius: 28),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

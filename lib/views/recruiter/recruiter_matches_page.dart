@@ -10,6 +10,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../core/widgets/app_avatar.dart';
 
 class RecruiterMatchesPage extends ConsumerStatefulWidget {
   const RecruiterMatchesPage({super.key});
@@ -127,15 +128,7 @@ class _RecruiterMatchesPageState
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: AppColors.greenLight,
-                      child: Text(initials,
-                          style: const TextStyle(
-                              color: AppColors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                    ),
+                    AppAvatar(name: name, radius: 28),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(

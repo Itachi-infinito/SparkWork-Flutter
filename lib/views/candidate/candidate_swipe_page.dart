@@ -15,6 +15,7 @@ import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../core/utils/avatar_colors.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -739,12 +740,9 @@ class _JobOfferCard extends StatelessWidget {
         children: [
           Container(
             height: 160,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-            ),
+            decoration: BoxDecoration(
+              gradient: AvatarColors.gradientForString(offer.companyName),
+            ),  
             child: Stack(
               children: [
                 Center(

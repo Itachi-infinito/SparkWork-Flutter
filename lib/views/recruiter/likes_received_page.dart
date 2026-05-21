@@ -6,6 +6,7 @@ import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../services/session_service.dart';
+import '../../core/widgets/app_avatar.dart';
 
 class LikesReceivedPage extends ConsumerStatefulWidget {
   const LikesReceivedPage({super.key});
@@ -118,15 +119,7 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                   padding: const EdgeInsets.all(14),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: AppColors.orangeLight,
-                        child: Text(c.initials,
-                            style: const TextStyle(
-                                color: AppColors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
-                      ),
+                      AppAvatar(name: c.fullName, radius: 26),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(

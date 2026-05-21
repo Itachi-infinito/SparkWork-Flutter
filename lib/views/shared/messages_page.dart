@@ -12,6 +12,7 @@ import '../../repositories/message_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../services/unread_service.dart';
+import '../../core/widgets/app_avatar.dart';
 
 class MessagesPage extends ConsumerStatefulWidget {
   const MessagesPage({super.key});
@@ -233,15 +234,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: AppColors.primaryLight,
-                      child: Text(initials,
-                          style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                    ),
+                    AppAvatar(name: title, radius: 26),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(

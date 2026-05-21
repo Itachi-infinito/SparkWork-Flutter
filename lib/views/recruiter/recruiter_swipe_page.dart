@@ -14,6 +14,7 @@ import '../../repositories/candidate_job_like_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../core/utils/avatar_colors.dart';
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
   const RecruiterSwipePage({super.key});
@@ -296,13 +297,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         children: [
           Container(
             height: 140,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [AppColors.green, Color(0xFF059669)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              gradient: AvatarColors.gradientForString(p.fullName),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Stack(children: [
               Center(
