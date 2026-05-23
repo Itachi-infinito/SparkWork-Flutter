@@ -15,6 +15,7 @@ import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
+import '../../core/widgets/animated_action_button.dart';
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
   const RecruiterSwipePage({super.key});
@@ -241,7 +242,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _ActionButton(
+              AnimatedActionButton(
                 icon: Icons.close,
                 color: AppColors.red,
                 size: 56,
@@ -250,7 +251,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   _controller.swipeLeft();
                 },
               ),
-              _ActionButton(
+              AnimatedActionButton(
                 icon: Icons.bolt,
                 color: AppColors.orange,
                 size: 46,
@@ -259,7 +260,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   _controller.swipeUp();
                 },
               ),
-              _ActionButton(
+              AnimatedActionButton(
                 icon: Icons.favorite,
                 color: AppColors.green,
                 size: 56,

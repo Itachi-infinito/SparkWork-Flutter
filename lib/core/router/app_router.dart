@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../views/public/splash_page.dart';
@@ -30,150 +31,195 @@ import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
 
+CustomTransitionPage<void> _slide(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final slideTween =
+          Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+              .chain(CurveTween(curve: Curves.easeOutCubic));
+      final fadeTween =
+          Tween<double>(begin: 0.0, end: 1.0)
+              .chain(CurveTween(curve: Curves.easeIn));
+      return SlideTransition(
+        position: animation.drive(slideTween),
+        child: FadeTransition(
+          opacity: animation.drive(fadeTween),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+CustomTransitionPage<void> _fade(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 350),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity:
+            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        child: child,
+      );
+    },
+  );
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const SplashPage(),
+        pageBuilder: (c, s) => _fade(s, const SplashPage()),
       ),
       GoRoute(
         path: '/welcome',
-        builder: (context, state) => const WelcomePage(),
+        pageBuilder: (c, s) => _fade(s, const WelcomePage()),
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginPage(),
+        pageBuilder: (c, s) => _slide(s, const LoginPage()),
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterPage(),
+        pageBuilder: (c, s) => _slide(s, const RegisterPage()),
       ),
       GoRoute(
         path: '/register/candidate',
-        builder: (context, state) => const RegisterCandidatePage(),
+        pageBuilder: (c, s) => _slide(s, const RegisterCandidatePage()),
       ),
       GoRoute(
         path: '/register/recruiter',
-        builder: (context, state) => const RegisterRecruiterPage(),
+        pageBuilder: (c, s) => _slide(s, const RegisterRecruiterPage()),
       ),
 
-      // Candidate routes
+      // Candidate
       GoRoute(
         path: '/candidate/home',
-        builder: (context, state) => const CandidateHomePage(),
+        pageBuilder: (c, s) => _fade(s, const CandidateHomePage()),
       ),
       GoRoute(
         path: '/candidate/swipe',
-        builder: (context, state) => const CandidateSwipePage(),
+        pageBuilder: (c, s) => _slide(s, const CandidateSwipePage()),
       ),
       GoRoute(
         path: '/candidate/matches',
-        builder: (context, state) => const CandidateMatchesPage(),
+        pageBuilder: (c, s) => _slide(s, const CandidateMatchesPage()),
       ),
       GoRoute(
         path: '/candidate/profile',
-        builder: (context, state) => const CandidateProfilePage(),
+        pageBuilder: (c, s) => _slide(s, const CandidateProfilePage()),
       ),
       GoRoute(
         path: '/candidate/profile/edit',
-        builder: (context, state) => const EditCandidateProfilePage(),
+        pageBuilder: (c, s) =>
+            _slide(s, const EditCandidateProfilePage()),
       ),
       GoRoute(
         path: '/candidate/offers',
-        builder: (context, state) => const JobOfferListPage(),
+        pageBuilder: (c, s) => _slide(s, const JobOfferListPage()),
       ),
       GoRoute(
         path: '/candidate/offers/:id',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return JobOfferDetailPage(jobOfferId: id);
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _slide(s, JobOfferDetailPage(jobOfferId: id));
         },
       ),
 
-      // Recruiter routes
+      // Recruiter
       GoRoute(
         path: '/recruiter/home',
-        builder: (context, state) => const RecruiterHomePage(),
+        pageBuilder: (c, s) => _fade(s, const RecruiterHomePage()),
       ),
       GoRoute(
         path: '/recruiter/swipe',
-        builder: (context, state) => const RecruiterSwipePage(),
+        pageBuilder: (c, s) => _slide(s, const RecruiterSwipePage()),
       ),
       GoRoute(
         path: '/recruiter/offers',
-        builder: (context, state) => const RecruiterJobOffersPage(),
+        pageBuilder: (c, s) =>
+            _slide(s, const RecruiterJobOffersPage()),
       ),
       GoRoute(
         path: '/recruiter/offers/add',
-        builder: (context, state) => const AddJobOfferPage(),
+        pageBuilder: (c, s) => _slide(s, const AddJobOfferPage()),
       ),
       GoRoute(
         path: '/recruiter/offers/:id/edit',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return EditJobOfferPage(jobOfferId: id);
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _slide(s, EditJobOfferPage(jobOfferId: id));
         },
       ),
       GoRoute(
         path: '/recruiter/candidates',
-        builder: (context, state) => const BrowseCandidatesPage(),
+        pageBuilder: (c, s) => _slide(s, const BrowseCandidatesPage()),
       ),
       GoRoute(
         path: '/recruiter/candidates/:id',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return CandidateDetailPage(candidateUserId: id);
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _slide(s, CandidateDetailPage(candidateUserId: id));
         },
       ),
       GoRoute(
         path: '/recruiter/matches',
-        builder: (context, state) => const RecruiterMatchesPage(),
+        pageBuilder: (c, s) => _slide(s, const RecruiterMatchesPage()),
       ),
       GoRoute(
         path: '/recruiter/profile',
-        builder: (context, state) => const RecruiterProfilePage(),
+        pageBuilder: (c, s) => _slide(s, const RecruiterProfilePage()),
       ),
       GoRoute(
         path: '/recruiter/profile/edit',
-        builder: (context, state) => const EditRecruiterProfilePage(),
+        pageBuilder: (c, s) =>
+            _slide(s, const EditRecruiterProfilePage()),
       ),
       GoRoute(
         path: '/recruiter/likes',
-        builder: (context, state) => const LikesReceivedPage(),
+        pageBuilder: (c, s) => _slide(s, const LikesReceivedPage()),
       ),
       GoRoute(
         path: '/recruiter/stats',
-        builder: (context, state) => const RecruiterStatsPage(),
+        pageBuilder: (c, s) => _slide(s, const RecruiterStatsPage()),
       ),
 
-      // Shared routes
+      // Shared
       GoRoute(
         path: '/messages',
-        builder: (context, state) => const MessagesPage(),
+        pageBuilder: (c, s) => _slide(s, const MessagesPage()),
       ),
       GoRoute(
         path: '/messages/:matchId',
-        builder: (context, state) {
-          final matchId = int.parse(state.pathParameters['matchId']!);
-          return ConversationDetailPage(matchId: matchId);
+        pageBuilder: (c, s) {
+          final matchId = int.parse(s.pathParameters['matchId']!);
+          return _slide(s, ConversationDetailPage(matchId: matchId));
         },
       ),
       GoRoute(
         path: '/match',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>? ?? {};
-          return MatchPage(
-            matchId: extra['matchId'] as int? ?? 0,
-            jobOfferTitle: extra['jobOfferTitle'] as String? ?? '',
-            companyName: extra['companyName'] as String? ?? '',
+        pageBuilder: (c, s) {
+          final extra = s.extra as Map<String, dynamic>? ?? {};
+          return _fade(
+            s,
+            MatchPage(
+              matchId: extra['matchId'] as int? ?? 0,
+              jobOfferTitle: extra['jobOfferTitle'] as String? ?? '',
+              companyName: extra['companyName'] as String? ?? '',
+            ),
           );
         },
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsPage(),
+        pageBuilder: (c, s) => _slide(s, const SettingsPage()),
       ),
     ],
   );

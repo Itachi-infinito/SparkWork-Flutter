@@ -16,6 +16,7 @@ import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
+import '../../core/widgets/animated_action_button.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -581,33 +582,23 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          GestureDetector(
+          AnimatedActionButton(
+            icon: Icons.close,
+            color: AppColors.red,
+            size: 60,
             onTap: () {
               HapticFeedback.lightImpact();
               _swiperController.swipeLeft();
             },
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                  color: AppColors.redLight, shape: BoxShape.circle),
-              child:
-                  const Icon(Icons.close, color: AppColors.red, size: 30),
-            ),
           ),
-          GestureDetector(
+          AnimatedActionButton(
+            icon: Icons.favorite,
+            color: AppColors.primary,
+            size: 60,
             onTap: () {
               HapticFeedback.mediumImpact();
               _swiperController.swipeRight();
             },
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                  color: AppColors.primaryLight, shape: BoxShape.circle),
-              child: const Icon(Icons.favorite,
-                  color: AppColors.primary, size: 30),
-            ),
           ),
         ],
       ),

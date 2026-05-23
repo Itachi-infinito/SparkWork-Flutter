@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'core/theme/theme_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR', null); // ← ajoute cette ligne
-  runApp(...);
+  await initializeDateFormatting('fr_FR', null);
+  runApp(const ProviderScope(child: SparkWorkApp()));
 }
+
 class SparkWorkApp extends ConsumerWidget {
   const SparkWorkApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeNotifierProvider);
     return MaterialApp.router(
       title: 'SparkWork',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

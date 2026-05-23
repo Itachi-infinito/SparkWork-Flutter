@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_service.dart';
 
@@ -11,13 +12,12 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
+    final isDark = ref.watch(themeNotifierProvider) == ThemeMode.dark;
     final roleLabel = session.isCandidate ? 'Candidat' : 'Recruteur';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Paramètres'),
-        backgroundColor: AppColors.background,
         elevation: 0,
       ),
       body: ListView(
@@ -39,6 +39,19 @@ class SettingsPage extends ConsumerWidget {
                 icon: Icons.badge_outlined,
                 label: 'Rôle',
                 value: roleLabel),
+          ]),
+          const SizedBox(height: 20),
+          const _SectionLabel('Apparence'),
+          _SettingsCard(children: [
+            _ToggleRow(
+              icon: isDark
+                  ? Icons.dark_mode_rounded
+                  : Icons.light_mode_rounded,
+              label: 'Mode sombre',
+              value: isDark,
+              onChanged: (_) =>
+                  ref.read(themeNotifierProvider.notifier).toggle(),
+            ),
           ]),
           const SizedBox(height: 20),
           const _SectionLabel('Sécurité'),
@@ -94,7 +107,8 @@ class SettingsPage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Changer le mot de passe'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Form(
           key: formKey,
           child: Column(
@@ -123,9 +137,10 @@ class SettingsPage extends ConsumerWidget {
                 controller: confirmCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                    labelText: 'Confirmer le mot de passe', isDense: true),
-                validator: (v) =>
-                    v != newCtrl.text ? 'Les mots de passe ne correspondent pas' : null,
+                    labelText: 'Confirmer', isDense: true),
+                validator: (v) => v != newCtrl.text
+                    ? 'Les mots de passe ne correspondent pas'
+                    : null,
               ),
             ],
           ),
@@ -140,17 +155,18 @@ class SettingsPage extends ConsumerWidget {
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final session = ref.read(sessionProvider);
-              final authService = ref.read(authServiceProvider);
-              final (ok, error) = await authService.changePassword(
-                userId: session.userId,
-                currentPassword: currentCtrl.text,
-                newPassword: newCtrl.text,
-              );
+              final (ok, error) =
+                  await ref.read(authServiceProvider).changePassword(
+                        userId: session.userId,
+                        currentPassword: currentCtrl.text,
+                        newPassword: newCtrl.text,
+                      );
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(ok ? 'Mot de passe modifié ✓' : error),
-                backgroundColor: ok ? AppColors.green : AppColors.red,
+                backgroundColor:
+                    ok ? AppColors.green : AppColors.red,
               ));
             },
             child: const Text('Confirmer',
@@ -166,19 +182,22 @@ class SettingsPage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer le compte'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: const Text(
-            'Cette action est irréversible. Toutes vos données (profil, matches, messages) seront supprimées définitivement.'),
+            'Cette action est irréversible. Toutes vos données seront supprimées définitivement.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.red),
             onPressed: () async {
               final session = ref.read(sessionProvider);
-              final authService = ref.read(authServiceProvider);
-              await authService.deleteAccount(session.userId);
+              await ref
+                  .read(authServiceProvider)
+                  .deleteAccount(session.userId);
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               if (context.mounted) context.go('/welcome');
@@ -200,10 +219,10 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text,
-          style: const TextStyle(
+          style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: AppColors.textSecondary)),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
     );
   }
 }
@@ -215,9 +234,11 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+            color: Theme.of(context).dividerTheme.color ??
+                AppColors.border),
       ),
       child: Column(children: children),
     );
@@ -235,19 +256,67 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(children: [
-        Icon(icon, color: AppColors.textSecondary, size: 20),
+        Icon(icon,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withOpacity(0.5),
+            size: 20),
         const SizedBox(width: 12),
         Text(label,
-            style: const TextStyle(
-                color: AppColors.textSecondary, fontSize: 14)),
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withOpacity(0.6),
+                fontSize: 14)),
         const Spacer(),
         Flexible(
           child: Text(value,
               textAlign: TextAlign.end,
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                   fontSize: 14)),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _ToggleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(children: [
+        Icon(icon,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withOpacity(0.5),
+            size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 14)),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.primary,
         ),
       ]),
     );
@@ -267,17 +336,22 @@ class _ActionRow extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final textColor = color == AppColors.textPrimary
+        ? Theme.of(context).colorScheme.onSurface
+        : color;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(children: [
-          Icon(icon, color: color, size: 20),
+          Icon(icon, color: textColor, size: 20),
           const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: color, fontSize: 14)),
+          Text(label, style: TextStyle(color: textColor, fontSize: 14)),
           const Spacer(),
-          Icon(Icons.chevron_right, color: color.withOpacity(0.5), size: 18),
+          Icon(Icons.chevron_right,
+              color: textColor.withOpacity(0.4), size: 18),
         ]),
       ),
     );
