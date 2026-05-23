@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/job_offer_repository.dart';
@@ -61,9 +62,9 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     final likedSet = likedIds.toSet();
     final available =
         allOffers.where((o) => !likedSet.contains(o.jobOfferId)).length;
-
-    final hasUnread =
-        await ref.read(unreadMessagesProvider.future).catchError((_) => false);
+    final hasUnread = await ref
+        .read(unreadMessagesProvider.future)
+        .catchError((_) => false);
 
     final recent = <_RecentMatch>[];
     for (final m in matches.take(3)) {
@@ -93,10 +94,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     final firstName = session.userName.split(' ').first;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('SparkWork'),
-        backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           IconButton(
@@ -115,57 +114,57 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Bonjour, $firstName 👋',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 4),
-              const Text('Prêt à trouver votre prochain poste ?',
-                  style: TextStyle(color: AppColors.textSecondary)),
+              Text('Prêt à trouver votre prochain poste ?',
+                  style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 20),
 
-              // Stats row
+              // Stats
               if (_statsLoaded)
                 Row(children: [
                   _StatTile(
-                    label: 'Offres',
-                    value: '$_availableOffers',
-                    icon: Icons.work_outline,
-                    color: AppColors.primary,
-                  ),
+                      label: 'Offres',
+                      value: '$_availableOffers',
+                      icon: Icons.work_outline,
+                      color: AppColors.primary),
                   const SizedBox(width: 10),
                   _StatTile(
-                    label: 'Matches',
-                    value: '$_matchCount',
-                    icon: Icons.favorite_outline,
-                    color: AppColors.red,
-                  ),
+                      label: 'Matches',
+                      value: '$_matchCount',
+                      icon: Icons.favorite_outline,
+                      color: AppColors.red),
                   const SizedBox(width: 10),
                   _StatTile(
-                    label: 'Messages',
-                    value: _hasUnread ? '🔴' : '✓',
-                    icon: Icons.chat_bubble_outline,
-                    color: _hasUnread ? AppColors.orange : AppColors.green,
-                  ),
+                      label: 'Messages',
+                      value: _hasUnread ? '🔴' : '✓',
+                      icon: Icons.chat_bubble_outline,
+                      color:
+                          _hasUnread ? AppColors.orange : AppColors.green),
                 ])
               else
-                Row(children: List.generate(
-                  3,
-                  (_) => Expanded(
-                    child: Container(
-                      height: 72,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
+                Row(
+                  children: List.generate(
+                    3,
+                    (_) => Expanded(
+                      child: Container(
+                        height: 72,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: context.surfaceVariantColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                )),
+                ),
 
               const SizedBox(height: 20),
 
-              // CTA card
+              // CTA
               GestureDetector(
                 onTap: () => context.go('/candidate/swipe'),
                 child: Container(
@@ -198,7 +197,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                               fontSize: 20,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
-                      Text('Swipez pour trouver votre prochain emploi',
+                      Text(
+                          'Swipez pour trouver votre prochain emploi',
                           style: TextStyle(
                               color: Colors.white.withOpacity(0.85),
                               fontSize: 13)),
@@ -221,11 +221,11 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
               const SizedBox(height: 24),
 
               // Accès rapide
-              const Text('Accès rapide',
+              Text('Accès rapide',
                   style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
@@ -262,13 +262,14 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Derniers matches',
+                    Text('Derniers matches',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
-                            color: AppColors.textPrimary)),
+                            color: context.textPrimaryColor)),
                     TextButton(
-                      onPressed: () => context.go('/candidate/matches'),
+                      onPressed: () =>
+                          context.go('/candidate/matches'),
                       child: const Text('Voir tout',
                           style: TextStyle(
                               color: AppColors.primary, fontSize: 13)),
@@ -302,6 +303,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                   ),
                 ]),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -322,7 +324,8 @@ class _RecentMatch {
 class _RecentMatchTile extends StatelessWidget {
   final _RecentMatch match;
   final VoidCallback onMessage;
-  const _RecentMatchTile({required this.match, required this.onMessage});
+  const _RecentMatchTile(
+      {required this.match, required this.onMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -330,9 +333,9 @@ class _RecentMatchTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(children: [
         AppAvatar(name: match.company, radius: 22),
@@ -342,24 +345,27 @@ class _RecentMatchTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(match.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
-                      color: AppColors.textPrimary),
+                      color: context.textPrimaryColor),
                   overflow: TextOverflow.ellipsis),
               Text(match.company,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: context.textSecondaryColor)),
             ],
           ),
         ),
         TextButton(
           onPressed: onMessage,
           style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               minimumSize: Size.zero),
           child: const Text('Message',
-              style: TextStyle(color: AppColors.primary, fontSize: 12)),
+              style:
+                  TextStyle(color: AppColors.primary, fontSize: 12)),
         ),
       ]),
     );
@@ -381,11 +387,12 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(children: [
           Icon(icon, color: color, size: 20),
@@ -396,8 +403,8 @@ class _StatTile extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: color)),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textSecondary)),
+              style: TextStyle(
+                  fontSize: 10, color: context.textSecondaryColor)),
         ]),
       ),
     );
@@ -422,16 +429,17 @@ class _QuickAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(children: [
           Icon(icon, color: color, size: 26),
           const SizedBox(height: 6),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: context.textSecondaryColor)),
         ]),
       ),
     );

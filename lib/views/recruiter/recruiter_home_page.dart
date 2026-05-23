@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
@@ -14,7 +15,8 @@ class RecruiterHomePage extends ConsumerStatefulWidget {
   const RecruiterHomePage({super.key});
 
   @override
-  ConsumerState<RecruiterHomePage> createState() => _RecruiterHomePageState();
+  ConsumerState<RecruiterHomePage> createState() =>
+      _RecruiterHomePageState();
 }
 
 class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
@@ -38,7 +40,6 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
     final matchRepo = ref.read(matchRepositoryProvider);
     final offerRepo = ref.read(jobOfferRepositoryProvider);
     final profileRepo = ref.read(candidateProfileRepositoryProvider);
-
     final pending = await matchRepo.getPendingMatchAnimation(
         session.userId, session.userRole);
     if (pending == null || !mounted) return;
@@ -97,10 +98,8 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
         : session.userName;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('SparkWork'),
-        backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           IconButton(
@@ -119,16 +118,17 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Bonjour, $displayName 👋',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 4),
-              const Text('Trouvez les meilleurs talents Horeca',
-                  style: TextStyle(color: AppColors.textSecondary)),
+              Text('Trouvez les meilleurs talents Horeca',
+                  style:
+                      TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 20),
 
-              // Stats row
+              // Stats
               if (_statsLoaded)
                 Row(children: [
                   _StatTile(
@@ -158,7 +158,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                         height: 72,
                         margin: const EdgeInsets.only(right: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
+                          color: context.surfaceVariantColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
@@ -225,11 +225,11 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
               const SizedBox(height: 24),
 
               // Accès rapide
-              const Text('Accès rapide',
+              Text('Accès rapide',
                   style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
@@ -237,7 +237,8 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                     icon: Icons.add_circle_outline,
                     label: 'Ajouter offre',
                     color: AppColors.green,
-                    onTap: () => context.push('/recruiter/offers/add'),
+                    onTap: () =>
+                        context.push('/recruiter/offers/add'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -275,7 +276,8 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                     icon: Icons.people_outline,
                     label: 'Candidats',
                     color: AppColors.primary,
-                    onTap: () => context.push('/recruiter/candidates'),
+                    onTap: () =>
+                        context.push('/recruiter/candidates'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -295,16 +297,18 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Derniers matches',
+                    Text('Derniers matches',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
-                            color: AppColors.textPrimary)),
+                            color: context.textPrimaryColor)),
                     TextButton(
-                      onPressed: () => context.go('/recruiter/matches'),
+                      onPressed: () =>
+                          context.go('/recruiter/matches'),
                       child: const Text('Voir tout',
                           style: TextStyle(
-                              color: AppColors.green, fontSize: 13)),
+                              color: AppColors.green,
+                              fontSize: 13)),
                     ),
                   ],
                 ),
@@ -315,6 +319,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                           context.push('/messages/${m.matchId}'),
                     )),
               ],
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -337,7 +342,8 @@ class _RecentMatch {
 class _RecentMatchTile extends StatelessWidget {
   final _RecentMatch match;
   final VoidCallback onMessage;
-  const _RecentMatchTile({required this.match, required this.onMessage});
+  const _RecentMatchTile(
+      {required this.match, required this.onMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -345,9 +351,9 @@ class _RecentMatchTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(children: [
         AppAvatar(name: match.candidateName, radius: 22),
@@ -357,14 +363,15 @@ class _RecentMatchTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(match.candidateName,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
-                      color: AppColors.textPrimary),
+                      color: context.textPrimaryColor),
                   overflow: TextOverflow.ellipsis),
               Text(match.offerTitle,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: context.textSecondaryColor),
                   overflow: TextOverflow.ellipsis),
             ],
           ),
@@ -372,10 +379,12 @@ class _RecentMatchTile extends StatelessWidget {
         TextButton(
           onPressed: onMessage,
           style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               minimumSize: Size.zero),
           child: const Text('Message',
-              style: TextStyle(color: AppColors.green, fontSize: 12)),
+              style:
+                  TextStyle(color: AppColors.green, fontSize: 12)),
         ),
       ]),
     );
@@ -397,11 +406,12 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(children: [
           Icon(icon, color: color, size: 20),
@@ -412,8 +422,9 @@ class _StatTile extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: color)),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textSecondary)),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: context.textSecondaryColor)),
         ]),
       ),
     );
@@ -438,17 +449,18 @@ class _QuickAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(children: [
           Icon(icon, color: color, size: 26),
           const SizedBox(height: 6),
           Text(label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: context.textSecondaryColor)),
         ]),
       ),
     );
