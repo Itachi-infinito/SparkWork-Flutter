@@ -50,10 +50,8 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Mes matches'),
-        backgroundColor: AppColors.background,
         elevation: 0,
       ),
       body: _loading

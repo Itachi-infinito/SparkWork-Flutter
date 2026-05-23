@@ -20,35 +20,35 @@ class AnimatedActionButton extends StatefulWidget {
 
 class _AnimatedActionButtonState extends State<AnimatedActionButton>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
+  late AnimationController _controller;
   late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 80),
-      reverseDuration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.0,
+      upperBound: 1.0,
     );
     _scale = Tween<double>(begin: 1.0, end: 0.82).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails _) => _ctrl.forward();
+  void _onTapDown(TapDownDetails _) => _controller.forward();
   void _onTapUp(TapUpDetails _) {
-    _ctrl.reverse();
+    _controller.reverse();
     widget.onTap();
   }
-
-  void _onTapCancel() => _ctrl.reverse();
+  void _onTapCancel() => _controller.reverse();
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +58,10 @@ class _AnimatedActionButtonState extends State<AnimatedActionButton>
       onTapCancel: _onTapCancel,
       child: AnimatedBuilder(
         animation: _scale,
-        builder: (_, child) =>
-            Transform.scale(scale: _scale.value, child: child),
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: child,
+        ),
         child: Container(
           width: widget.size,
           height: widget.size,
@@ -67,16 +69,8 @@ class _AnimatedActionButtonState extends State<AnimatedActionButton>
             color: widget.color.withOpacity(0.1),
             shape: BoxShape.circle,
             border: Border.all(color: widget.color, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withOpacity(0.25),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
-          child: Icon(widget.icon,
-              color: widget.color, size: widget.size * 0.45),
+          child: Icon(widget.icon, color: widget.color, size: widget.size * 0.45),
         ),
       ),
     );

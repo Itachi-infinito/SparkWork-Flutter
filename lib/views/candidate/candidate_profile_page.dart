@@ -37,10 +37,8 @@ class _CandidateProfilePageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Mon profil'),
-        backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           IconButton(

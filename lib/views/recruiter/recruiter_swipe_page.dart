@@ -16,6 +16,11 @@ import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
+import 'package:flutter/services.dart';
+import '../../core/utils/avatar_colors.dart';
+import '../../core/widgets/animated_action_button.dart';
+import '../../core/widgets/swipe_overlay.dart';
+
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
   const RecruiterSwipePage({super.key});
@@ -31,6 +36,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   bool _loading = true;
   JobOffer? _selectedOffer;
   List<JobOffer> _myOffers = [];
+  SwipeOverlayType _overlayType = SwipeOverlayType.none;
 
   @override
   void initState() {
@@ -99,8 +105,8 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
       isSuperLike: isSuperLike,
     );
 
-    final candidateAlsoLiked = await candidateLikeRepo.hasLiked(
-        item.profile.userId, _selectedOffer!.jobOfferId);
+    final candidateAlsoLiked =
+        await candidateLikeRepo.hasLiked(item.profile.userId, _selectedOffer!.jobOfferId);
     if (candidateAlsoLiked) {
       final alreadyMatched = await matchRepo.matchExists(
           item.profile.userId, session.userId, _selectedOffer!.jobOfferId);
@@ -122,18 +128,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   void _onSwipeEnd(int prev, int? target, SwiperActivity activity) async {
+    setState(() => _overlayType = SwipeOverlayType.none); // reset
     if (activity is Swipe) {
-      if (prev < _activeItems.length) {
-        final item = _activeItems[prev];
-        if (activity.direction == AxisDirection.right) {
-          HapticFeedback.mediumImpact();
-          await _handleLike(item);
-        } else if (activity.direction == AxisDirection.up) {
-          HapticFeedback.heavyImpact();
-          await _handleLike(item, isSuperLike: true);
-        } else if (activity.direction == AxisDirection.left) {
-          HapticFeedback.lightImpact();
-        }
+      if (activity.direction == AxisDirection.right) {
+        HapticFeedback.mediumImpact();
+        if (prev < _activeItems.length) await _handleLike(_activeItems[prev]);
+      } else if (activity.direction == AxisDirection.up) {
+        HapticFeedback.heavyImpact();
+        if (prev < _activeItems.length) await _handleLike(_activeItems[prev], isSuperLike: true);
+      } else if (activity.direction == AxisDirection.left) {
+        HapticFeedback.lightImpact();
       }
     }
     if (target != null && target >= _activeItems.length) {
@@ -227,14 +231,37 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     return Column(
       children: [
         Expanded(
-          child: AppinioSwiper(
-            controller: _controller,
-            cardCount: _activeItems.length,
-            onSwipeEnd: _onSwipeEnd,
-            cardBuilder: (context, index) {
-              if (index >= _activeItems.length) return const SizedBox();
-              return _buildCard(_activeItems[index]);
+          child: Listener(
+            onPointerMove: (event) {
+              final dx = event.delta.dx;
+              final dy = event.delta.dy;
+              SwipeOverlayType newType;
+              if (dy < -2 && dy.abs() > dx.abs()) {
+                newType = SwipeOverlayType.superLike;
+              } else if (dx > 2) {
+                newType = SwipeOverlayType.like;
+              } else if (dx < -2) {
+                newType = SwipeOverlayType.pass;
+              } else {
+                return;
+              }
+              if (newType != _overlayType) setState(() => _overlayType = newType);
             },
+            onPointerUp: (_) => setState(() => _overlayType = SwipeOverlayType.none),
+            child: AppinioSwiper(
+              controller: _controller,
+              cardCount: _activeItems.length,
+              onSwipeEnd: _onSwipeEnd,
+              cardBuilder: (context, index) {
+                if (index >= _activeItems.length) return const SizedBox();
+                return Stack(
+                  children: [
+                    _buildCard(_activeItems[index]),
+                    SwipeOverlay(type: _overlayType),
+                  ],
+                );
+              },
+            ),
           ),
         ),
         Padding(
@@ -303,26 +330,13 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Stack(children: [
-              Center(
-                  child: Text(p.initials,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold))),
+              Center(child: Text(p.initials, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold))),
               Positioned(
-                top: 12,
-                right: 12,
+                top: 12, right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                      color: scoreColor,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Text('${item.score}%',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: scoreColor, borderRadius: BorderRadius.circular(20)),
+                  child: Text('${item.score}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ),
             ]),
@@ -413,30 +427,3 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final double size;
-  final VoidCallback onTap;
-  const _ActionButton(
-      {required this.icon,
-      required this.color,
-      required this.size,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: 2)),
-        child: Icon(icon, color: color, size: size * 0.45),
-      ),
-    );
-  }
-}

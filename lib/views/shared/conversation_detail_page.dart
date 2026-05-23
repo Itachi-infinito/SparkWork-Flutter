@@ -36,6 +36,15 @@ class _ConversationDetailPageState
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => _reload());
   }
 
+  Future<void> _reload() async {
+    final msgs =
+        await ref.read(messageRepositoryProvider).getMessages(widget.matchId);
+    if (msgs.length != _messages.length && mounted) {
+      setState(() => _messages = msgs);
+      _scrollToBottom();
+    }
+  }
+
   Future<void> _load() async {
     final msgs =
         await ref.read(messageRepositoryProvider).getMessages(widget.matchId);
@@ -58,24 +67,8 @@ class _ConversationDetailPageState
     } catch (_) {}
     await markMessagesAsSeen(session.userId);
     ref.invalidate(unreadMessagesProvider);
-    if (mounted) {
-      setState(() {
-        _messages = msgs;
-        _loading = false;
-      });
-      _scrollToBottom();
-    }
-  }
-
-  Future<void> _reload() async {
-    if (!mounted) return;
-    final msgs =
-        await ref.read(messageRepositoryProvider).getMessages(widget.matchId);
-    if (!mounted) return;
-    if (msgs.length != _messages.length) {
-      setState(() => _messages = msgs);
-      _scrollToBottom();
-    }
+    if (mounted) setState(() { _messages = msgs; _loading = false; });
+    _scrollToBottom();
   }
 
   Future<void> _send() async {
@@ -88,8 +81,7 @@ class _ConversationDetailPageState
           senderUserId: session.userId,
           content: content,
         );
-    await _reload();
-    _scrollToBottom();
+    await _load();
   }
 
   void _scrollToBottom() {
@@ -114,16 +106,31 @@ class _ConversationDetailPageState
   }
 
   String _formatTime(String sentAt) {
-    final dt = DateTime.tryParse(sentAt)?.toLocal();
-    if (dt == null) return '';
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final msgDay = DateTime(dt.year, dt.month, dt.day);
-    final time = DateFormat('HH:mm').format(dt);
-    if (msgDay == today) return time;
-    if (msgDay == yesterday) return 'Hier $time';
-    return DateFormat('d MMM', 'fr_FR').format(dt) + ' $time';
+    try {
+      final dt = DateTime.parse(sentAt).toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final msgDay = DateTime(dt.year, dt.month, dt.day);
+      if (msgDay == today) return DateFormat('HH:mm').format(dt);
+      if (msgDay == today.subtract(const Duration(days: 1))) {
+        return 'Hier ${DateFormat('HH:mm').format(dt)}';
+      }
+      return DateFormat('d MMM HH:mm', 'fr_FR').format(dt);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  bool _showTimeLabel(int index) {
+    if (index == _messages.length - 1) return true;
+    if (index < 0) return false;
+    try {
+      final curr = DateTime.parse(_messages[index].sentAt);
+      final next = DateTime.parse(_messages[index + 1].sentAt);
+      return next.difference(curr).inMinutes >= 5;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -138,10 +145,8 @@ class _ConversationDetailPageState
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(_title, overflow: TextOverflow.ellipsis),
-        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -152,9 +157,8 @@ class _ConversationDetailPageState
             icon: const Icon(Icons.home_outlined),
             onPressed: () {
               final role = ref.read(sessionProvider).userRole;
-              context.go(role == 'candidate'
-                  ? '/candidate/home'
-                  : '/recruiter/home');
+              context.go(
+                  role == 'candidate' ? '/candidate/home' : '/recruiter/home');
             },
           ),
         ],
@@ -181,12 +185,21 @@ class _ConversationDetailPageState
                           itemBuilder: (ctx, i) {
                             final msg = _messages[i];
                             final isMe = msg.senderUserId == session.userId;
-                            final showTime = i == _messages.length - 1 ||
-                                _shouldShowTime(_messages[i], _messages[i + 1]);
-                            return _Bubble(
-                              message: msg,
-                              isMe: isMe,
-                              timeLabel: showTime ? _formatTime(msg.sentAt) : null,
+                            final showTime = _showTimeLabel(i);
+                            return Column(
+                              children: [
+                                _Bubble(message: msg, isMe: isMe),
+                                if (showTime)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      _formatTime(msg.sentAt),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textHint),
+                                    ),
+                                  ),
+                              ],
                             );
                           },
                         ),
@@ -196,66 +209,40 @@ class _ConversationDetailPageState
             ),
     );
   }
-
-  bool _shouldShowTime(Message current, Message next) {
-    final a = DateTime.tryParse(current.sentAt);
-    final b = DateTime.tryParse(next.sentAt);
-    if (a == null || b == null) return false;
-    return b.difference(a).inMinutes >= 5;
-  }
 }
 
 class _Bubble extends StatelessWidget {
   final Message message;
   final bool isMe;
-  final String? timeLabel;
-  const _Bubble({required this.message, required this.isMe, this.timeLabel});
+  const _Bubble({required this.message, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Align(
-          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 2),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.72),
-            decoration: BoxDecoration(
-              color: isMe ? AppColors.primary : AppColors.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isMe ? 16 : 4),
-                bottomRight: Radius.circular(isMe ? 4 : 16),
-              ),
-              border: isMe ? null : Border.all(color: AppColors.border),
-            ),
-            child: Text(
-              message.content,
-              style: TextStyle(
-                color: isMe ? Colors.white : AppColors.textPrimary,
-                fontSize: 14,
-              ),
-            ),
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+        decoration: BoxDecoration(
+          color: isMe ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isMe ? 16 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 16),
+          ),
+          border: isMe ? null : Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          message.content,
+          style: TextStyle(
+            color: isMe ? Colors.white : AppColors.textPrimary,
+            fontSize: 14,
           ),
         ),
-        if (timeLabel != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
-            child: Text(
-              timeLabel!,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textHint),
-            ),
-          )
-        else
-          const SizedBox(height: 6),
-      ],
+      ),
     );
   }
 }
@@ -281,8 +268,7 @@ class _InputBar extends StatelessWidget {
                 controller: controller,
                 decoration: InputDecoration(
                   hintText: 'Écrivez un message...',
-                  hintStyle:
-                      const TextStyle(color: AppColors.textHint),
+                  hintStyle: const TextStyle(color: AppColors.textHint),
                   filled: true,
                   fillColor: AppColors.background,
                   contentPadding: const EdgeInsets.symmetric(
@@ -303,8 +289,8 @@ class _InputBar extends StatelessWidget {
                 height: 44,
                 decoration: const BoxDecoration(
                     color: AppColors.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.send_rounded,
-                    color: Colors.white, size: 20),
+                child:
+                    const Icon(Icons.send_rounded, color: Colors.white, size: 20),
               ),
             ),
           ],

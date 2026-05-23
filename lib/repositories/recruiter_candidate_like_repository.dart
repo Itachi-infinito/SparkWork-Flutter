@@ -49,8 +49,12 @@ class RecruiterCandidateLikeRepository {
     return results.isNotEmpty;
   }
 
-  Future<void> addLike(int recruiterUserId, int candidateUserId, int jobOfferId,
-      {bool isSuperLike = false}) async {
+  Future<void> addLike(
+    int recruiterUserId,
+    int candidateUserId,
+    int jobOfferId, {
+    bool isSuperLike = false,
+  }) async {
     final db = await _db.database;
     await db.insert(
       'recruiter_candidate_likes',

@@ -7,12 +7,11 @@ class AppAvatar extends StatelessWidget {
 
   const AppAvatar({super.key, required this.name, this.radius = 26});
 
-  String get _initials {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  String _initials(String name) {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
   @override
@@ -21,24 +20,23 @@ class AppAvatar extends StatelessWidget {
       width: radius * 2,
       height: radius * 2,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
         gradient: AvatarColors.gradientForString(name),
+        shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AvatarColors.forString(name).first.withOpacity(0.3),
+            color: AvatarColors.gradientForString(name).colors.first.withOpacity(0.3),
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Center(
         child: Text(
-          _initials,
+          _initials(name),
           style: TextStyle(
             color: Colors.white,
-            fontSize: radius * 0.58,
             fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
+            fontSize: radius * 0.65,
           ),
         ),
       ),

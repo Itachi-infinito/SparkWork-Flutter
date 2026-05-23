@@ -31,41 +31,31 @@ import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
 
-CustomTransitionPage<void> _slide(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
+Page<dynamic> _slide(BuildContext context, GoRouterState state, Widget child) {
+  return CustomTransitionPage(
     key: state.pageKey,
     child: child,
     transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 250),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final slideTween =
-          Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOutCubic));
-      final fadeTween =
-          Tween<double>(begin: 0.0, end: 1.0)
-              .chain(CurveTween(curve: Curves.easeIn));
+      final tween = Tween(
+        begin: const Offset(1.0, 0.0),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: Curves.easeOutCubic));
       return SlideTransition(
-        position: animation.drive(slideTween),
-        child: FadeTransition(
-          opacity: animation.drive(fadeTween),
-          child: child,
-        ),
+        position: animation.drive(tween),
+        child: FadeTransition(opacity: animation, child: child),
       );
     },
   );
 }
 
-CustomTransitionPage<void> _fade(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
+Page<dynamic> _fade(BuildContext context, GoRouterState state, Widget child) {
+  return CustomTransitionPage(
     key: state.pageKey,
     child: child,
     transitionDuration: const Duration(milliseconds: 350),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(
-        opacity:
-            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-        child: child,
-      );
+      return FadeTransition(opacity: animation, child: child);
     },
   );
 }
@@ -76,131 +66,129 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        pageBuilder: (c, s) => _fade(s, const SplashPage()),
+        pageBuilder: (c, s) => _fade(c, s, const SplashPage()),
       ),
       GoRoute(
         path: '/welcome',
-        pageBuilder: (c, s) => _fade(s, const WelcomePage()),
+        pageBuilder: (c, s) => _fade(c, s, const WelcomePage()),
       ),
       GoRoute(
         path: '/login',
-        pageBuilder: (c, s) => _slide(s, const LoginPage()),
+        pageBuilder: (c, s) => _slide(c, s, const LoginPage()),
       ),
       GoRoute(
         path: '/register',
-        pageBuilder: (c, s) => _slide(s, const RegisterPage()),
+        pageBuilder: (c, s) => _slide(c, s, const RegisterPage()),
       ),
       GoRoute(
         path: '/register/candidate',
-        pageBuilder: (c, s) => _slide(s, const RegisterCandidatePage()),
+        pageBuilder: (c, s) => _slide(c, s, const RegisterCandidatePage()),
       ),
       GoRoute(
         path: '/register/recruiter',
-        pageBuilder: (c, s) => _slide(s, const RegisterRecruiterPage()),
+        pageBuilder: (c, s) => _slide(c, s, const RegisterRecruiterPage()),
       ),
 
-      // Candidate
+      // Candidate routes
       GoRoute(
         path: '/candidate/home',
-        pageBuilder: (c, s) => _fade(s, const CandidateHomePage()),
+        pageBuilder: (c, s) => _fade(c, s, const CandidateHomePage()),
       ),
       GoRoute(
         path: '/candidate/swipe',
-        pageBuilder: (c, s) => _slide(s, const CandidateSwipePage()),
+        pageBuilder: (c, s) => _slide(c, s, const CandidateSwipePage()),
       ),
       GoRoute(
         path: '/candidate/matches',
-        pageBuilder: (c, s) => _slide(s, const CandidateMatchesPage()),
+        pageBuilder: (c, s) => _slide(c, s, const CandidateMatchesPage()),
       ),
       GoRoute(
         path: '/candidate/profile',
-        pageBuilder: (c, s) => _slide(s, const CandidateProfilePage()),
+        pageBuilder: (c, s) => _slide(c, s, const CandidateProfilePage()),
       ),
       GoRoute(
         path: '/candidate/profile/edit',
-        pageBuilder: (c, s) =>
-            _slide(s, const EditCandidateProfilePage()),
+        pageBuilder: (c, s) => _slide(c, s, const EditCandidateProfilePage()),
       ),
       GoRoute(
         path: '/candidate/offers',
-        pageBuilder: (c, s) => _slide(s, const JobOfferListPage()),
+        pageBuilder: (c, s) => _slide(c, s, const JobOfferListPage()),
       ),
       GoRoute(
         path: '/candidate/offers/:id',
         pageBuilder: (c, s) {
           final id = int.parse(s.pathParameters['id']!);
-          return _slide(s, JobOfferDetailPage(jobOfferId: id));
+          return _slide(c, s, JobOfferDetailPage(jobOfferId: id));
         },
       ),
 
-      // Recruiter
+      // Recruiter routes
       GoRoute(
         path: '/recruiter/home',
-        pageBuilder: (c, s) => _fade(s, const RecruiterHomePage()),
+        pageBuilder: (c, s) => _fade(c, s, const RecruiterHomePage()),
       ),
       GoRoute(
         path: '/recruiter/swipe',
-        pageBuilder: (c, s) => _slide(s, const RecruiterSwipePage()),
+        pageBuilder: (c, s) => _slide(c, s, const RecruiterSwipePage()),
       ),
       GoRoute(
         path: '/recruiter/offers',
-        pageBuilder: (c, s) =>
-            _slide(s, const RecruiterJobOffersPage()),
+        pageBuilder: (c, s) => _slide(c, s, const RecruiterJobOffersPage()),
       ),
       GoRoute(
         path: '/recruiter/offers/add',
-        pageBuilder: (c, s) => _slide(s, const AddJobOfferPage()),
+        pageBuilder: (c, s) => _slide(c, s, const AddJobOfferPage()),
       ),
       GoRoute(
         path: '/recruiter/offers/:id/edit',
         pageBuilder: (c, s) {
           final id = int.parse(s.pathParameters['id']!);
-          return _slide(s, EditJobOfferPage(jobOfferId: id));
+          return _slide(c, s, EditJobOfferPage(jobOfferId: id));
         },
       ),
       GoRoute(
         path: '/recruiter/candidates',
-        pageBuilder: (c, s) => _slide(s, const BrowseCandidatesPage()),
+        pageBuilder: (c, s) => _slide(c, s, const BrowseCandidatesPage()),
       ),
       GoRoute(
         path: '/recruiter/candidates/:id',
         pageBuilder: (c, s) {
           final id = int.parse(s.pathParameters['id']!);
-          return _slide(s, CandidateDetailPage(candidateUserId: id));
+          return _slide(c, s, CandidateDetailPage(candidateUserId: id));
         },
       ),
       GoRoute(
         path: '/recruiter/matches',
-        pageBuilder: (c, s) => _slide(s, const RecruiterMatchesPage()),
+        pageBuilder: (c, s) => _slide(c, s, const RecruiterMatchesPage()),
       ),
       GoRoute(
         path: '/recruiter/profile',
-        pageBuilder: (c, s) => _slide(s, const RecruiterProfilePage()),
+        pageBuilder: (c, s) => _slide(c, s, const RecruiterProfilePage()),
       ),
       GoRoute(
         path: '/recruiter/profile/edit',
         pageBuilder: (c, s) =>
-            _slide(s, const EditRecruiterProfilePage()),
+            _slide(c, s, const EditRecruiterProfilePage()),
       ),
       GoRoute(
         path: '/recruiter/likes',
-        pageBuilder: (c, s) => _slide(s, const LikesReceivedPage()),
+        pageBuilder: (c, s) => _slide(c, s, const LikesReceivedPage()),
       ),
       GoRoute(
         path: '/recruiter/stats',
-        pageBuilder: (c, s) => _slide(s, const RecruiterStatsPage()),
+        pageBuilder: (c, s) => _slide(c, s, const RecruiterStatsPage()),
       ),
 
-      // Shared
+      // Shared routes
       GoRoute(
         path: '/messages',
-        pageBuilder: (c, s) => _slide(s, const MessagesPage()),
+        pageBuilder: (c, s) => _slide(c, s, const MessagesPage()),
       ),
       GoRoute(
         path: '/messages/:matchId',
         pageBuilder: (c, s) {
           final matchId = int.parse(s.pathParameters['matchId']!);
-          return _slide(s, ConversationDetailPage(matchId: matchId));
+          return _slide(c, s, ConversationDetailPage(matchId: matchId));
         },
       ),
       GoRoute(
@@ -208,6 +196,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (c, s) {
           final extra = s.extra as Map<String, dynamic>? ?? {};
           return _fade(
+            c,
             s,
             MatchPage(
               matchId: extra['matchId'] as int? ?? 0,
@@ -219,7 +208,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/settings',
-        pageBuilder: (c, s) => _slide(s, const SettingsPage()),
+        pageBuilder: (c, s) => _slide(c, s, const SettingsPage()),
       ),
     ],
   );

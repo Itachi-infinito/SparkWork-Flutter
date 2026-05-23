@@ -17,6 +17,10 @@ import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
+import 'package:flutter/services.dart';
+import '../../core/utils/avatar_colors.dart';
+import '../../core/widgets/animated_action_button.dart';
+import '../../core/widgets/swipe_overlay.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -41,6 +45,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   String _filterRemoteMode = '';
   String _filterLocation = '';
   int? _filterMinSalary;
+
+  SwipeOverlayType _overlayType = SwipeOverlayType.none;
 
   bool get _hasActiveFilters =>
       _filterContractType.isNotEmpty ||
@@ -319,28 +325,27 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
     }
   }
 
-  void _onSwipeEnd(
-      int previousIndex, int? targetIndex, SwiperActivity activity) {
-    if (activity is Swipe) {
-      if (previousIndex < _offers.length) {
-        final offer = _offers[previousIndex];
-        if (activity.direction == AxisDirection.right) {
-          HapticFeedback.mediumImpact();
-          _handleSwipeRight(offer);
-        } else if (activity.direction == AxisDirection.left) {
-          HapticFeedback.lightImpact();
-        }
+  void _onSwipeEnd(int previousIndex, int? targetIndex, SwiperActivity activity) {
+  setState(() => _overlayType = SwipeOverlayType.none); // reset
+  if (activity is Swipe) {
+    if (previousIndex < _offers.length) {
+      final offer = _offers[previousIndex];
+      if (activity.direction == AxisDirection.right) {
+        HapticFeedback.mediumImpact();
+        _handleSwipeRight(offer);
+      } else if (activity.direction == AxisDirection.left) {
+        HapticFeedback.lightImpact();
       }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
         title: const Text('Découvrir des offres'),
-        backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           Stack(
@@ -550,23 +555,40 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       children: [
         Expanded(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: AppinioSwiper(
-              controller: _swiperController,
-              cardCount: _offers.length,
-              onSwipeEnd: _onSwipeEnd,
-              cardBuilder: (context, index) {
-                if (index >= _offers.length) return const SizedBox();
-                final offer = _offers[index];
-                final score = _scores[offer.jobOfferId];
-                final isSuperLiked =
-                    _superLikedByRecruiter[offer.jobOfferId] ?? false;
-                return _JobOfferCard(
-                    offer: offer,
-                    score: score,
-                    isSuperLiked: isSuperLiked);
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Listener(
+              onPointerMove: (event) {
+                final dx = event.delta.dx;
+                final dy = event.delta.dy;
+                SwipeOverlayType newType;
+                if (dy < -2 && dy.abs() > dx.abs()) {
+                  newType = SwipeOverlayType.superLike;
+                } else if (dx > 2) {
+                  newType = SwipeOverlayType.like;
+                } else if (dx < -2) {
+                  newType = SwipeOverlayType.pass;
+                } else {
+                  return;
+                }
+                if (newType != _overlayType) setState(() => _overlayType = newType);
               },
+              onPointerUp: (_) => setState(() => _overlayType = SwipeOverlayType.none),
+              child: AppinioSwiper(
+                controller: _swiperController,
+                cardCount: _offers.length,
+                onSwipeEnd: _onSwipeEnd,
+                cardBuilder: (context, index) {
+                  if (index >= _offers.length) return const SizedBox();
+                  final offer = _offers[index];
+                  final score = _scores[offer.jobOfferId];
+                  return Stack(
+                    children: [
+                      _JobOfferCard(offer: offer, score: score),
+                      SwipeOverlay(type: _overlayType),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -589,6 +611,15 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
             onTap: () {
               HapticFeedback.lightImpact();
               _swiperController.swipeLeft();
+            },
+          ),
+          AnimatedActionButton(
+            icon: Icons.bolt,
+            color: const Color(0xFFF59E0B),
+            size: 50,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              _swiperController.swipeRight();
             },
           ),
           AnimatedActionButton(
@@ -704,9 +735,7 @@ class _FilterLabel extends StatelessWidget {
 class _JobOfferCard extends StatelessWidget {
   final JobOffer offer;
   final int? score;
-  final bool isSuperLiked;
-  const _JobOfferCard(
-      {required this.offer, this.score, required this.isSuperLiked});
+  const _JobOfferCard({required this.offer, this.score});
 
   @override
   Widget build(BuildContext context) {
@@ -733,65 +762,25 @@ class _JobOfferCard extends StatelessWidget {
             height: 160,
             decoration: BoxDecoration(
               gradient: AvatarColors.gradientForString(offer.companyName),
-            ),  
+            ),
             child: Stack(
               children: [
-                Center(
-                    child: Text(offer.initials,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2))),
+                Center(child: Text(offer.initials, style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.bold, letterSpacing: 2))),
                 if (score != null)
                   Positioned(
-                    top: 14,
-                    right: 14,
+                    top: 14, right: 14,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: score! >= 70
-                            ? AppColors.green
-                            : const Color(0xFFF59E0B),
+                        color: score! >= 70 ? AppColors.green : const Color(0xFFF59E0B),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.bolt,
-                              color: Colors.white, size: 14),
+                          const Icon(Icons.bolt, color: Colors.white, size: 14),
                           const SizedBox(width: 2),
-                          Text('$score%',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (isSuperLiked)
-                  Positioned(
-                    bottom: 14,
-                    left: 14,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.orange,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bolt, color: Colors.white, size: 14),
-                          SizedBox(width: 4),
-                          Text('Vous intéresse !',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12)),
+                          Text('$score%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                         ],
                       ),
                     ),
