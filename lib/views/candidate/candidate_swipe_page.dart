@@ -21,6 +21,7 @@ import 'package:flutter/services.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
+import '../../services/notification_service.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -316,6 +317,13 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           recruiterUserId: recruiterUserId,
           jobOfferId: offer.jobOfferId,
         );
+        final matchId = await matchRepo.addMatch(
+          candidateUserId: candidateUserId,
+          recruiterUserId: recruiterUserId,
+          jobOfferId: offer.jobOfferId,
+        );
+        // ← Ajoute cette ligne :
+        NotificationService.showMatch(jobTitle: offer.title, company: offer.companyName);
         if (mounted) {
           context.push('/match', extra: {
             'matchId': matchId,
