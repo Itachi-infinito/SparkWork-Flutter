@@ -83,6 +83,7 @@ class _EditCandidateProfilePageState
         skills: AppSkills.formatSkills(_skills),
       );
       await ref.read(candidateProfileRepositoryProvider).updateProfile(updated);
+      ref.read(profileVersionProvider.notifier).state++; // ← ajoute cette ligne
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

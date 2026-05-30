@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
+import '../../core/utils/profile_completion.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/profile_completion_card.dart';
+import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
@@ -20,7 +23,9 @@ class CandidateHomePage extends ConsumerStatefulWidget {
 class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
   int _offerCount = 0;
   int _matchCount = 0;
+  int? _completionScore;
   List<Map<String, dynamic>> _recentMatches = [];
+  List<CompletionItem> _missingFields = [];
 
   @override
   void initState() {
@@ -36,8 +41,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     final matchRepo = ref.read(matchRepositoryProvider);
     final offerRepo = ref.read(jobOfferRepositoryProvider);
 
-    final pending =
-        await matchRepo.getPendingMatchAnimation(session.userId, session.userRole);
+    final pending = await matchRepo.getPendingMatchAnimation(
+        session.userId, session.userRole);
     if (pending == null || !mounted) return;
 
     final offer = await offerRepo.getOfferById(pending.jobOfferId);
@@ -54,6 +59,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     final session = ref.read(sessionProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
     final offerRepo = ref.read(jobOfferRepositoryProvider);
+    final profileRepo = ref.read(candidateProfileRepositoryProvider);
 
     final allOffers = await offerRepo.getAllOffers();
     final matches = await matchRepo.getMatchesByCandidate(session.userId);
@@ -62,15 +68,25 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     for (final m in matches.take(3)) {
       final offer = await offerRepo.getOfferById(m.jobOfferId);
       if (offer != null) {
-        recent.add({'matchId': m.matchId, 'title': offer.title, 'company': offer.companyName});
+        recent.add({
+          'matchId': m.matchId,
+          'title': offer.title,
+          'company': offer.companyName,
+        });
       }
     }
+
+    final profile = await profileRepo.getProfile(session.userId);
+    final score = ProfileCompletion.calculate(profile);
+    final missing = ProfileCompletion.missing(profile);
 
     if (mounted) {
       setState(() {
         _offerCount = allOffers.length;
         _matchCount = matches.length;
         _recentMatches = recent;
+        _completionScore = score;
+        _missingFields = missing;
       });
     }
   }
@@ -78,7 +94,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
-    final hasUnread = (ref.watch(unreadMessagesProvider).asData?.value as bool?) ?? false;
+    final hasUnread =
+        (ref.watch(unreadMessagesProvider).asData?.value as bool?) ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -106,12 +123,18 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 style: TextStyle(color: context.textSecondaryColor)),
             const SizedBox(height: 20),
 
-            // Stats row
+            // Stats
             Row(
               children: [
-                _StatCard(label: 'Offres', value: '$_offerCount', color: AppColors.primary),
+                _StatCard(
+                    label: 'Offres',
+                    value: '$_offerCount',
+                    color: AppColors.primary),
                 const SizedBox(width: 12),
-                _StatCard(label: 'Matches', value: '$_matchCount', color: AppColors.red),
+                _StatCard(
+                    label: 'Matches',
+                    value: '$_matchCount',
+                    color: AppColors.red),
                 const SizedBox(width: 12),
                 _StatCardWithBadge(
                   label: 'Messages',
@@ -122,7 +145,19 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Complétion de profil
+            if (_completionScore != null && _completionScore! < 100)
+            ProfileCompletionCard(
+              score: _completionScore!,
+              missing: _missingFields,
+              onEdit: () async {
+                await context.push('/candidate/profile/edit');
+                _loadStats(); // ← recharge après retour
+              },
+            ),
+            const SizedBox(height: 16),
 
             // CTA swipe
             GestureDetector(
@@ -147,7 +182,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.swipe, color: Colors.white, size: 28),
+                      child: const Icon(Icons.swipe,
+                          color: Colors.white, size: 28),
                     ),
                     const SizedBox(height: 16),
                     const Text('Découvrir des offres',
@@ -157,16 +193,20 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     Text('Swipez pour trouver votre prochain emploi',
-                        style:
-                            TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 13)),
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10)),
                       child: const Text('Commencer',
                           style: TextStyle(
-                              color: AppColors.primary, fontWeight: FontWeight.w600)),
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -174,7 +214,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
             ),
             const SizedBox(height: 24),
 
-            // Quick actions
+            // Accès rapide
             Text('Accès rapide',
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
@@ -212,7 +252,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
               ],
             ),
 
-            // Recent matches
+            // Derniers matches
             if (_recentMatches.isNotEmpty) ...[
               const SizedBox(height: 24),
               Text('Derniers matches',
@@ -229,27 +269,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                         context.push('/messages/${m['matchId']}'),
                   )),
             ],
-
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.orangeLight,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.lightbulb_outline, color: AppColors.orange),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Astuce : Complétez votre profil pour augmenter vos chances de match !',
-                      style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -262,7 +282,8 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _StatCard({required this.label, required this.value, required this.color});
+  const _StatCard(
+      {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -278,10 +299,13 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(value,
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
             const SizedBox(height: 2),
             Text(label,
-                style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                style: TextStyle(
+                    fontSize: 11, color: context.textSecondaryColor)),
           ],
         ),
       ),
@@ -313,16 +337,21 @@ class _StatCardWithBadge extends StatelessWidget {
             color: context.surfaceColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: hasBadge ? color : context.borderColor, width: hasBadge ? 1.5 : 1),
+                color: hasBadge ? color : context.borderColor,
+                width: hasBadge ? 1.5 : 1),
           ),
           child: Column(
             children: [
               Text(value,
                   style: TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: color)),
               const SizedBox(height: 2),
               Text(label,
-                  style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: context.textSecondaryColor)),
             ],
           ),
         ),
@@ -367,7 +396,8 @@ class _RecentMatchTile extends StatelessWidget {
                         color: context.textPrimaryColor)),
                 Text(company,
                     style: TextStyle(
-                        fontSize: 12, color: context.textSecondaryColor)),
+                        fontSize: 12,
+                        color: context.textSecondaryColor)),
               ],
             ),
           ),
@@ -419,7 +449,8 @@ class _QuickAction extends StatelessWidget {
             Icon(icon, color: color, size: 26),
             const SizedBox(height: 6),
             Text(label,
-                style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                style: TextStyle(
+                    fontSize: 11, color: context.textSecondaryColor)),
           ],
         ),
       ),

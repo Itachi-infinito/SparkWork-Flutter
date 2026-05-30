@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/session_service.dart';
 
@@ -29,18 +30,26 @@ class _SplashPageState extends ConsumerState<SplashPage>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
     _controller.forward();
-    _init();
+    _navigate(); // ← corrigé : était _init()
   }
 
-  Future<void> _init() async {
-    await Future.delayed(const Duration(milliseconds: 1600));
+  Future<void> _navigate() async {
+    await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    final restored =
-        await ref.read(sessionProvider.notifier).restoreSession();
+
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
+
     if (!mounted) return;
-    if (restored) {
-      final role = ref.read(sessionProvider).userRole;
-      context.go(role == 'recruiter' ? '/recruiter/home' : '/candidate/home');
+
+    if (!onboardingSeen) {
+      context.go('/onboarding');
+      return;
+    }
+
+    final session = ref.read(sessionProvider);
+    if (session.isLoggedIn) {
+      context.go(session.isCandidate ? '/candidate/home' : '/recruiter/home');
     } else {
       context.go('/welcome');
     }

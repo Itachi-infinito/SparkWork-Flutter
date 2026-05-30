@@ -75,4 +75,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
     );
     return true;
   }
+  
 }
+final profileVersionProvider = StateProvider<int>((ref) => 0);

@@ -2,6 +2,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
+import '../../core/utils/profile_completion.dart';
+import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/profile_completion_card.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/session_service.dart';
@@ -15,8 +19,7 @@ class CandidateProfilePage extends ConsumerStatefulWidget {
       _CandidateProfilePageState();
 }
 
-class _CandidateProfilePageState
-    extends ConsumerState<CandidateProfilePage> {
+class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
   CandidateProfile? _profile;
   bool _loading = true;
 
@@ -45,7 +48,7 @@ class _CandidateProfilePageState
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
               await context.push('/candidate/profile/edit');
-              _load();
+              _load(); // ← recharge le profil + recalcule le score de complétion
             },
           ),
           IconButton(
@@ -70,18 +73,18 @@ class _CandidateProfilePageState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_off_outlined,
-                  size: 64, color: AppColors.textHint),
+              Icon(Icons.person_off_outlined,
+                  size: 64, color: context.textHintColor),
               const SizedBox(height: 16),
-              const Text('Profil introuvable',
+              Text('Profil introuvable',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 8),
-              const Text('Votre profil n\'a pas pu être chargé.',
+              Text('Votre profil n\'a pas pu être chargé.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton(
                   onPressed: _load, child: const Text('Réessayer')),
@@ -92,6 +95,9 @@ class _CandidateProfilePageState
 
   Widget _buildProfile() {
     final p = _profile!;
+    final score = ProfileCompletion.calculate(_profile);
+    final missing = ProfileCompletion.missing(_profile);
+
     return RefreshIndicator(
       onRefresh: _load,
       color: AppColors.primary,
@@ -101,35 +107,28 @@ class _CandidateProfilePageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 44,
-                    backgroundColor: AppColors.primaryLight,
-                    child: Text(p.initials,
-                        style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary)),
-                  ),
+                  AppAvatar(name: p.fullName, radius: 44),
                   const SizedBox(height: 12),
                   Text(p.fullName,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary)),
+                          color: context.textPrimaryColor)),
                   if (p.location.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 14, color: AppColors.textSecondary),
+                        Icon(Icons.location_on_outlined,
+                            size: 14, color: context.textSecondaryColor),
                         const SizedBox(width: 4),
                         Text(p.location,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
+                            style: TextStyle(
+                                color: context.textSecondaryColor,
                                 fontSize: 13)),
                       ],
                     ),
@@ -149,48 +148,63 @@ class _CandidateProfilePageState
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Complétion de profil
+            if (score < 100)
+              ProfileCompletionCard(score: score, missing: missing),
+
+            const SizedBox(height: 20),
+
+            // Bio
             if (p.bio.isNotEmpty) ...[
-              const _SectionTitle('À propos'),
+              _SectionTitle('À propos'),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.borderColor),
                 ),
                 child: Text(p.bio,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary, height: 1.5)),
+                    style: TextStyle(
+                        color: context.textPrimaryColor, height: 1.5)),
               ),
               const SizedBox(height: 20),
             ],
-            const _SectionTitle('Compétences'),
+
+            // Compétences
+            _SectionTitle('Compétences'),
             const SizedBox(height: 8),
             p.skillList.isEmpty
-                ? const Text('Aucune compétence renseignée.',
+                ? Text('Aucune compétence renseignée.',
                     style: TextStyle(
-                        color: AppColors.textHint, fontSize: 13))
+                        color: context.textHintColor, fontSize: 13))
                 : Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: p.skillList
-                        .map((s) => Chip(
-                              label: Text(s,
+                        .map((s) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(s,
                                   style: const TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.primary)),
-                              backgroundColor: AppColors.primaryLight,
-                              side: BorderSide.none,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500)),
                             ))
                         .toList(),
                   ),
             const SizedBox(height: 20),
-            const _SectionTitle('Préférences'),
+
+            // Préférences
+            _SectionTitle('Préférences'),
             const SizedBox(height: 8),
             _PrefsGrid(profile: p),
             const SizedBox(height: 32),
@@ -199,18 +213,12 @@ class _CandidateProfilePageState
       ),
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(
+  Widget _SectionTitle(String text) => Text(text,
+      style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary));
+          color: context.textPrimaryColor));
 }
 
 class _PrefsGrid extends StatelessWidget {
@@ -234,6 +242,7 @@ class _PrefsGrid extends StatelessWidget {
               ? 'Non renseigné'
               : profile.remotePreference),
     ];
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -246,9 +255,9 @@ class _PrefsGrid extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.borderColor),
                 ),
                 child: Row(
                   children: [
@@ -260,14 +269,14 @@ class _PrefsGrid extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(item.$2,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 10,
-                                  color: AppColors.textSecondary)),
+                                  color: context.textSecondaryColor)),
                           Text(item.$3,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
+                                  color: context.textPrimaryColor),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1),
                         ],

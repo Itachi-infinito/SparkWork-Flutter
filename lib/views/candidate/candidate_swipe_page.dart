@@ -55,6 +55,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       _filterLocation.isNotEmpty ||
       _filterMinSalary != null;
 
+  
+
   @override
   void initState() {
     super.initState();
@@ -342,6 +344,9 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(profileVersionProvider, (prev, next) {
+    if (mounted) _loadData(); 
+    });
     return Scaffold(
       
       appBar: AppBar(
