@@ -22,6 +22,7 @@ import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
 import '../../services/notification_service.dart';
+import '../../core/widgets/empty_state.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -494,70 +495,34 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   }
 
   Widget _buildEmptyState() {
-    final isFiltered = _hasActiveFilters && _allOffers.isNotEmpty;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle),
-              child: Icon(
-                isFiltered ? Icons.filter_list_off : Icons.bolt,
-                color: AppColors.primary,
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              isFiltered ? 'Aucun résultat' : 'Aucune offre disponible',
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isFiltered
-                  ? 'Aucune offre ne correspond à vos filtres.'
-                  : 'Vous avez tout vu ! Revenez plus tard.',
-              textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            if (isFiltered)
-              OutlinedButton.icon(
-                onPressed: _clearFilters,
-                icon: const Icon(Icons.filter_list_off,
-                    color: AppColors.primary),
-                label: const Text('Supprimer les filtres',
-                    style: TextStyle(color: AppColors.primary)),
-                style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary)),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: _loadData,
-                icon: const Icon(Icons.refresh,
-                    color: AppColors.primary),
-                label: const Text('Actualiser',
-                    style: TextStyle(color: AppColors.primary)),
-                style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  final isFiltered = _hasActiveFilters && _allOffers.isNotEmpty;
+  return EmptyState(
+    icon: isFiltered ? Icons.filter_list_off : Icons.bolt,
+    title: isFiltered ? 'Aucun résultat' : 'Aucune offre disponible',
+    subtitle: isFiltered
+        ? 'Aucune offre ne correspond à vos filtres.'
+        : 'Vous avez tout vu ! Revenez plus tard.',
+    action: isFiltered
+        ? OutlinedButton.icon(
+            onPressed: _clearFilters,
+            icon: const Icon(Icons.filter_list_off, color: AppColors.primary),
+            label: const Text('Supprimer les filtres',
+                style: TextStyle(color: AppColors.primary)),
+            style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary)),
+          )
+        : OutlinedButton.icon(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            label: const Text('Actualiser',
+                style: TextStyle(color: AppColors.primary)),
+            style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12)),
+          ),
+  );
+}
 
   Widget _buildSwiper() {
     return Column(

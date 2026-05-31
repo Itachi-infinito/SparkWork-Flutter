@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/empty_state.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
 
@@ -13,9 +14,14 @@ class JobOfferListPage extends ConsumerStatefulWidget {
 }
 
 class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
+  static const _pageSize = 20;
+
   final _searchCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
   List<JobOffer> _all = [];
   List<JobOffer> _filtered = [];
+  List<JobOffer> _displayed = [];
   bool _loading = true;
 
   @override
@@ -23,11 +29,13 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
     super.initState();
     _load();
     _searchCtrl.addListener(_filter);
+    _scrollCtrl.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -37,6 +45,7 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
       setState(() {
         _all = offers;
         _filtered = offers;
+        _displayed = offers.take(_pageSize).toList();
         _loading = false;
       });
     }
@@ -51,7 +60,21 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
               o.companyName.toLowerCase().contains(q) ||
               o.location.toLowerCase().contains(q))
           .toList();
+      _displayed = _filtered.take(_pageSize).toList();
     });
+  }
+
+  void _onScroll() {
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 200) {
+      if (_displayed.length < _filtered.length) {
+        setState(() {
+          final next =
+              _filtered.skip(_displayed.length).take(_pageSize);
+          _displayed = [..._displayed, ...next];
+        });
+      }
+    }
   }
 
   @override
@@ -59,19 +82,14 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-              title: const Text('Offres disponibles'),
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.go('/candidate/home');
-                  }
-                },
-              ),
+        title: const Text('Offres disponibles'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/candidate/home'),
+        ),
       ),
       body: Column(
         children: [
@@ -94,18 +112,68 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
               ),
             ),
           ),
+          if (!_loading && _all.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              child: Row(children: [
+                Text(
+                  '${_filtered.length} offre${_filtered.length > 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ]),
+            ),
           const SizedBox(height: 8),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary))
                 : _filtered.isEmpty
-                    ? const Center(child: Text('Aucune offre trouvée',
-                        style: TextStyle(color: AppColors.textSecondary)))
+                    ? EmptyState(
+                        icon: _searchCtrl.text.isNotEmpty
+                            ? Icons.search_off
+                            : Icons.work_off_outlined,
+                        title: _searchCtrl.text.isNotEmpty
+                            ? 'Aucun résultat'
+                            : 'Aucune offre disponible',
+                        subtitle: _searchCtrl.text.isNotEmpty
+                            ? 'Essayez avec d\'autres mots-clés.'
+                            : 'Les offres apparaîtront ici.',
+                        action: _searchCtrl.text.isNotEmpty
+                            ? OutlinedButton.icon(
+                                onPressed: () {
+                                  _searchCtrl.clear();
+                                  _filter();
+                                },
+                                icon: const Icon(Icons.clear,
+                                    color: AppColors.primary, size: 16),
+                                label: const Text('Effacer',
+                                    style:
+                                        TextStyle(color: AppColors.primary)),
+                                style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: AppColors.primary)),
+                              )
+                            : null,
+                      )
                     : ListView.builder(
+                        controller: _scrollCtrl,
                         padding: const EdgeInsets.all(16),
-                        itemCount: _filtered.length,
-                        itemBuilder: (context, i) =>
-                            _OfferCard(offer: _filtered[i]),
+                        itemCount: _displayed.length +
+                            (_displayed.length < _filtered.length ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (i == _displayed.length) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator(
+                                    color: AppColors.primary, strokeWidth: 2),
+                              ),
+                            );
+                          }
+                          return _OfferCard(offer: _displayed[i]);
+                        },
                       ),
           ),
         ],
@@ -132,14 +200,17 @@ class _OfferCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.primaryLight,
-              child: Text(offer.initials,
-                  style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14)),
+            Hero(
+              tag: 'offer_avatar_${offer.jobOfferId}',
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: AppColors.primaryLight,
+                child: Text(offer.initials,
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -156,30 +227,27 @@ class _OfferCard extends StatelessWidget {
                       style: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      
-                      const Icon(Icons.location_on_outlined,
-                          size: 12, color: AppColors.textSecondary),
-                      const SizedBox(width: 2),
-                      Text(offer.location,
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                      const SizedBox(width: 8),
-                      if (offer.contractType.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(offer.contractType,
-                              style: const TextStyle(
-                                  color: AppColors.primary, fontSize: 10)),
+                  Row(children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 12, color: AppColors.textSecondary),
+                    const SizedBox(width: 2),
+                    Text(offer.location,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    if (offer.contractType.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                    ],
-                  ),
+                        child: Text(offer.contractType,
+                            style: const TextStyle(
+                                color: AppColors.primary, fontSize: 10)),
+                      ),
+                  ]),
                 ],
               ),
             ),
