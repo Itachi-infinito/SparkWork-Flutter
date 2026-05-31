@@ -298,8 +298,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
     final session = ref.read(sessionProvider);
     final candidateUserId = session.userId;
     final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
-    final recruiterLikeRepo =
-        ref.read(recruiterCandidateLikeRepositoryProvider);
+    final recruiterLikeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
 
     await likeRepo.addLike(candidateUserId, offer.jobOfferId);
@@ -317,13 +316,10 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           recruiterUserId: recruiterUserId,
           jobOfferId: offer.jobOfferId,
         );
-        final matchId = await matchRepo.addMatch(
-          candidateUserId: candidateUserId,
-          recruiterUserId: recruiterUserId,
-          jobOfferId: offer.jobOfferId,
+        NotificationService.showMatch(
+          jobTitle: offer.title,
+          company: offer.companyName,
         );
-        // ← Ajoute cette ligne :
-        NotificationService.showMatch(jobTitle: offer.title, company: offer.companyName);
         if (mounted) {
           context.push('/match', extra: {
             'matchId': matchId,

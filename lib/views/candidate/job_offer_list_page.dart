@@ -59,9 +59,19 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Offres disponibles'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
+              title: const Text('Offres disponibles'),
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/candidate/home');
+                  }
+                },
+              ),
       ),
       body: Column(
         children: [

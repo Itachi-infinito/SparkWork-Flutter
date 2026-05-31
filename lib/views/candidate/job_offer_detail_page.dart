@@ -292,9 +292,13 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
         slivers: [
           // Header avec gradient dynamique
           SliverAppBar(
-            expandedHeight: 240,
+            expandedHeight: 220,
             pinned: true,
-            backgroundColor: gradient.colors.first,
+            backgroundColor: AppColors.primary,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () => context.pop(),
+            ),
             iconTheme: const IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(

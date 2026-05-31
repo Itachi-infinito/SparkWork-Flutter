@@ -30,6 +30,7 @@ import '../../views/shared/conversation_detail_page.dart';
 import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
+import '../../views/public/onboarding_page.dart';
 
 Page<dynamic> _slide(BuildContext context, GoRouterState state, Widget child) {
   return CustomTransitionPage(
@@ -69,6 +70,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (c, s) => _fade(c, s, const SplashPage()),
       ),
       GoRoute(
+        path: '/onboarding',
+        pageBuilder: (c, s) => _fade(c, s, const OnboardingPage()),
+      ),
+      GoRoute(
         path: '/welcome',
         pageBuilder: (c, s) => _fade(c, s, const WelcomePage()),
       ),
@@ -90,6 +95,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Candidate routes
+      GoRoute(
+        path: '/candidate/offers/:id',
+        pageBuilder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return _slide(context, state, JobOfferDetailPage(jobOfferId: id));
+        },
+      ),
       GoRoute(
         path: '/candidate/home',
         pageBuilder: (c, s) => _fade(c, s, const CandidateHomePage()),
