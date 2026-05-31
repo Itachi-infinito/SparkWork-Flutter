@@ -14,6 +14,7 @@ class CandidateProfile {
   final String remotePreference;
   final double latitude;
   final double longitude;
+  final String? photoPath;
 
   const CandidateProfile({
     required this.profileId,
@@ -29,16 +30,14 @@ class CandidateProfile {
     required this.remotePreference,
     required this.latitude,
     required this.longitude,
+    this.photoPath,
   });
 
   List<String> get skillList => AppSkills.parseSkills(skills);
-
   bool get hasSalary => desiredSalaryMin > 0 || desiredSalaryMax > 0;
 
   String get salaryDisplay {
-    if (desiredSalaryMin > 0 && desiredSalaryMax > 0) {
-      return '$desiredSalaryMin - $desiredSalaryMax €';
-    }
+    if (desiredSalaryMin > 0 && desiredSalaryMax > 0) return '$desiredSalaryMin - $desiredSalaryMax €';
     if (desiredSalaryMin > 0) return 'À partir de $desiredSalaryMin €';
     if (desiredSalaryMax > 0) return "Jusqu'à $desiredSalaryMax €";
     return 'Salaire non renseigné';
@@ -46,43 +45,43 @@ class CandidateProfile {
 
   String get initials {
     final parts = fullName.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     return fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
   }
 
   Map<String, dynamic> toMap() => {
-        'profileId': profileId,
-        'userId': userId,
-        'fullName': fullName,
-        'location': location,
-        'desiredContractType': desiredContractType,
-        'desiredLevel': desiredLevel,
-        'skills': skills,
-        'bio': bio,
-        'desiredSalaryMin': desiredSalaryMin,
-        'desiredSalaryMax': desiredSalaryMax,
-        'remotePreference': remotePreference,
-        'latitude': latitude,
-        'longitude': longitude,
-      };
+    'profileId': profileId,
+    'userId': userId,
+    'fullName': fullName,
+    'location': location,
+    'desiredContractType': desiredContractType,
+    'desiredLevel': desiredLevel,
+    'skills': skills,
+    'bio': bio,
+    'desiredSalaryMin': desiredSalaryMin,
+    'desiredSalaryMax': desiredSalaryMax,
+    'remotePreference': remotePreference,
+    'latitude': latitude,
+    'longitude': longitude,
+    'photoPath': photoPath,
+  };
 
   factory CandidateProfile.fromMap(Map<String, dynamic> map) => CandidateProfile(
-        profileId: map['profileId'] as int,
-        userId: map['userId'] as int,
-        fullName: map['fullName'] as String,
-        location: map['location'] as String,
-        desiredContractType: map['desiredContractType'] as String,
-        desiredLevel: map['desiredLevel'] as String,
-        skills: map['skills'] as String,
-        bio: map['bio'] as String,
-        desiredSalaryMin: map['desiredSalaryMin'] as int,
-        desiredSalaryMax: map['desiredSalaryMax'] as int,
-        remotePreference: map['remotePreference'] as String,
-        latitude: (map['latitude'] as num).toDouble(),
-        longitude: (map['longitude'] as num).toDouble(),
-      );
+    profileId: map['profileId'] as int,
+    userId: map['userId'] as int,
+    fullName: map['fullName'] as String,
+    location: map['location'] as String,
+    desiredContractType: map['desiredContractType'] as String,
+    desiredLevel: map['desiredLevel'] as String,
+    skills: map['skills'] as String,
+    bio: map['bio'] as String,
+    desiredSalaryMin: map['desiredSalaryMin'] as int,
+    desiredSalaryMax: map['desiredSalaryMax'] as int,
+    remotePreference: map['remotePreference'] as String,
+    latitude: (map['latitude'] as num).toDouble(),
+    longitude: (map['longitude'] as num).toDouble(),
+    photoPath: map['photoPath'] as String?,
+  );
 
   CandidateProfile copyWith({
     int? profileId,
@@ -98,6 +97,7 @@ class CandidateProfile {
     String? remotePreference,
     double? latitude,
     double? longitude,
+    String? photoPath,
   }) =>
       CandidateProfile(
         profileId: profileId ?? this.profileId,
@@ -113,5 +113,6 @@ class CandidateProfile {
         remotePreference: remotePreference ?? this.remotePreference,
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
+        photoPath: photoPath ?? this.photoPath,
       );
 }
