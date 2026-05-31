@@ -111,7 +111,7 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
             Center(
               child: Column(
                 children: [
-                  AppAvatar(name: p.fullName, radius: 44),
+                  AppAvatar(name: p.fullName, radius: 44, photoPath: p.photoPath),
                   const SizedBox(height: 12),
                   Text(p.fullName,
                       style: TextStyle(

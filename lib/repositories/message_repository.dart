@@ -8,25 +8,15 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
 
 class MessageRepository {
   final DatabaseService _db;
-
   MessageRepository(this._db);
 
   Future<List<Message>> getMessages(int matchId) async {
     final db = await _db.database;
-    final results = await db.query(
-      'messages',
-      where: 'matchId = ?',
-      whereArgs: [matchId],
-      orderBy: 'sentAt ASC',
-    );
+    final results = await db.query('messages', where: 'matchId = ?', whereArgs: [matchId], orderBy: 'sentAt ASC');
     return results.map(Message.fromMap).toList();
   }
 
-  Future<int> sendMessage({
-    required int matchId,
-    required int senderUserId,
-    required String content,
-  }) async {
+  Future<int> sendMessage({required int matchId, required int senderUserId, required String content}) async {
     final db = await _db.database;
     return db.insert('messages', {
       'matchId': matchId,
@@ -38,14 +28,18 @@ class MessageRepository {
 
   Future<Message?> getLastMessage(int matchId) async {
     final db = await _db.database;
-    final results = await db.query(
-      'messages',
-      where: 'matchId = ?',
-      whereArgs: [matchId],
-      orderBy: 'sentAt DESC',
-      limit: 1,
-    );
+    final results = await db.query('messages', where: 'matchId = ?', whereArgs: [matchId], orderBy: 'sentAt DESC', limit: 1);
     if (results.isEmpty) return null;
     return Message.fromMap(results.first);
+  }
+
+  Future<void> markMessagesSeen({required int matchId, required int currentUserId}) async {
+    final db = await _db.database;
+    await db.update(
+      'messages',
+      {'seenAt': DateTime.now().toIso8601String()},
+      where: 'matchId = ? AND senderUserId != ? AND seenAt IS NULL',
+      whereArgs: [matchId, currentUserId],
+    );
   }
 }

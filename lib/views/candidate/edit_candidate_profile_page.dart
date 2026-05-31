@@ -6,6 +6,9 @@ import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/session_service.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 class EditCandidateProfilePage extends ConsumerStatefulWidget {
   const EditCandidateProfilePage({super.key});
@@ -30,6 +33,8 @@ class _EditCandidateProfilePageState
   List<String> _skills = [];
   bool _loading = true;
   bool _saving = false;
+
+  String? _photoPath;
 
   @override
   void initState() {
@@ -61,11 +66,22 @@ class _EditCandidateProfilePageState
             ? profile.remotePreference
             : null;
         _skills = profile.skillList.toList();
+        _photoPath = profile.photoPath;
         _loading = false;
       });
     } else {
       setState(() => _loading = false);
     }
+  }
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked == null) return;
+    final appDir = await getApplicationDocumentsDirectory();
+    final userId = ref.read(sessionProvider).userId;
+    final dest = '${appDir.path}/profile_$userId.jpg';
+    await File(picked.path).copy(dest);
+    setState(() => _photoPath = dest);
   }
 
   Future<void> _save() async {
@@ -81,6 +97,7 @@ class _EditCandidateProfilePageState
         desiredLevel: _level ?? '',
         remotePreference: _remotePreference ?? '',
         skills: AppSkills.formatSkills(_skills),
+        photoPath: _photoPath,
       );
       await ref.read(candidateProfileRepositoryProvider).updateProfile(updated);
       ref.read(profileVersionProvider.notifier).state++; // ← ajoute cette ligne
@@ -141,6 +158,31 @@ class _EditCandidateProfilePageState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Center(
+                      child: GestureDetector(
+                        onTap: _pickPhoto,
+                        child: Stack(
+                          children: [
+                            _photoPath != null && File(_photoPath!).existsSync()
+                                ? CircleAvatar(radius: 50, backgroundImage: FileImage(File(_photoPath!)))
+                                : CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: AppColors.primaryLight,
+                                    child: const Icon(Icons.person, size: 50, color: AppColors.primary),
+                                  ),
+                            Positioned(
+                              bottom: 0, right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     TextFormField(
                       controller: _locationCtrl,
                       decoration: const InputDecoration(

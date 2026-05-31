@@ -18,22 +18,18 @@ class DatabaseService {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'sparkwork.db');
-
-    return openDatabase(
-      path,
-      version: 2,
-      onCreate: _createTables,
-      onUpgrade: _onUpgrade,
-    );
+    return openDatabase(path, version: 3, onCreate: _createTables, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       try {
-        await db.execute(
-          'ALTER TABLE recruiter_candidate_likes ADD COLUMN isSuperLike INTEGER NOT NULL DEFAULT 0',
-        );
+        await db.execute('ALTER TABLE recruiter_candidate_likes ADD COLUMN isSuperLike INTEGER NOT NULL DEFAULT 0');
       } catch (_) {}
+    }
+    if (oldVersion < 3) {
+      try { await db.execute('ALTER TABLE messages ADD COLUMN seenAt TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE candidate_profiles ADD COLUMN photoPath TEXT'); } catch (_) {}
     }
   }
 
@@ -47,7 +43,6 @@ class DatabaseService {
         role TEXT NOT NULL
       )
     ''');
-
     await db.execute('''
       CREATE TABLE candidate_profiles (
         profileId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,10 +58,10 @@ class DatabaseService {
         remotePreference TEXT NOT NULL DEFAULT '',
         latitude REAL NOT NULL DEFAULT 0,
         longitude REAL NOT NULL DEFAULT 0,
+        photoPath TEXT,
         FOREIGN KEY (userId) REFERENCES users(userId)
       )
     ''');
-
     await db.execute('''
       CREATE TABLE job_offers (
         jobOfferId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +83,6 @@ class DatabaseService {
         FOREIGN KEY (recruiterUserId) REFERENCES users(userId)
       )
     ''');
-
     await db.execute('''
       CREATE TABLE matches (
         matchId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +97,6 @@ class DatabaseService {
         FOREIGN KEY (jobOfferId) REFERENCES job_offers(jobOfferId)
       )
     ''');
-
     await db.execute('''
       CREATE TABLE messages (
         messageId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,10 +104,10 @@ class DatabaseService {
         senderUserId INTEGER NOT NULL,
         content TEXT NOT NULL,
         sentAt TEXT NOT NULL,
+        seenAt TEXT,
         FOREIGN KEY (matchId) REFERENCES matches(matchId)
       )
     ''');
-
     await db.execute('''
       CREATE TABLE candidate_job_likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +116,6 @@ class DatabaseService {
         UNIQUE(candidateUserId, jobOfferId)
       )
     ''');
-
     await db.execute('''
       CREATE TABLE recruiter_candidate_likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,24 +130,14 @@ class DatabaseService {
 
   Future<User?> getUserByEmail(String email) async {
     final db = await database;
-    final results = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email],
-      limit: 1,
-    );
+    final results = await db.query('users', where: 'email = ?', whereArgs: [email], limit: 1);
     if (results.isEmpty) return null;
     return User.fromMap(results.first);
   }
 
   Future<User?> getUserById(int userId) async {
     final db = await database;
-    final results = await db.query(
-      'users',
-      where: 'userId = ?',
-      whereArgs: [userId],
-      limit: 1,
-    );
+    final results = await db.query('users', where: 'userId = ?', whereArgs: [userId], limit: 1);
     if (results.isEmpty) return null;
     return User.fromMap(results.first);
   }
