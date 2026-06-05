@@ -1,8 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../services/database_service.dart';
 import '../../services/session_service.dart';
 
 class EditRecruiterProfilePage extends ConsumerStatefulWidget {
@@ -28,25 +28,18 @@ class _EditRecruiterProfilePageState
     final name = _nameCtrl.text.trim();
     if (name.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('Le nom doit contenir au moins 2 caractères.'),
+          content: Text('Le nom doit contenir au moins 2 caractères.'),
           backgroundColor: AppColors.red));
       return;
     }
     setState(() => _saving = true);
     try {
       final session = ref.read(sessionProvider);
-      final db =
-          await ref.read(databaseServiceProvider).database;
-      await db.update('users', {'fullName': name},
-          where: 'userId = ?',
-          whereArgs: [session.userId]);
-      await ref.read(sessionProvider.notifier).login(
-            userId: session.userId,
-            userName: name,
-            userEmail: session.userEmail,
-            userRole: session.userRole,
-          );
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(session.userId)
+          .update({'fullName': name});
+      await ref.read(sessionProvider.notifier).reload();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Profil mis à jour !'),
@@ -73,18 +66,15 @@ class _EditRecruiterProfilePageState
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => context.pop()),
+            icon: const Icon(Icons.close), onPressed: () => context.pop()),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 18, height: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.green))
+                        strokeWidth: 2, color: AppColors.green))
                 : const Text('Sauvegarder',
                     style: TextStyle(
                         color: AppColors.green,
@@ -129,15 +119,14 @@ class _EditRecruiterProfilePageState
                       color: AppColors.textHint, size: 20),
                   const SizedBox(width: 12),
                   Text(session.userEmail,
-                      style: const TextStyle(
-                          color: AppColors.textSecondary)),
+                      style:
+                          const TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             ),
             const SizedBox(height: 8),
             const Text('L\'email ne peut pas être modifié.',
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.textHint)),
+                style: TextStyle(fontSize: 12, color: AppColors.textHint)),
           ],
         ),
       ),

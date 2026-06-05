@@ -1,43 +1,53 @@
 ﻿import '../core/constants/app_skills.dart';
 
 class CandidateProfile {
-  final int profileId;
-  final int userId;
+  final String profileId;
+  final String userId;
   final String fullName;
   final String location;
   final String desiredContractType;
   final String desiredLevel;
-  final String skills;
+  final List<String> skills;
   final String bio;
   final int desiredSalaryMin;
   final int desiredSalaryMax;
   final String remotePreference;
   final double latitude;
   final double longitude;
-  final String? photoPath;
+  final String? jobTitle;
+  final String? photoUrl;
 
   const CandidateProfile({
     required this.profileId,
     required this.userId,
     required this.fullName,
-    required this.location,
-    required this.desiredContractType,
-    required this.desiredLevel,
-    required this.skills,
-    required this.bio,
-    required this.desiredSalaryMin,
-    required this.desiredSalaryMax,
-    required this.remotePreference,
-    required this.latitude,
-    required this.longitude,
-    this.photoPath,
+    this.location = '',
+    this.desiredContractType = '',
+    this.desiredLevel = '',
+    this.skills = const [],
+    this.bio = '',
+    this.desiredSalaryMin = 0,
+    this.desiredSalaryMax = 0,
+    this.remotePreference = '',
+    this.latitude = 0.0,
+    this.longitude = 0.0,
+    this.jobTitle,
+    this.photoUrl,
   });
 
-  List<String> get skillList => AppSkills.parseSkills(skills);
+  // Alias getters pour compatibilité avec les fichiers locaux
+  List<String> get skillList => skills;
+  String? get locationCity => location.isEmpty ? null : location;
+  String get contractType => desiredContractType;
+  String? get experienceLevel => desiredLevel.isEmpty ? null : desiredLevel;
+  String? get photoPath => photoUrl;
+
   bool get hasSalary => desiredSalaryMin > 0 || desiredSalaryMax > 0;
 
   String get salaryDisplay {
-    if (desiredSalaryMin > 0 && desiredSalaryMax > 0) return '$desiredSalaryMin - $desiredSalaryMax €';
+    if (desiredSalaryMin > 0 && desiredSalaryMax > 0) {
+      return '$desiredSalaryMin - $desiredSalaryMax €';
+    }
     if (desiredSalaryMin > 0) return 'À partir de $desiredSalaryMin €';
     if (desiredSalaryMax > 0) return "Jusqu'à $desiredSalaryMax €";
     return 'Salaire non renseigné';
@@ -56,63 +66,66 @@ class CandidateProfile {
     'location': location,
     'desiredContractType': desiredContractType,
     'desiredLevel': desiredLevel,
-    'skills': skills,
+    'skills': skills.join(', '),
     'bio': bio,
     'desiredSalaryMin': desiredSalaryMin,
     'desiredSalaryMax': desiredSalaryMax,
     'remotePreference': remotePreference,
     'latitude': latitude,
     'longitude': longitude,
-    'photoPath': photoPath,
+    if (jobTitle != null) 'jobTitle': jobTitle,
+    if (photoUrl != null) 'photoUrl': photoUrl,
   };
 
   factory CandidateProfile.fromMap(Map<String, dynamic> map) => CandidateProfile(
-    profileId: map['profileId'] as int,
-    userId: map['userId'] as int,
-    fullName: map['fullName'] as String,
-    location: map['location'] as String,
-    desiredContractType: map['desiredContractType'] as String,
-    desiredLevel: map['desiredLevel'] as String,
-    skills: map['skills'] as String,
-    bio: map['bio'] as String,
-    desiredSalaryMin: map['desiredSalaryMin'] as int,
-    desiredSalaryMax: map['desiredSalaryMax'] as int,
-    remotePreference: map['remotePreference'] as String,
-    latitude: (map['latitude'] as num).toDouble(),
-    longitude: (map['longitude'] as num).toDouble(),
-    photoPath: map['photoPath'] as String?,
+    profileId: map['profileId'] as String? ?? '',
+    userId: map['userId'] as String? ?? '',
+    fullName: map['fullName'] as String? ?? '',
+    location: map['location'] as String? ?? '',
+    desiredContractType: map['desiredContractType'] as String? ?? '',
+    desiredLevel: map['desiredLevel'] as String? ?? '',
+    skills: AppSkills.parseSkills(map['skills'] as String? ?? ''),
+    bio: map['bio'] as String? ?? '',
+    desiredSalaryMin: (map['desiredSalaryMin'] as num?)?.toInt() ?? 0,
+    desiredSalaryMax: (map['desiredSalaryMax'] as num?)?.toInt() ?? 0,
+    remotePreference: map['remotePreference'] as String? ?? '',
+    latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+    longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+    jobTitle: map['jobTitle'] as String?,
+    photoUrl: map['photoUrl'] as String?,
   );
 
   CandidateProfile copyWith({
-    int? profileId,
-    int? userId,
+    String? profileId,
+    String? userId,
     String? fullName,
     String? location,
     String? desiredContractType,
     String? desiredLevel,
-    String? skills,
+    List<String>? skills,
     String? bio,
     int? desiredSalaryMin,
     int? desiredSalaryMax,
     String? remotePreference,
     double? latitude,
     double? longitude,
-    String? photoPath,
-  }) =>
-      CandidateProfile(
-        profileId: profileId ?? this.profileId,
-        userId: userId ?? this.userId,
-        fullName: fullName ?? this.fullName,
-        location: location ?? this.location,
-        desiredContractType: desiredContractType ?? this.desiredContractType,
-        desiredLevel: desiredLevel ?? this.desiredLevel,
-        skills: skills ?? this.skills,
-        bio: bio ?? this.bio,
-        desiredSalaryMin: desiredSalaryMin ?? this.desiredSalaryMin,
-        desiredSalaryMax: desiredSalaryMax ?? this.desiredSalaryMax,
-        remotePreference: remotePreference ?? this.remotePreference,
-        latitude: latitude ?? this.latitude,
-        longitude: longitude ?? this.longitude,
-        photoPath: photoPath ?? this.photoPath,
-      );
+    String? jobTitle,
+    String? photoUrl,
+  }) => CandidateProfile(
+    profileId: profileId ?? this.profileId,
+    userId: userId ?? this.userId,
+    fullName: fullName ?? this.fullName,
+    location: location ?? this.location,
+    desiredContractType: desiredContractType ?? this.desiredContractType,
+    desiredLevel: desiredLevel ?? this.desiredLevel,
+    skills: skills ?? this.skills,
+    bio: bio ?? this.bio,
+    desiredSalaryMin: desiredSalaryMin ?? this.desiredSalaryMin,
+    desiredSalaryMax: desiredSalaryMax ?? this.desiredSalaryMax,
+    remotePreference: remotePreference ?? this.remotePreference,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    jobTitle: jobTitle ?? this.jobTitle,
+    photoUrl: photoUrl ?? this.photoUrl,
+  );
 }

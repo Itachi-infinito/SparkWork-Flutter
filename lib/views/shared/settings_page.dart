@@ -70,7 +70,7 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: () async {
-              await ref.read(sessionProvider.notifier).logout();
+              await ref.read(authServiceProvider).signOut();
               if (context.mounted) context.go('/welcome');
             },
             icon: const Icon(Icons.logout),
@@ -101,7 +101,7 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showChangePasswordDialog(BuildContext context, WidgetRef ref, int userId) {
+  void _showChangePasswordDialog(BuildContext context, WidgetRef ref, String userId) {
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
@@ -172,8 +172,7 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showDeleteAccountDialog(
-      BuildContext context, WidgetRef ref, int userId) {
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref, String userId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

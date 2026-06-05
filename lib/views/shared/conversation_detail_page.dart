@@ -8,9 +8,10 @@ import '../../repositories/match_repository.dart';
 import '../../repositories/message_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/unread_service.dart';
+import '../../services/notification_service.dart';
 
 class ConversationDetailPage extends ConsumerStatefulWidget {
-  final int matchId;
+  final String matchId;  
   const ConversationDetailPage({super.key, required this.matchId});
 
   @override
@@ -37,7 +38,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
     final msgs = await msgRepo.getMessages(widget.matchId);
 
     // Marquer les messages de l'autre personne comme lus
-    await msgRepo.markMessagesSeen(matchId: widget.matchId, currentUserId: session.userId);
+    await msgRepo.markMessagesSeen(widget.matchId, session.userId);
 
     final matches = session.isCandidate
         ? await ref.read(matchRepositoryProvider).getMatchesByCandidate(session.userId)

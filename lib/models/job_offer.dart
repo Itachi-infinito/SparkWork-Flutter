@@ -1,8 +1,8 @@
 ﻿import '../core/constants/app_skills.dart';
 
 class JobOffer {
-  final int jobOfferId;
-  final int recruiterUserId;
+  final String jobOfferId;
+  final String recruiterUserId;
   final String title;
   final String companyName;
   final String location;
@@ -17,6 +17,7 @@ class JobOffer {
   final String niceToHaveSkills;
   final String remoteMode;
   final String level;
+  final bool isActive;
 
   const JobOffer({
     required this.jobOfferId,
@@ -26,15 +27,16 @@ class JobOffer {
     required this.location,
     required this.contractType,
     required this.description,
-    required this.address,
-    required this.latitude,
-    required this.longitude,
+    this.address = '',
+    this.latitude = 0.0,
+    this.longitude = 0.0,
     required this.salaryMin,
     required this.salaryMax,
     required this.requiredSkills,
     required this.niceToHaveSkills,
     required this.remoteMode,
     required this.level,
+    this.isActive = true,
   });
 
   bool get hasSalary => salaryMin > 0 || salaryMax > 0;
@@ -74,30 +76,32 @@ class JobOffer {
         'niceToHaveSkills': niceToHaveSkills,
         'remoteMode': remoteMode,
         'level': level,
+        'isActive': isActive,
       };
 
   factory JobOffer.fromMap(Map<String, dynamic> map) => JobOffer(
-        jobOfferId: map['jobOfferId'] as int,
-        recruiterUserId: map['recruiterUserId'] as int,
-        title: map['title'] as String,
-        companyName: map['companyName'] as String,
-        location: map['location'] as String,
-        contractType: map['contractType'] as String,
-        description: map['description'] as String,
-        address: map['address'] as String,
-        latitude: (map['latitude'] as num).toDouble(),
-        longitude: (map['longitude'] as num).toDouble(),
-        salaryMin: map['salaryMin'] as int,
-        salaryMax: map['salaryMax'] as int,
-        requiredSkills: map['requiredSkills'] as String,
-        niceToHaveSkills: map['niceToHaveSkills'] as String,
-        remoteMode: map['remoteMode'] as String,
-        level: map['level'] as String,
+        jobOfferId: map['jobOfferId'] as String? ?? '',
+        recruiterUserId: map['recruiterUserId'] as String? ?? '',
+        title: map['title'] as String? ?? '',
+        companyName: map['companyName'] as String? ?? '',
+        location: map['location'] as String? ?? '',
+        contractType: map['contractType'] as String? ?? '',
+        description: map['description'] as String? ?? '',
+        address: map['address'] as String? ?? '',
+        latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+        longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+        salaryMin: (map['salaryMin'] as num?)?.toInt() ?? 0,
+        salaryMax: (map['salaryMax'] as num?)?.toInt() ?? 0,
+        requiredSkills: map['requiredSkills'] as String? ?? '',
+        niceToHaveSkills: map['niceToHaveSkills'] as String? ?? '',
+        remoteMode: map['remoteMode'] as String? ?? '',
+        level: map['level'] as String? ?? '',
+        isActive: map['isActive'] as bool? ?? true,
       );
 
   JobOffer copyWith({
-    int? jobOfferId,
-    int? recruiterUserId,
+    String? jobOfferId,
+    String? recruiterUserId,
     String? title,
     String? companyName,
     String? location,
@@ -112,6 +116,7 @@ class JobOffer {
     String? niceToHaveSkills,
     String? remoteMode,
     String? level,
+    bool? isActive,
   }) =>
       JobOffer(
         jobOfferId: jobOfferId ?? this.jobOfferId,
@@ -130,5 +135,6 @@ class JobOffer {
         niceToHaveSkills: niceToHaveSkills ?? this.niceToHaveSkills,
         remoteMode: remoteMode ?? this.remoteMode,
         level: level ?? this.level,
+        isActive: isActive ?? this.isActive,
       );
 }

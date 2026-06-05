@@ -11,7 +11,7 @@ import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 
 class CandidateDetailPage extends ConsumerStatefulWidget {
-  final int candidateUserId;
+  final String candidateUserId;
   const CandidateDetailPage({super.key, required this.candidateUserId});
 
   @override

@@ -17,9 +17,6 @@ import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
-import 'package:flutter/services.dart';
-import '../../core/utils/avatar_colors.dart';
-import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
 import '../../services/notification_service.dart';
 import '../../core/widgets/empty_state.dart';
@@ -37,8 +34,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   List<JobOffer> _allOffers = [];
   List<JobOffer> _offers = [];
   CandidateProfile? _candidateProfile;
-  Map<int, int> _scores = {};
-  Map<int, bool> _superLikedByRecruiter = {};
+  Map<String, int> _scores = {};
+  Map<String, bool> _superLikedByRecruiter = {};
   bool _loading = true;
   String? _error;
 
@@ -93,8 +90,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           allOffers.where((o) => !likedSet.contains(o.jobOfferId)).toList();
       final profile = await profileRepo.getProfile(userId);
 
-      final scores = <int, int>{};
-      final superLiked = <int, bool>{};
+      final scores = <String, int>{};
+      final superLiked = <String, bool>{};   // était <int, bool>
 
       if (profile != null) {
         for (final offer in unseen) {
@@ -318,8 +315,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           jobOfferId: offer.jobOfferId,
         );
         NotificationService.showMatch(
-          jobTitle: offer.title,
-          company: offer.companyName,
+          jobOfferTitle: offer.title,
+          companyName: offer.companyName,
         );
         if (mounted) {
           context.push('/match', extra: {

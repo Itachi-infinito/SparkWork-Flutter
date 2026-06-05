@@ -60,16 +60,13 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
       }
 
       final offer = JobOffer(
-        jobOfferId: 0,
+        jobOfferId: '',
         recruiterUserId: session.userId,
         title: _titleCtrl.text.trim(),
         companyName: _companyCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
         contractType: _contractType ?? '',
         description: _descriptionCtrl.text.trim(),
-        address: '',
-        latitude: 0,
-        longitude: 0,
         salaryMin: salaryMin,
         salaryMax: salaryMax,
         requiredSkills: AppSkills.formatSkills(_requiredSkills),

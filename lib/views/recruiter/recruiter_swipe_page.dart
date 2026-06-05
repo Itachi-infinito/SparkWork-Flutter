@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
+import '../../services/notification_service.dart';
 
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
@@ -117,6 +118,12 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           jobOfferId: _selectedOffer!.jobOfferId,
         );
         if (mounted) {
+          NotificationService.showMatch(
+            jobOfferTitle: _selectedOffer!.title,
+            companyName: item.profile.fullName,
+          );
+        }
+        if (mounted) {
           context.push('/match', extra: {
             'matchId': matchId,
             'jobOfferTitle': _selectedOffer!.title,
@@ -193,35 +200,34 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   Widget _buildEmpty() {
+    final noOffer = _myOffers.isEmpty;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-                color: AppColors.greenLight, shape: BoxShape.circle),
-            child: const Icon(Icons.people_outline,
-                color: AppColors.green, size: 48),
-          ),
+          Icon(noOffer ? Icons.work_outline : Icons.people_outline,
+              size: 48, color: AppColors.green),
           const SizedBox(height: 20),
-          const Text('Aucun candidat disponible',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary)),
-          const SizedBox(height: 8),
-          const Text('Revenez plus tard !',
-              style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh, color: AppColors.green),
-            label: const Text('Actualiser',
-                style: TextStyle(color: AppColors.green)),
-            style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.green)),
+          Text(
+            noOffer ? 'Créez d\'abord une offre' : 'Aucun candidat disponible',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 8),
+          Text(
+            noOffer
+                ? 'Vous devez avoir au moins une offre active pour explorer les candidats.'
+                : 'Revenez plus tard !',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          if (noOffer) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/recruiter/offers/add'),
+              icon: const Icon(Icons.add),
+              label: const Text('Créer une offre'),
+            ),
+          ],
         ],
       ),
     );

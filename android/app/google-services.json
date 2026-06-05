@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "937376123870",
+    "project_id": "sparkwork-f41ec",
+    "storage_bucket": "sparkwork-f41ec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:937376123870:android:1d871d5dd8d05c8d5feb4f",
+        "android_client_info": {
+          "package_name": "com.sparkwork.sparkwork"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAQx8uo7kgbCxBpdeuE4b2Y7SM_6SSIkc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

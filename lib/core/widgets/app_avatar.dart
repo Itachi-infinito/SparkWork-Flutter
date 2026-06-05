@@ -1,36 +1,45 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import '../utils/avatar_colors.dart';
+import '../../core/constants/app_colors.dart';
 
 class AppAvatar extends StatelessWidget {
   final String name;
   final double radius;
   final String? photoPath;
 
-  const AppAvatar({super.key, required this.name, this.radius = 26, this.photoPath});
+  const AppAvatar({
+    super.key,
+    required this.name,
+    this.radius = 24,
+    this.photoPath,
+  });
+
+  String get _initials {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
 
   @override
   Widget build(BuildContext context) {
     if (photoPath != null && photoPath!.isNotEmpty) {
-      final file = File(photoPath!);
-      if (file.existsSync()) {
-        return CircleAvatar(radius: radius, backgroundImage: FileImage(file));
-      }
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(photoPath!),
+        onBackgroundImageError: (_, __) {},
+        child: null,
+      );
     }
-    return Container(
-      width: radius * 2,
-      height: radius * 2,
-      decoration: BoxDecoration(shape: BoxShape.circle, gradient: AvatarColors.gradientForString(name)),
-      child: Center(
-        child: Text(_initials(name), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: radius * 0.72)),
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.primaryLight,
+      child: Text(
+        _initials,
+        style: TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: radius * 0.55,
+        ),
       ),
     );
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.isEmpty || parts[0].isEmpty) return '?';
-    if (parts.length >= 2 && parts[1].isNotEmpty) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    return parts[0][0].toUpperCase();
   }
 }

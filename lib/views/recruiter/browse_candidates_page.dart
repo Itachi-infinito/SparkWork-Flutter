@@ -66,16 +66,16 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
     }
   }
 
-  void _applyFilters() {
+    void _applyFilters() {
     final q = _searchCtrl.text.toLowerCase();
     setState(() {
       _filtered = _all.where((p) {
         if (q.isNotEmpty &&
             !p.fullName.toLowerCase().contains(q) &&
             !p.location.toLowerCase().contains(q) &&
-            !p.skills.toLowerCase().contains(q)) return false;
+            !p.skills.any((s) => s.toLowerCase().contains(q))) return false;
         if (_filterSkill.isNotEmpty &&
-            !p.skills.toLowerCase().contains(_filterSkill.toLowerCase()))
+            !p.skills.any((s) => s.toLowerCase().contains(_filterSkill.toLowerCase())))
           return false;
         if (_filterLevel.isNotEmpty && p.desiredLevel != _filterLevel)
           return false;

@@ -6,7 +6,7 @@ import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 
 class MatchPage extends ConsumerStatefulWidget {
-  final int matchId;
+  final String matchId;
   final String jobOfferTitle;
   final String companyName;
 
@@ -77,10 +77,8 @@ class _MatchPageState extends ConsumerState<MatchPage>
   }
 
   Future<void> _markSeen() async {
-    final role = ref.read(sessionProvider).userRole;
-    await ref
-        .read(matchRepositoryProvider)
-        .markAnimationSeen(widget.matchId, role);
+    final isCandidate = ref.read(sessionProvider).isCandidate;
+    await ref.read(matchRepositoryProvider).markAnimationSeen(widget.matchId, isCandidate: isCandidate);
   }
 
   @override

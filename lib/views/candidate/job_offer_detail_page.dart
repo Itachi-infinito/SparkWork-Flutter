@@ -15,7 +15,7 @@ import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 
 class JobOfferDetailPage extends ConsumerStatefulWidget {
-  final int jobOfferId;
+  final String jobOfferId;
   const JobOfferDetailPage({super.key, required this.jobOfferId});
 
   @override

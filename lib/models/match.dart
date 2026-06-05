@@ -1,8 +1,8 @@
 ﻿class Match {
-  final int matchId;
-  final int candidateUserId;
-  final int recruiterUserId;
-  final int jobOfferId;
+  final String matchId;
+  final String candidateUserId;
+  final String recruiterUserId;
+  final String jobOfferId;
   final bool candidateAnimationSeen;
   final bool recruiterAnimationSeen;
   final String createdAt;
@@ -22,18 +22,20 @@
         'candidateUserId': candidateUserId,
         'recruiterUserId': recruiterUserId,
         'jobOfferId': jobOfferId,
-        'candidateAnimationSeen': candidateAnimationSeen ? 1 : 0,
-        'recruiterAnimationSeen': recruiterAnimationSeen ? 1 : 0,
+        'candidateAnimationSeen': candidateAnimationSeen,
+        'recruiterAnimationSeen': recruiterAnimationSeen,
         'createdAt': createdAt,
       };
 
   factory Match.fromMap(Map<String, dynamic> map) => Match(
-        matchId: map['matchId'] as int,
-        candidateUserId: map['candidateUserId'] as int,
-        recruiterUserId: map['recruiterUserId'] as int,
-        jobOfferId: map['jobOfferId'] as int,
-        candidateAnimationSeen: (map['candidateAnimationSeen'] as int) == 1,
-        recruiterAnimationSeen: (map['recruiterAnimationSeen'] as int) == 1,
-        createdAt: map['createdAt'] as String,
+        matchId: map['matchId'] as String? ?? '',
+        candidateUserId: map['candidateUserId'] as String? ?? '',
+        recruiterUserId: map['recruiterUserId'] as String? ?? '',
+        jobOfferId: map['jobOfferId'] as String? ?? '',
+        candidateAnimationSeen:
+            map['candidateAnimationSeen'] as bool? ?? false,
+        recruiterAnimationSeen:
+            map['recruiterAnimationSeen'] as bool? ?? false,
+        createdAt: map['createdAt'] as String? ?? '',
       );
 }

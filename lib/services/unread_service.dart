@@ -11,7 +11,8 @@ final unreadMessagesProvider = FutureProvider<bool>((ref) async {
   final userId = session.userId;
   final prefs = await SharedPreferences.getInstance();
   final lastSeenStr = prefs.getString('last_seen_messages_$userId');
-  final lastSeen = lastSeenStr != null ? DateTime.tryParse(lastSeenStr) : null;
+  final lastSeen =
+      lastSeenStr != null ? DateTime.tryParse(lastSeenStr) : null;
 
   final matchRepo = ref.read(matchRepositoryProvider);
   final msgRepo = ref.read(messageRepositoryProvider);
@@ -31,7 +32,7 @@ final unreadMessagesProvider = FutureProvider<bool>((ref) async {
   return false;
 });
 
-Future<void> markMessagesAsSeen(int userId) async {
+Future<void> markMessagesAsSeen(String userId) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(
     'last_seen_messages_$userId',

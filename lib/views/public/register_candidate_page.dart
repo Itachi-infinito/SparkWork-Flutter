@@ -6,7 +6,6 @@ import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/auth_service.dart';
-import '../../services/session_service.dart';
 
 class RegisterCandidatePage extends ConsumerStatefulWidget {
   const RegisterCandidatePage({super.key});
@@ -16,8 +15,7 @@ class RegisterCandidatePage extends ConsumerStatefulWidget {
       _RegisterCandidatePageState();
 }
 
-class _RegisterCandidatePageState
-    extends ConsumerState<RegisterCandidatePage> {
+class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -37,13 +35,9 @@ class _RegisterCandidatePageState
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    _locationCtrl.dispose();
-    _bioCtrl.dispose();
-    _salaryMinCtrl.dispose();
-    _salaryMaxCtrl.dispose();
+    _nameCtrl.dispose(); _emailCtrl.dispose(); _passwordCtrl.dispose();
+    _locationCtrl.dispose(); _bioCtrl.dispose();
+    _salaryMinCtrl.dispose(); _salaryMaxCtrl.dispose();
     super.dispose();
   }
 
@@ -51,38 +45,39 @@ class _RegisterCandidatePageState
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final (ok, msg) = await ref.read(authServiceProvider).register(
+      final authService = ref.read(authServiceProvider);
+      final (ok, msg) = await authService.register(
         fullName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         role: 'candidate',
       );
       if (!mounted) return;
-      if (!ok) { setState(() { _error = msg; }); return; }
+      if (!ok) { setState(() => _error = msg); return; }
 
-      final userId = ref.read(sessionProvider).userId;
+      final uid = authService.currentUser!.uid;
       final profile = CandidateProfile(
-        profileId: 0,
-        userId: userId,
+        profileId: '',
+        userId: uid,
         fullName: _nameCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
         desiredContractType: _contractType ?? '',
         desiredLevel: _level ?? '',
-        skills: AppSkills.formatSkills(_skills),
+        skills: _skills,
         bio: _bioCtrl.text.trim(),
         desiredSalaryMin: int.tryParse(_salaryMinCtrl.text.trim()) ?? 0,
         desiredSalaryMax: int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0,
         remotePreference: _remotePreference ?? '',
-        latitude: 0,
-        longitude: 0,
       );
       await ref.read(candidateProfileRepositoryProvider).insertProfile(profile);
       if (!mounted) return;
       context.go('/candidate/home');
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) setState(() => _loading = false);
     }
   }
+
+  // ... (garde le reste du build() identique à l'original)
 
   @override
   Widget build(BuildContext context) {

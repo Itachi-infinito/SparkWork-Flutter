@@ -1,47 +1,57 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/candidate_profile.dart';
-import '../services/database_service.dart';
 
-final candidateProfileRepositoryProvider = Provider<CandidateProfileRepository>((ref) {
-  return CandidateProfileRepository(ref.read(databaseServiceProvider));
+final candidateProfileRepositoryProvider =
+    Provider<CandidateProfileRepository>((ref) {
+  return CandidateProfileRepository();
 });
 
 class CandidateProfileRepository {
-  final DatabaseService _db;
+  final _col = FirebaseFirestore.instance.collection('candidate_profiles');
 
-  CandidateProfileRepository(this._db);
-
-  Future<CandidateProfile?> getProfile(int userId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'candidate_profiles',
-      where: 'userId = ?',
-      whereArgs: [userId],
-      limit: 1,
-    );
-    if (results.isEmpty) return null;
-    return CandidateProfile.fromMap(results.first);
+  CandidateProfile _fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return CandidateProfile.fromMap({...data, 'profileId': doc.id});
   }
+
+  Future<CandidateProfile?> getProfile(String userId) async {
+    final q =
+        await _col.where('userId', isEqualTo: userId).limit(1).get();
+    if (q.docs.isEmpty) return null;
+    return _fromDoc(q.docs.first);
+  }
+
+  Future<CandidateProfile?> getProfileByUserId(String userId) =>
+      getProfile(userId);
 
   Future<List<CandidateProfile>> getAllProfiles() async {
-    final db = await _db.database;
-    final results = await db.query('candidate_profiles');
-    return results.map(CandidateProfile.fromMap).toList();
+    final q = await _col.get();
+    return q.docs.map(_fromDoc).toList();
   }
 
-  Future<int> insertProfile(CandidateProfile profile) async {
-    final db = await _db.database;
+  Future<void> insertProfile(CandidateProfile profile) async {
+    final existing = await _col
+        .where('userId', isEqualTo: profile.userId)
+        .limit(1)
+        .get();
     final map = profile.toMap()..remove('profileId');
-    return db.insert('candidate_profiles', map);
+    if (existing.docs.isNotEmpty) {
+      await existing.docs.first.reference.update(map);
+    } else {
+      await _col.add(map);
+    }
   }
+
+  Future<void> upsertProfile(CandidateProfile profile) =>
+      insertProfile(profile);
 
   Future<void> updateProfile(CandidateProfile profile) async {
-    final db = await _db.database;
-    await db.update(
-      'candidate_profiles',
-      profile.toMap(),
-      where: 'profileId = ?',
-      whereArgs: [profile.profileId],
-    );
+    if (profile.profileId.isNotEmpty) {
+      final map = profile.toMap()..remove('profileId');
+      await _col.doc(profile.profileId).update(map);
+    } else {
+      await insertProfile(profile);
+    }
   }
 }

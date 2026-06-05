@@ -1,66 +1,73 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sqflite/sqflite.dart';
-import '../services/database_service.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final candidateJobLikeRepositoryProvider = Provider<CandidateJobLikeRepository>((ref) {
-  return CandidateJobLikeRepository(ref.read(databaseServiceProvider));
+final candidateJobLikeRepositoryProvider =
+    Provider<CandidateJobLikeRepository>((ref) {
+  return CandidateJobLikeRepository();
 });
 
 class CandidateJobLikeRepository {
-  final DatabaseService _db;
+  final _col =
+      FirebaseFirestore.instance.collection('candidate_job_likes');
 
-  CandidateJobLikeRepository(this._db);
-
-  Future<List<int>> getLikedJobOfferIds(int candidateUserId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'candidate_job_likes',
-      columns: ['jobOfferId'],
-      where: 'candidateUserId = ?',
-      whereArgs: [candidateUserId],
-    );
-    return results.map((r) => r['jobOfferId'] as int).toList();
+  Future<List<String>> getLikedJobOfferIds(String candidateUserId) async {
+    final q = await _col
+        .where('candidateUserId', isEqualTo: candidateUserId)
+        .get();
+    return q.docs
+        .map((d) =>
+            (d.data() as Map<String, dynamic>)['jobOfferId'] as String)
+        .toList();
   }
 
-  Future<bool> hasLiked(int candidateUserId, int jobOfferId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'candidate_job_likes',
-      where: 'candidateUserId = ? AND jobOfferId = ?',
-      whereArgs: [candidateUserId, jobOfferId],
-      limit: 1,
-    );
-    return results.isNotEmpty;
+  Future<List<String>> getLikedOfferIds(String candidateUserId) =>
+      getLikedJobOfferIds(candidateUserId);
+
+  Future<bool> hasLiked(String candidateUserId, String jobOfferId) async {
+    final q = await _col
+        .where('candidateUserId', isEqualTo: candidateUserId)
+        .where('jobOfferId', isEqualTo: jobOfferId)
+        .limit(1)
+        .get();
+    return q.docs.isNotEmpty;
   }
 
-  Future<void> addLike(int candidateUserId, int jobOfferId) async {
-    final db = await _db.database;
-    await db.insert(
-      'candidate_job_likes',
-      {'candidateUserId': candidateUserId, 'jobOfferId': jobOfferId},
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+  Future<void> addLike(String candidateUserId, String jobOfferId) async {
+    if (await hasLiked(candidateUserId, jobOfferId)) return;
+    await _col.add({
+      'candidateUserId': candidateUserId,
+      'jobOfferId': jobOfferId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  Future<int> countLikesForOffers(List<int> jobOfferIds) async {
+  Future<void> removeLike(String candidateUserId, String jobOfferId) async {
+    final q = await _col
+        .where('candidateUserId', isEqualTo: candidateUserId)
+        .where('jobOfferId', isEqualTo: jobOfferId)
+        .get();
+    for (final doc in q.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  Future<int> countLikesForOffers(List<String> jobOfferIds) async {
     if (jobOfferIds.isEmpty) return 0;
-    final db = await _db.database;
-    final placeholders = jobOfferIds.map((_) => '?').join(',');
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM candidate_job_likes WHERE jobOfferId IN ($placeholders)',
-      jobOfferIds,
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
+    int count = 0;
+    for (final id in jobOfferIds) {
+      final q = await _col.where('jobOfferId', isEqualTo: id).get();
+      count += q.docs.length;
+    }
+    return count;
   }
 
-  Future<Map<int, int>> getLikeCountPerOffer(List<int> jobOfferIds) async {
-    if (jobOfferIds.isEmpty) return {};
-    final db = await _db.database;
-    final placeholders = jobOfferIds.map((_) => '?').join(',');
-    final results = await db.rawQuery(
-      'SELECT jobOfferId, COUNT(*) as count FROM candidate_job_likes WHERE jobOfferId IN ($placeholders) GROUP BY jobOfferId',
-      jobOfferIds,
-    );
-    return {for (final r in results) r['jobOfferId'] as int: r['count'] as int};
+  Future<Map<String, int>> getLikeCountPerOffer(
+      List<String> jobOfferIds) async {
+    final result = <String, int>{};
+    for (final id in jobOfferIds) {
+      final q = await _col.where('jobOfferId', isEqualTo: id).get();
+      result[id] = q.docs.length;
+    }
+    return result;
   }
 }

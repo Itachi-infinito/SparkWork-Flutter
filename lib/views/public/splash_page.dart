@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/session_service.dart';
 
@@ -26,30 +25,26 @@ class _SplashPageState extends ConsumerState<SplashPage>
       duration: const Duration(milliseconds: 900),
     );
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
     _controller.forward();
-    _navigate();
+    _init();
   }
 
-  Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 5));
+  Future<void> _init() async {
+    await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
-
-    if (!mounted) return;
-
-    if (!onboardingSeen) {
-      context.go('/onboarding');
-      return;
+    // Wait for Firebase Auth session to resolve
+    while (ref.read(sessionProvider).isLoading && mounted) {
+      await Future.delayed(const Duration(milliseconds: 50));
     }
+    if (!mounted) return;
 
     final session = ref.read(sessionProvider);
     if (session.isLoggedIn) {
-      context.go(session.isCandidate ? '/candidate/home' : '/recruiter/home');
+      context.go(session.isRecruiter ? '/recruiter/home' : '/candidate/home');
     } else {
       context.go('/welcome');
     }
@@ -64,72 +59,45 @@ class _SplashPageState extends ConsumerState<SplashPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+      backgroundColor: AppColors.primary,
+      body: Center(
         child: FadeTransition(
           opacity: _fadeAnim,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ScaleTransition(
-                scale: _scaleAnim,
-                child: Container(
-                  width: 100,
-                  height: 100,
+          child: ScaleTransition(
+            scale: _scaleAnim,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(
-                    Icons.bolt,
-                    color: Colors.white,
-                    size: 60,
-                  ),
+                  child:
+                      const Icon(Icons.bolt, color: Colors.white, size: 52),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FadeTransition(
-                opacity: _fadeAnim,
-                child: const Text(
+                const SizedBox(height: 20),
+                const Text(
                   'SparkWork',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 36,
+                    fontSize: 34,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              FadeTransition(
-                opacity: _fadeAnim,
-                child: Text(
-                  'Le recrutement Horeca réinventé',
+                const SizedBox(height: 8),
+                Text(
+                  'Le recrutement Horeca',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
-                    letterSpacing: 0.5,
+                    fontSize: 15,
                   ),
                 ),
-              ),
-              const SizedBox(height: 64),
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white.withOpacity(0.6),
-                  strokeWidth: 2,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

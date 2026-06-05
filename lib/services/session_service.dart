@@ -1,80 +1,86 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+﻿import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/app_user.dart';
 
-final sessionProvider = StateNotifierProvider<SessionNotifier, SessionState>((ref) {
+final profileVersionProvider = StateProvider<int>((ref) => 0);
+
+final sessionProvider =
+    StateNotifierProvider<SessionNotifier, SessionState>((ref) {
   return SessionNotifier();
 });
 
 class SessionState {
-  final bool isLoggedIn;
-  final int userId;
-  final String userName;
-  final String userEmail;
-  final String userRole;
+  final AppUser? user;
+  final bool isLoading;
 
-  const SessionState({
-    this.isLoggedIn = false,
-    this.userId = 0,
-    this.userName = '',
-    this.userEmail = '',
-    this.userRole = '',
-  });
+  const SessionState({this.user, this.isLoading = true});
 
-  bool get isCandidate => userRole == 'candidate';
-  bool get isRecruiter => userRole == 'recruiter';
+  bool get isLoggedIn => user != null;
+  String get role => user?.role ?? '';
+  String get userId => user?.uid ?? '';
+  String get email => user?.email ?? '';
+  String get fullName => user?.fullName ?? '';
+  bool get isCandidate => role == 'candidate';
+  bool get isRecruiter => role == 'recruiter';
+
+  // Backward-compat aliases
+  String get userRole => role;
+  String get userName => fullName;
+  String get userEmail => email;
 }
 
 class SessionNotifier extends StateNotifier<SessionState> {
-  SessionNotifier() : super(const SessionState());
+  StreamSubscription<User?>? _authSub;
 
-  Future<void> login({
-    required int userId,
-    required String userName,
-    required String userEmail,
-    required String userRole,
-  }) async {
-    state = SessionState(
-      isLoggedIn: true,
-      userId: userId,
-      userName: userName,
-      userEmail: userEmail,
-      userRole: userRole,
-    );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', true);
-    await prefs.setInt('userId', userId);
-    await prefs.setString('userName', userName);
-    await prefs.setString('userEmail', userEmail);
-    await prefs.setString('userRole', userRole);
+  SessionNotifier() : super(const SessionState(isLoading: true)) {
+    _authSub =
+        FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
+  }
+
+  Future<void> _onAuthChanged(User? firebaseUser) async {
+    if (firebaseUser == null) {
+      state = const SessionState(isLoading: false);
+      return;
+    }
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
+      if (!doc.exists) {
+        state = const SessionState(isLoading: false);
+        return;
+      }
+      final data = doc.data()!;
+      final appUser = AppUser(
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        fullName: data['fullName'] as String? ?? '',
+        role: data['role'] as String? ?? '',
+      );
+      state = SessionState(user: appUser, isLoading: false);
+    } catch (_) {
+      state = const SessionState(isLoading: false);
+    }
+  }
+
+  Future<void> reload() async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) await _onAuthChanged(firebaseUser);
   }
 
   Future<void> logout() async {
-    state = const SessionState();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await FirebaseAuth.instance.signOut();
+    state = const SessionState(isLoading: false);
   }
 
-  Future<bool> restoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    if (!isLoggedIn) return false;
+  void clear() => state = const SessionState(isLoading: false);
 
-    final userId = prefs.getInt('userId') ?? 0;
-    final userName = prefs.getString('userName') ?? '';
-    final userEmail = prefs.getString('userEmail') ?? '';
-    final userRole = prefs.getString('userRole') ?? '';
-
-    if (userId == 0 || userRole.isEmpty) return false;
-
-    state = SessionState(
-      isLoggedIn: true,
-      userId: userId,
-      userName: userName,
-      userEmail: userEmail,
-      userRole: userRole,
-    );
-    return true;
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
-  
 }
-final profileVersionProvider = StateProvider<int>((ref) => 0);

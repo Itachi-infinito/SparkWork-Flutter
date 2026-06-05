@@ -1,14 +1,12 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/session_service.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 
 class EditCandidateProfilePage extends ConsumerStatefulWidget {
   const EditCandidateProfilePage({super.key});
@@ -21,20 +19,21 @@ class EditCandidateProfilePage extends ConsumerStatefulWidget {
 class _EditCandidateProfilePageState
     extends ConsumerState<EditCandidateProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _locationCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+
+  List<String> _selectedSkills = [];
+  String? _experienceLevel;
+  List<String> _selectedContractTypes = [];
+  String _remotePreference = '';
   final _salaryMinCtrl = TextEditingController();
   final _salaryMaxCtrl = TextEditingController();
-
-  CandidateProfile? _profile;
-  String? _contractType;
-  String? _level;
-  String? _remotePreference;
-  List<String> _skills = [];
-  bool _loading = true;
+  String? _currentPhotoUrl;
+  File? _newImageFile;
+  bool _loading = false;
   bool _saving = false;
-
-  String? _photoPath;
 
   @override
   void initState() {
@@ -43,72 +42,91 @@ class _EditCandidateProfilePageState
   }
 
   Future<void> _loadProfile() async {
+    setState(() => _loading = true);
     final userId = ref.read(sessionProvider).userId;
     final profile = await ref
         .read(candidateProfileRepositoryProvider)
-        .getProfile(userId);
+        .getProfileByUserId(userId);
     if (profile != null && mounted) {
+      _nameCtrl.text = profile.fullName;
+      _titleCtrl.text = profile.jobTitle ?? '';
+      _bioCtrl.text = profile.bio ?? '';
+      _cityCtrl.text = profile.locationCity ?? '';
       setState(() {
-        _profile = profile;
-        _locationCtrl.text = profile.location;
-        _bioCtrl.text = profile.bio;
-        _salaryMinCtrl.text =
-            profile.desiredSalaryMin > 0 ? profile.desiredSalaryMin.toString() : '';
-        _salaryMaxCtrl.text =
-            profile.desiredSalaryMax > 0 ? profile.desiredSalaryMax.toString() : '';
-        _contractType = AppSkills.contractTypes.contains(profile.desiredContractType)
-          ? profile.desiredContractType
-          : null;
-        _level = AppSkills.levels.contains(profile.desiredLevel)
-            ? profile.desiredLevel
-            : null;
-        _remotePreference = AppSkills.remoteModes.contains(profile.remotePreference)
-            ? profile.remotePreference
-            : null;
-        _skills = profile.skillList.toList();
-        _photoPath = profile.photoPath;
-        _loading = false;
+        _selectedSkills = List.from(profile.skills);
+        _experienceLevel = profile.experienceLevel;
+        _selectedContractTypes = profile.contractType.isEmpty
+            ? []
+            : profile.contractType.split(',');
+        _remotePreference = profile.remotePreference;
+        _salaryMinCtrl.text = profile.desiredSalaryMin > 0
+            ? profile.desiredSalaryMin.toString()
+            : '';
+        _salaryMaxCtrl.text = profile.desiredSalaryMax > 0
+            ? profile.desiredSalaryMax.toString()
+            : '';
+        _currentPhotoUrl = profile.photoUrl;
       });
-    } else {
-      setState(() => _loading = false);
     }
+    if (mounted) setState(() => _loading = false);
   }
+
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null) return;
-    final appDir = await getApplicationDocumentsDirectory();
-    final userId = ref.read(sessionProvider).userId;
-    final dest = '${appDir.path}/profile_$userId.jpg';
-    await File(picked.path).copy(dest);
-    setState(() => _photoPath = dest);
+    final picked = await picker.pickImage(
+        source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) {
+      setState(() => _newImageFile = File(picked.path));
+    }
+  }
+
+  Future<String?> _uploadPhoto(String userId) async {
+    if (_newImageFile == null) return _currentPhotoUrl;
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('profile_photos')
+        .child('$userId.jpg');
+    await ref.putFile(_newImageFile!);
+    return await ref.getDownloadURL();
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _profile == null) return;
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      final updated = _profile!.copyWith(
-        location: _locationCtrl.text.trim(),
+      final userId = ref.read(sessionProvider).userId;
+      final photoUrl = await _uploadPhoto(userId);
+      final profile = CandidateProfile(
+        profileId: userId,
+        userId: userId,
+        fullName: _nameCtrl.text.trim(),
+        jobTitle: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
         bio: _bioCtrl.text.trim(),
+        location: _cityCtrl.text.trim(),
+        skills: _selectedSkills,
+        desiredLevel: _experienceLevel ?? '',
+        desiredContractType: _selectedContractTypes.join(','),
         desiredSalaryMin: int.tryParse(_salaryMinCtrl.text.trim()) ?? 0,
         desiredSalaryMax: int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0,
-        desiredContractType: _contractType ?? '',
-        desiredLevel: _level ?? '',
-        remotePreference: _remotePreference ?? '',
-        skills: AppSkills.formatSkills(_skills),
-        photoPath: _photoPath,
+        remotePreference: _remotePreference,
+        photoUrl: photoUrl,
       );
-      await ref.read(candidateProfileRepositoryProvider).updateProfile(updated);
-      ref.read(profileVersionProvider.notifier).state++; // ← ajoute cette ligne
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil mis à jour !'),
-          backgroundColor: AppColors.green,
-        ),
-      );
-      context.pop();
+      await ref
+          .read(candidateProfileRepositoryProvider)
+          .upsertProfile(profile);
+      ref.read(profileVersionProvider.notifier).state++;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil mis à jour !')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -116,8 +134,10 @@ class _EditCandidateProfilePageState
 
   @override
   void dispose() {
-    _locationCtrl.dispose();
+    _nameCtrl.dispose();
+    _titleCtrl.dispose();
     _bioCtrl.dispose();
+    _cityCtrl.dispose();
     _salaryMinCtrl.dispose();
     _salaryMaxCtrl.dispose();
     super.dispose();
@@ -125,224 +145,224 @@ class _EditCandidateProfilePageState
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Modifier le profil'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
-        ),
+        title: const Text('Mon profil'),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Sauvegarder',
-                    style: TextStyle(
-                        color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    width: 20,
+                    height: 20,
+                    child:
+                        CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Enregistrer',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickPhoto,
-                        child: Stack(
-                          children: [
-                            _photoPath != null && File(_photoPath!).existsSync()
-                                ? CircleAvatar(radius: 50, backgroundImage: FileImage(File(_photoPath!)))
-                                : CircleAvatar(
-                                    radius: 50,
-                                    backgroundColor: AppColors.primaryLight,
-                                    child: const Icon(Icons.person, size: 50, color: AppColors.primary),
-                                  ),
-                            Positioned(
-                              bottom: 0, right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                                child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
-                              ),
-                            ),
-                          ],
-                        ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickPhoto,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 52,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: _newImageFile != null
+                            ? FileImage(_newImageFile!) as ImageProvider
+                            : (_currentPhotoUrl != null
+                                ? NetworkImage(_currentPhotoUrl!)
+                                : null),
+                        child: (_newImageFile == null &&
+                                _currentPhotoUrl == null)
+                            ? const Icon(Icons.person,
+                                size: 52, color: Colors.grey)
+                            : null,
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _locationCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Ville / Région',
-                        prefixIcon: Icon(Icons.location_on_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _contractType,
-                      
-                      decoration: const InputDecoration(
-                          labelText: 'Type de contrat souhaité'),
-                      items: AppSkills.contractTypes
-                          .map((c) =>
-                              DropdownMenuItem(value: c, child: Text(c)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _contractType = v),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _level,
-                      decoration: const InputDecoration(
-                          labelText: "Niveau d'expérience"),
-                      items: AppSkills.levels
-                          .map((l) =>
-                              DropdownMenuItem(value: l, child: Text(l)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _level = v),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _remotePreference,
-                      decoration: const InputDecoration(
-                          labelText: 'Préférence télétravail'),
-                      items: AppSkills.remoteModes
-                          .map((r) =>
-                              DropdownMenuItem(value: r, child: Text(r)))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _remotePreference = v),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text('Prétentions salariales (€/mois)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _salaryMinCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                const InputDecoration(labelText: 'Min'),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF6C63FF),
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(Icons.camera_alt,
+                              size: 16, color: Colors.white),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _salaryMaxCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                const InputDecoration(labelText: 'Max'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    const Text('Compétences',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 12),
-                    _SkillSelector(
-                      selected: _skills,
-                      onChanged: (updated) =>
-                          setState(() => _skills = updated),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text('Bio',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _bioCtrl,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: 'Présentez-vous...',
-                        alignLabelWithHint: true,
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-    );
-  }
-}
-
-
-class _SkillSelector extends StatefulWidget {
-  final List<String> selected;
-  final ValueChanged<List<String>> onChanged;
-  const _SkillSelector({required this.selected, required this.onChanged});
-
-  @override
-  State<_SkillSelector> createState() => _SkillSelectorState();
-}
-
-class _SkillSelectorState extends State<_SkillSelector> {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ElevatedButton.icon(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              builder: (ctx) => ListView(
-                children: AppSkills.horecaSkills
-                    .where((s) => !widget.selected.contains(s))
-                    .map((s) => ListTile(
-                          title: Text(s),
-                          onTap: () {
-                            widget.onChanged([...widget.selected, s]);
-                            Navigator.pop(ctx);
-                          },
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Nom complet *',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _titleCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Titre du poste',
+                  hintText: 'ex: Chef de partie',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _bioCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Bio',
+                  hintText: 'Parle de toi en quelques mots...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _cityCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Ville',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Niveau d\'expérience',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['Junior', 'Intermédiaire', 'Senior', 'Expert']
+                    .map((level) => ChoiceChip(
+                          label: Text(level),
+                          selected: _experienceLevel == level,
+                          onSelected: (_) =>
+                              setState(() => _experienceLevel = level),
+                          selectedColor:
+                              const Color(0xFF6C63FF).withOpacity(0.2),
                         ))
                     .toList(),
               ),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Ajouter une compétence'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+              const SizedBox(height: 20),
+              const Text('Type de contrat',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['CDI', 'CDD', 'Intérim', 'Freelance', 'Stage']
+                    .map((type) => FilterChip(
+                      label: Text(type),
+                      selected: _selectedContractTypes.contains(type),
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedContractTypes.add(type);
+                          } else {
+                            _selectedContractTypes.remove(type);
+                          }
+                        });
+                      },
+                      selectedColor: const Color(0xFF6C63FF).withOpacity(0.2),
+                    ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              const Text('Salaire souhaité (€/mois)',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _salaryMinCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Minimum',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _salaryMaxCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Maximum',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text('Mode de travail',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['Présentiel', 'Hybride', 'Télétravail']
+                    .map((mode) => ChoiceChip(
+                          label: Text(mode),
+                          selected: _remotePreference == mode,
+                          onSelected: (_) =>
+                              setState(() => _remotePreference = mode),
+                          selectedColor:
+                              const Color(0xFF6C63FF).withOpacity(0.2),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              const Text('Compétences',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: AppSkills.all
+                    .map((skill) => FilterChip(
+                          label: Text(skill),
+                          selected: _selectedSkills.contains(skill),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedSkills.add(skill);
+                              } else {
+                                _selectedSkills.remove(skill);
+                              }
+                            });
+                          },
+                          selectedColor:
+                              const Color(0xFF6C63FF).withOpacity(0.2),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
         ),
-        if (widget.selected.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: widget.selected
-                .map((s) => Chip(
-                      label: Text(s, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: AppColors.primaryLight,
-                      labelStyle: const TextStyle(color: AppColors.primary),
-                      deleteIcon: const Icon(Icons.close,
-                          size: 14, color: AppColors.primary),
-                      onDeleted: () {
-                        final updated = [...widget.selected]..remove(s);
-                        widget.onChanged(updated);
-                      },
-                    ))
-                .toList(),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }

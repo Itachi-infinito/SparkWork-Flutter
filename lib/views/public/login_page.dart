@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
@@ -30,18 +31,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final user = await ref.read(authServiceProvider).login(
-        _emailCtrl.text.trim(),
-        _passwordCtrl.text,
-      );
+      await ref
+          .read(authServiceProvider)
+          .signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
+      // Le router redirect gère la navigation automatiquement
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      if (user == null) {
-        setState(() { _error = 'Email ou mot de passe incorrect.'; });
-      } else {
-        context.go(user.role == 'recruiter' ? '/recruiter/home' : '/candidate/home');
-      }
+      setState(() => _error = _errorMessage(e.code));
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _errorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Email ou mot de passe incorrect.';
+      case 'too-many-requests':
+        return 'Trop de tentatives. Réessayez plus tard.';
+      default:
+        return 'Erreur de connexion. Vérifiez vos identifiants.';
     }
   }
 
@@ -64,9 +75,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(height: 12),
               Text('Bon retour !',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  )),
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      )),
               const SizedBox(height: 6),
               const Text('Connectez-vous à votre compte',
                   style: TextStyle(color: AppColors.textSecondary)),
@@ -81,10 +92,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: AppColors.red, size: 18),
+                      const Icon(Icons.error_outline,
+                          color: AppColors.red, size: 18),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(_error!,
-                          style: const TextStyle(color: AppColors.red, fontSize: 13))),
+                      Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: AppColors.red, fontSize: 13))),
                     ],
                   ),
                 ),
@@ -109,7 +123,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   labelText: 'Mot de passe',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    icon: Icon(_obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -122,8 +138,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ElevatedButton(
                 onPressed: _loading ? null : _login,
                 child: _loading
-                    ? const SizedBox(height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
                     : const Text('Se connecter'),
               ),
               const SizedBox(height: 20),
@@ -138,9 +157,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         TextSpan(
                           text: "S'inscrire",
                           style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),

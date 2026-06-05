@@ -1,95 +1,86 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/match.dart';
-import '../services/database_service.dart';
 
 final matchRepositoryProvider = Provider<MatchRepository>((ref) {
-  return MatchRepository(ref.read(databaseServiceProvider));
+  return MatchRepository();
 });
 
 class MatchRepository {
-  final DatabaseService _db;
+  final _col = FirebaseFirestore.instance.collection('matches');
 
-  MatchRepository(this._db);
+  Match _fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Match.fromMap({...data, 'matchId': doc.id});
+  }
 
-  Future<int> addMatch({
-    required int candidateUserId,
-    required int recruiterUserId,
-    required int jobOfferId,
+  Future<String> addMatch({
+    required String candidateUserId,
+    required String recruiterUserId,
+    required String jobOfferId,
   }) async {
-    final db = await _db.database;
-    return db.insert('matches', {
+    final ref = await _col.add({
       'candidateUserId': candidateUserId,
       'recruiterUserId': recruiterUserId,
       'jobOfferId': jobOfferId,
-      'candidateAnimationSeen': 0,
-      'recruiterAnimationSeen': 0,
+      'candidateAnimationSeen': false,
+      'recruiterAnimationSeen': false,
       'createdAt': DateTime.now().toIso8601String(),
     });
+    return ref.id;
   }
 
   Future<bool> matchExists(
-      int candidateUserId, int recruiterUserId, int jobOfferId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'matches',
-      where: 'candidateUserId = ? AND recruiterUserId = ? AND jobOfferId = ?',
-      whereArgs: [candidateUserId, recruiterUserId, jobOfferId],
-      limit: 1,
-    );
-    return results.isNotEmpty;
+    String candidateUserId,
+    String recruiterUserId,
+    String jobOfferId,
+  ) async {
+    final q = await _col
+        .where('candidateUserId', isEqualTo: candidateUserId)
+        .where('recruiterUserId', isEqualTo: recruiterUserId)
+        .where('jobOfferId', isEqualTo: jobOfferId)
+        .limit(1)
+        .get();
+    return q.docs.isNotEmpty;
   }
 
-  Future<List<Match>> getMatchesByCandidate(int candidateUserId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'matches',
-      where: 'candidateUserId = ?',
-      whereArgs: [candidateUserId],
-      orderBy: 'createdAt DESC',
-    );
-    return results.map(Match.fromMap).toList();
+  Future<List<Match>> getMatchesByCandidate(String candidateUserId) async {
+    final q = await _col
+        .where('candidateUserId', isEqualTo: candidateUserId)
+        .orderBy('createdAt', descending: true)
+        .get();
+    return q.docs.map(_fromDoc).toList();
   }
 
-  Future<List<Match>> getMatchesByRecruiter(int recruiterUserId) async {
-    final db = await _db.database;
-    final results = await db.query(
-      'matches',
-      where: 'recruiterUserId = ?',
-      whereArgs: [recruiterUserId],
-      orderBy: 'createdAt DESC',
-    );
-    return results.map(Match.fromMap).toList();
+  Future<List<Match>> getMatchesByRecruiter(String recruiterUserId) async {
+    final q = await _col
+        .where('recruiterUserId', isEqualTo: recruiterUserId)
+        .orderBy('createdAt', descending: true)
+        .get();
+    return q.docs.map(_fromDoc).toList();
   }
 
-  Future<Match?> getPendingMatchAnimation(
-      int userId, String role) async {
-    final db = await _db.database;
-    final column = role == 'candidate'
-        ? 'candidateAnimationSeen'
-        : 'recruiterAnimationSeen';
-    final userColumn =
-        role == 'candidate' ? 'candidateUserId' : 'recruiterUserId';
+  Future<Match?> getPendingMatchAnimation(String userId, String role) async {
+    final isCandidate = role == 'candidate';
+    final userField = isCandidate ? 'candidateUserId' : 'recruiterUserId';
+    final seenField =
+        isCandidate ? 'candidateAnimationSeen' : 'recruiterAnimationSeen';
 
-    final results = await db.query(
-      'matches',
-      where: '$userColumn = ? AND $column = 0',
-      whereArgs: [userId],
-      limit: 1,
-    );
-    if (results.isEmpty) return null;
-    return Match.fromMap(results.first);
+    final q = await _col
+        .where(userField, isEqualTo: userId)
+        .where(seenField, isEqualTo: false)
+        .limit(1)
+        .get();
+    if (q.docs.isEmpty) return null;
+    return _fromDoc(q.docs.first);
   }
 
-  Future<void> markAnimationSeen(int matchId, String role) async {
-    final db = await _db.database;
-    final column = role == 'candidate'
-        ? 'candidateAnimationSeen'
-        : 'recruiterAnimationSeen';
-    await db.update(
-      'matches',
-      {column: 1},
-      where: 'matchId = ?',
-      whereArgs: [matchId],
-    );
+  Future<void> markAnimationSeen(
+    String matchId, {
+    required bool isCandidate,
+  }) async {
+    final field =
+        isCandidate ? 'candidateAnimationSeen' : 'recruiterAnimationSeen';
+    await _col.doc(matchId).update({field: true});
   }
 }

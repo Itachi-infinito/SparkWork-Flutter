@@ -63,4 +63,5 @@ class AppSkills {
   static String formatSkills(List<String> skills) {
     return skills.where((s) => s.isNotEmpty).join(', ');
   }
+  static List<String> get all => horecaSkills;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/session_service.dart';
 import '../../views/public/splash_page.dart';
 import '../../views/public/welcome_page.dart';
 import '../../views/public/login_page.dart';
@@ -30,198 +31,120 @@ import '../../views/shared/conversation_detail_page.dart';
 import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
-import '../../views/public/onboarding_page.dart';
 
-Page<dynamic> _slide(BuildContext context, GoRouterState state, Widget child) {
-  return CustomTransitionPage(
-    key: state.pageKey,
-    child: child,
-    transitionDuration: const Duration(milliseconds: 300),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final tween = Tween(
-        begin: const Offset(1.0, 0.0),
-        end: Offset.zero,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-      return SlideTransition(
-        position: animation.drive(tween),
-        child: FadeTransition(opacity: animation, child: child),
-      );
-    },
-  );
-}
+const _publicPaths = [
+  '/splash',
+  '/welcome',
+  '/login',
+  '/register',
+  '/register/candidate',
+  '/register/recruiter',
+];
 
-Page<dynamic> _fade(BuildContext context, GoRouterState state, Widget child) {
-  return CustomTransitionPage(
-    key: state.pageKey,
-    child: child,
-    transitionDuration: const Duration(milliseconds: 350),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(opacity: animation, child: child);
-    },
-  );
-}
+bool _isPublic(String path) =>
+    _publicPaths.any((p) => path == p || path.startsWith('$p/'));
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final notifier = _RouterRefreshNotifier(ref);
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: notifier,
+    redirect: (context, state) {
+      final session = ref.read(sessionProvider);
+      final path = state.matchedLocation;
+
+      if (session.isLoading) {
+        return path == '/splash' ? null : '/splash';
+      }
+
+      if (!session.isLoggedIn && !_isPublic(path)) {
+        return '/welcome';
+      }
+
+      if (session.isLoggedIn && _isPublic(path) && path != '/splash') {
+        return session.isCandidate ? '/candidate/home' : '/recruiter/home';
+      }
+
+      return null;
+    },
     routes: [
-      GoRoute(
-        path: '/splash',
-        pageBuilder: (c, s) => _fade(c, s, const SplashPage()),
-      ),
-      GoRoute(
-        path: '/onboarding',
-        pageBuilder: (c, s) => _fade(c, s, const OnboardingPage()),
-      ),
-      GoRoute(
-        path: '/welcome',
-        pageBuilder: (c, s) => _fade(c, s, const WelcomePage()),
-      ),
-      GoRoute(
-        path: '/login',
-        pageBuilder: (c, s) => _slide(c, s, const LoginPage()),
-      ),
-      GoRoute(
-        path: '/register',
-        pageBuilder: (c, s) => _slide(c, s, const RegisterPage()),
-      ),
-      GoRoute(
-        path: '/register/candidate',
-        pageBuilder: (c, s) => _slide(c, s, const RegisterCandidatePage()),
-      ),
-      GoRoute(
-        path: '/register/recruiter',
-        pageBuilder: (c, s) => _slide(c, s, const RegisterRecruiterPage()),
-      ),
+      GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
+      GoRoute(path: '/welcome', builder: (_, __) => const WelcomePage()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+      GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
+      GoRoute(path: '/register/candidate', builder: (_, __) => const RegisterCandidatePage()),
+      GoRoute(path: '/register/recruiter', builder: (_, __) => const RegisterRecruiterPage()),
 
-      // Candidate routes
+      // Candidate
+      GoRoute(path: '/candidate/home', builder: (_, __) => const CandidateHomePage()),
+      GoRoute(path: '/candidate/swipe', builder: (_, __) => const CandidateSwipePage()),
+      GoRoute(path: '/candidate/matches', builder: (_, __) => const CandidateMatchesPage()),
+      GoRoute(path: '/candidate/profile', builder: (_, __) => const CandidateProfilePage()),
+      GoRoute(path: '/candidate/profile/edit', builder: (_, __) => const EditCandidateProfilePage()),
+      GoRoute(path: '/candidate/offers', builder: (_, __) => const JobOfferListPage()),
       GoRoute(
         path: '/candidate/offers/:id',
-        pageBuilder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return _slide(context, state, JobOfferDetailPage(jobOfferId: id));
-        },
-      ),
-      GoRoute(
-        path: '/candidate/home',
-        pageBuilder: (c, s) => _fade(c, s, const CandidateHomePage()),
-      ),
-      GoRoute(
-        path: '/candidate/swipe',
-        pageBuilder: (c, s) => _slide(c, s, const CandidateSwipePage()),
-      ),
-      GoRoute(
-        path: '/candidate/matches',
-        pageBuilder: (c, s) => _slide(c, s, const CandidateMatchesPage()),
-      ),
-      GoRoute(
-        path: '/candidate/profile',
-        pageBuilder: (c, s) => _slide(c, s, const CandidateProfilePage()),
-      ),
-      GoRoute(
-        path: '/candidate/profile/edit',
-        pageBuilder: (c, s) => _slide(c, s, const EditCandidateProfilePage()),
-      ),
-      GoRoute(
-        path: '/candidate/offers',
-        pageBuilder: (c, s) => _slide(c, s, const JobOfferListPage()),
-      ),
-      GoRoute(
-        path: '/candidate/offers/:id',
-        pageBuilder: (c, s) {
-          final id = int.parse(s.pathParameters['id']!);
-          return _slide(c, s, JobOfferDetailPage(jobOfferId: id));
-        },
+        builder: (_, state) => JobOfferDetailPage(
+            jobOfferId: state.pathParameters['id']!),
       ),
 
-      // Recruiter routes
-      GoRoute(
-        path: '/recruiter/home',
-        pageBuilder: (c, s) => _fade(c, s, const RecruiterHomePage()),
-      ),
-      GoRoute(
-        path: '/recruiter/swipe',
-        pageBuilder: (c, s) => _slide(c, s, const RecruiterSwipePage()),
-      ),
-      GoRoute(
-        path: '/recruiter/offers',
-        pageBuilder: (c, s) => _slide(c, s, const RecruiterJobOffersPage()),
-      ),
-      GoRoute(
-        path: '/recruiter/offers/add',
-        pageBuilder: (c, s) => _slide(c, s, const AddJobOfferPage()),
-      ),
+      // Recruiter
+      GoRoute(path: '/recruiter/home', builder: (_, __) => const RecruiterHomePage()),
+      GoRoute(path: '/recruiter/swipe', builder: (_, __) => const RecruiterSwipePage()),
+      GoRoute(path: '/recruiter/offers', builder: (_, __) => const RecruiterJobOffersPage()),
+      GoRoute(path: '/recruiter/offers/add', builder: (_, __) => const AddJobOfferPage()),
       GoRoute(
         path: '/recruiter/offers/:id/edit',
-        pageBuilder: (c, s) {
-          final id = int.parse(s.pathParameters['id']!);
-          return _slide(c, s, EditJobOfferPage(jobOfferId: id));
-        },
+        builder: (_, state) => EditJobOfferPage(
+            jobOfferId: state.pathParameters['id']!),
       ),
-      GoRoute(
-        path: '/recruiter/candidates',
-        pageBuilder: (c, s) => _slide(c, s, const BrowseCandidatesPage()),
-      ),
+      GoRoute(path: '/recruiter/candidates', builder: (_, __) => const BrowseCandidatesPage()),
       GoRoute(
         path: '/recruiter/candidates/:id',
-        pageBuilder: (c, s) {
-          final id = int.parse(s.pathParameters['id']!);
-          return _slide(c, s, CandidateDetailPage(candidateUserId: id));
-        },
+        builder: (_, state) => CandidateDetailPage(
+            candidateUserId: state.pathParameters['id']!),
       ),
-      GoRoute(
-        path: '/recruiter/matches',
-        pageBuilder: (c, s) => _slide(c, s, const RecruiterMatchesPage()),
-      ),
-      GoRoute(
-        path: '/recruiter/profile',
-        pageBuilder: (c, s) => _slide(c, s, const RecruiterProfilePage()),
-      ),
-      GoRoute(
-        path: '/recruiter/profile/edit',
-        pageBuilder: (c, s) =>
-            _slide(c, s, const EditRecruiterProfilePage()),
-      ),
-      GoRoute(
-        path: '/recruiter/likes',
-        pageBuilder: (c, s) => _slide(c, s, const LikesReceivedPage()),
-      ),
-      GoRoute(
-        path: '/recruiter/stats',
-        pageBuilder: (c, s) => _slide(c, s, const RecruiterStatsPage()),
-      ),
+      GoRoute(path: '/recruiter/matches', builder: (_, __) => const RecruiterMatchesPage()),
+      GoRoute(path: '/recruiter/profile', builder: (_, __) => const RecruiterProfilePage()),
+      GoRoute(path: '/recruiter/profile/edit', builder: (_, __) => const EditRecruiterProfilePage()),
+      GoRoute(path: '/recruiter/likes', builder: (_, __) => const LikesReceivedPage()),
+      GoRoute(path: '/recruiter/stats', builder: (_, __) => const RecruiterStatsPage()),
 
-      // Shared routes
-      GoRoute(
-        path: '/messages',
-        pageBuilder: (c, s) => _slide(c, s, const MessagesPage()),
-      ),
+      // Shared
+      GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
       GoRoute(
         path: '/messages/:matchId',
-        pageBuilder: (c, s) {
-          final matchId = int.parse(s.pathParameters['matchId']!);
-          return _slide(c, s, ConversationDetailPage(matchId: matchId));
-        },
+        builder: (_, state) => ConversationDetailPage(
+            matchId: state.pathParameters['matchId']!),
       ),
       GoRoute(
         path: '/match',
-        pageBuilder: (c, s) {
-          final extra = s.extra as Map<String, dynamic>? ?? {};
-          return _fade(
-            c,
-            s,
-            MatchPage(
-              matchId: extra['matchId'] as int? ?? 0,
-              jobOfferTitle: extra['jobOfferTitle'] as String? ?? '',
-              companyName: extra['companyName'] as String? ?? '',
-            ),
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return MatchPage(
+            matchId: extra['matchId'] as String? ?? '',
+            jobOfferTitle: extra['jobOfferTitle'] as String? ?? '',
+            companyName: extra['companyName'] as String? ?? '',
           );
         },
       ),
-      GoRoute(
-        path: '/settings',
-        pageBuilder: (c, s) => _slide(c, s, const SettingsPage()),
-      ),
+      GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
     ],
   );
 });
+
+class _RouterRefreshNotifier extends ChangeNotifier {
+  late final ProviderSubscription<SessionState> _sub;
+
+  _RouterRefreshNotifier(Ref ref) {
+    _sub = ref.listen<SessionState>(sessionProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub.close();
+    super.dispose();
+  }
+}

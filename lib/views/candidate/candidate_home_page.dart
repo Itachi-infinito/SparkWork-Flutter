@@ -36,59 +36,62 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     });
   }
 
-  Future<void> _checkPendingMatch() async {
-    final session = ref.read(sessionProvider);
-    final matchRepo = ref.read(matchRepositoryProvider);
-    final offerRepo = ref.read(jobOfferRepositoryProvider);
+    Future<void> _checkPendingMatch() async {
+      try {
+        final session = ref.read(sessionProvider);
+        final matchRepo = ref.read(matchRepositoryProvider);
+        final offerRepo = ref.read(jobOfferRepositoryProvider);
 
-    final pending = await matchRepo.getPendingMatchAnimation(
-        session.userId, session.userRole);
-    if (pending == null || !mounted) return;
+        final pending = await matchRepo.getPendingMatchAnimation(session.userId, session.userRole);
+        if (pending == null || !mounted) return;
 
-    final offer = await offerRepo.getOfferById(pending.jobOfferId);
-    if (offer == null || !mounted) return;
+        final offer = await offerRepo.getOfferById(pending.jobOfferId);
+        if (offer == null || !mounted) return;
 
-    context.push('/match', extra: {
-      'matchId': pending.matchId,
-      'jobOfferTitle': offer.title,
-      'companyName': offer.companyName,
-    });
-  }
+        context.push('/match', extra: {
+          'matchId': pending.matchId,
+          'jobOfferTitle': offer.title,
+          'companyName': offer.companyName,
+        });
+      } catch (_) {}
+    }
 
   Future<void> _loadStats() async {
-    final session = ref.read(sessionProvider);
-    final matchRepo = ref.read(matchRepositoryProvider);
-    final offerRepo = ref.read(jobOfferRepositoryProvider);
-    final profileRepo = ref.read(candidateProfileRepositoryProvider);
+    try {
+      final session = ref.read(sessionProvider);
+      final matchRepo = ref.read(matchRepositoryProvider);
+      final offerRepo = ref.read(jobOfferRepositoryProvider);
+      final profileRepo = ref.read(candidateProfileRepositoryProvider);
 
-    final allOffers = await offerRepo.getAllOffers();
-    final matches = await matchRepo.getMatchesByCandidate(session.userId);
+      final allOffers = await offerRepo.getAllOffers();
+      final matches = await matchRepo.getMatchesByCandidate(session.userId);
 
-    final recent = <Map<String, dynamic>>[];
-    for (final m in matches.take(3)) {
-      final offer = await offerRepo.getOfferById(m.jobOfferId);
-      if (offer != null) {
-        recent.add({
-          'matchId': m.matchId,
-          'title': offer.title,
-          'company': offer.companyName,
+      final recent = <Map<String, dynamic>>[];
+      for (final m in matches.take(3)) {
+        final offer = await offerRepo.getOfferById(m.jobOfferId);
+        if (offer != null) {
+          recent.add({
+            'matchId': m.matchId,
+            'title': offer.title,
+            'company': offer.companyName,
+          });
+        }
+      }
+
+      final profile = await profileRepo.getProfile(session.userId);
+      final score = ProfileCompletion.calculate(profile);
+      final missing = ProfileCompletion.missing(profile);
+
+      if (mounted) {
+        setState(() {
+          _offerCount = allOffers.length;
+          _matchCount = matches.length;
+          _recentMatches = recent;
+          _completionScore = score;
+          _missingFields = missing;
         });
       }
-    }
-
-    final profile = await profileRepo.getProfile(session.userId);
-    final score = ProfileCompletion.calculate(profile);
-    final missing = ProfileCompletion.missing(profile);
-
-    if (mounted) {
-      setState(() {
-        _offerCount = allOffers.length;
-        _matchCount = matches.length;
-        _recentMatches = recent;
-        _completionScore = score;
-        _missingFields = missing;
-      });
-    }
+    } catch (_) {}
   }
 
   @override
@@ -264,7 +267,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
               ..._recentMatches.map((m) => _RecentMatchTile(
                     title: m['title'] as String,
                     company: m['company'] as String,
-                    matchId: m['matchId'] as int,
+                    matchId: m['matchId'] as String,
                     onMessage: () =>
                         context.push('/messages/${m['matchId']}'),
                   )),
@@ -363,7 +366,7 @@ class _StatCardWithBadge extends StatelessWidget {
 class _RecentMatchTile extends StatelessWidget {
   final String title;
   final String company;
-  final int matchId;
+  final String matchId;
   final VoidCallback onMessage;
   const _RecentMatchTile(
       {required this.title,

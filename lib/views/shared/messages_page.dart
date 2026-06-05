@@ -197,7 +197,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         ),
       );
 
-  Widget _buildList(int userId) => RefreshIndicator(
+  Widget _buildList(String userId) => RefreshIndicator(
         onRefresh: _load,
         color: AppColors.primary,
         child: ListView.separated(

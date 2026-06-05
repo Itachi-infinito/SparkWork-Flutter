@@ -7,7 +7,7 @@ import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
 
 class EditJobOfferPage extends ConsumerStatefulWidget {
-  final int jobOfferId;
+  final String jobOfferId;
   const EditJobOfferPage({super.key, required this.jobOfferId});
 
   @override
