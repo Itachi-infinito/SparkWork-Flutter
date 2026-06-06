@@ -1,0 +1,105 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "candidateAnimationSeen", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "recruiterAnimationSeen", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "jobOfferId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "matchId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "matchId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "matchId", "order": "ASCENDING" },
+        { "fieldPath": "senderUserId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "candidate_job_likes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "jobOfferId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "recruiter_candidate_likes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "jobOfferId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "recruiter_candidate_likes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" },
+        { "fieldPath": "jobOfferId", "order": "ASCENDING" },
+        { "fieldPath": "isSuperLike", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "recruiter_candidate_likes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recruiterUserId", "order": "ASCENDING" },
+        { "fieldPath": "candidateUserId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

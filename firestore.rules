@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isMatchParticipant(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return m.candidateUserId == request.auth.uid
+          || m.recruiterUserId == request.auth.uid;
+    }
+
+    // User accounts — only owner writes
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Candidate profiles — anyone reads, only owner writes
+    match /candidate_profiles/{profileId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+          && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuth()
+          && resource.data.userId == request.auth.uid;
+    }
+
+    // Recruiter profiles — anyone reads, only owner writes
+    match /recruiter_profiles/{profileId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+          && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuth()
+          && resource.data.userId == request.auth.uid;
+    }
+
+    // Job offers — anyone reads, only owning recruiter writes
+    match /job_offers/{offerId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+          && request.resource.data.recruiterUserId == request.auth.uid;
+      allow update, delete: if isAuth()
+          && resource.data.recruiterUserId == request.auth.uid;
+    }
+
+    // Candidate likes a job offer
+    match /candidate_job_likes/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+          && request.resource.data.candidateUserId == request.auth.uid;
+      allow delete: if isAuth()
+          && resource.data.candidateUserId == request.auth.uid;
+    }
+
+    // Recruiter likes a candidate
+    match /recruiter_candidate_likes/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+          && request.resource.data.recruiterUserId == request.auth.uid;
+      allow delete: if isAuth()
+          && resource.data.recruiterUserId == request.auth.uid;
+    }
+
+    // Matches — only participants read/write
+    match /matches/{matchId} {
+      allow read: if isAuth() && (
+          resource.data.candidateUserId == request.auth.uid ||
+          resource.data.recruiterUserId == request.auth.uid);
+      allow create: if isAuth() && (
+          request.resource.data.candidateUserId == request.auth.uid ||
+          request.resource.data.recruiterUserId == request.auth.uid);
+      allow update: if isAuth() && (
+          resource.data.candidateUserId == request.auth.uid ||
+          resource.data.recruiterUserId == request.auth.uid);
+    }
+
+    // Messages (flat collection with matchId field)
+    match /messages/{msgId} {
+      allow read: if isAuth() && isMatchParticipant(resource.data.matchId);
+      allow create: if isAuth()
+          && request.resource.data.senderUserId == request.auth.uid
+          && isMatchParticipant(request.resource.data.matchId);
+      // allow update for markAsSeen (participant marks other's message as seen)
+      allow update: if isAuth() && isMatchParticipant(resource.data.matchId);
+    }
+  }
+}

@@ -37,8 +37,10 @@ class CompatibilityService {
 
     // Contract type: 15 pts
     if (candidate.desiredContractType.isNotEmpty && offer.contractType.isNotEmpty) {
-      if (candidate.desiredContractType.toLowerCase() ==
-          offer.contractType.toLowerCase()) {
+      final candidateTypes = AppSkills.parseSkills(candidate.desiredContractType)
+          .map((t) => t.toLowerCase())
+          .toList();
+      if (candidateTypes.contains(offer.contractType.toLowerCase())) {
         score += 15;
       }
     } else {

@@ -13,6 +13,7 @@ import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
+import '../../core/constants/app_skills.dart';
 
 class JobOfferDetailPage extends ConsumerStatefulWidget {
   final String jobOfferId;
@@ -145,10 +146,13 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
         label: 'Type de contrat',
         detail: o.contractType.isEmpty
             ? 'Non précisé'
-            : (p.desiredContractType == o.contractType
+            : (AppSkills.parseSkills(p.desiredContractType)
+                    .any((t) => t.toLowerCase() == o.contractType.toLowerCase())
                 ? o.contractType
-                : '${p.desiredContractType} ≠ ${o.contractType}'),
-        match: o.contractType.isEmpty || p.desiredContractType == o.contractType,
+                : '${AppSkills.parseSkills(p.desiredContractType).join(', ')} ≠ ${o.contractType}'),
+        match: o.contractType.isEmpty ||
+            AppSkills.parseSkills(p.desiredContractType)
+                .any((t) => t.toLowerCase() == o.contractType.toLowerCase()),
         icon: Icons.work_outline,
       ),
       _CompatCriteria(

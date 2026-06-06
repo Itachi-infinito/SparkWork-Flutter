@@ -15,6 +15,7 @@ import '../../views/candidate/candidate_profile_page.dart';
 import '../../views/candidate/edit_candidate_profile_page.dart';
 import '../../views/candidate/job_offer_list_page.dart';
 import '../../views/candidate/job_offer_detail_page.dart';
+import '../../views/candidate/liked_offers_page.dart';
 import '../../views/recruiter/recruiter_home_page.dart';
 import '../../views/recruiter/recruiter_swipe_page.dart';
 import '../../views/recruiter/recruiter_job_offers_page.dart';
@@ -68,58 +69,139 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
-      GoRoute(path: '/welcome', builder: (_, __) => const WelcomePage()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
-      GoRoute(path: '/register/candidate', builder: (_, __) => const RegisterCandidatePage()),
-      GoRoute(path: '/register/recruiter', builder: (_, __) => const RegisterRecruiterPage()),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomePage(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/register/candidate',
+        builder: (context, state) => const RegisterCandidatePage(),
+      ),
+      GoRoute(
+        path: '/register/recruiter',
+        builder: (context, state) => const RegisterRecruiterPage(),
+      ),
 
-      // Candidate
-      GoRoute(path: '/candidate/home', builder: (_, __) => const CandidateHomePage()),
-      GoRoute(path: '/candidate/swipe', builder: (_, __) => const CandidateSwipePage()),
-      GoRoute(path: '/candidate/matches', builder: (_, __) => const CandidateMatchesPage()),
-      GoRoute(path: '/candidate/profile', builder: (_, __) => const CandidateProfilePage()),
-      GoRoute(path: '/candidate/profile/edit', builder: (_, __) => const EditCandidateProfilePage()),
-      GoRoute(path: '/candidate/offers', builder: (_, __) => const JobOfferListPage()),
+      // Candidate routes
+      GoRoute(
+        path: '/candidate/home',
+        builder: (context, state) => const CandidateHomePage(),
+      ),
+      GoRoute(
+        path: '/candidate/swipe',
+        builder: (context, state) => const CandidateSwipePage(),
+      ),
+      GoRoute(
+        path: '/candidate/matches',
+        builder: (context, state) => const CandidateMatchesPage(),
+      ),
+      GoRoute(
+        path: '/candidate/profile',
+        builder: (context, state) => const CandidateProfilePage(),
+      ),
+      GoRoute(
+        path: '/candidate/profile/edit',
+        builder: (context, state) => const EditCandidateProfilePage(),
+      ),
+      GoRoute(
+        path: '/candidate/offers',
+        builder: (context, state) => const JobOfferListPage(),
+      ),
       GoRoute(
         path: '/candidate/offers/:id',
-        builder: (_, state) => JobOfferDetailPage(
-            jobOfferId: state.pathParameters['id']!),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return JobOfferDetailPage(jobOfferId: id);
+        },
+      ),
+      GoRoute(
+        path: '/candidate/liked-offers',
+        builder: (context, state) => const LikedOffersPage(),
       ),
 
-      // Recruiter
-      GoRoute(path: '/recruiter/home', builder: (_, __) => const RecruiterHomePage()),
-      GoRoute(path: '/recruiter/swipe', builder: (_, __) => const RecruiterSwipePage()),
-      GoRoute(path: '/recruiter/offers', builder: (_, __) => const RecruiterJobOffersPage()),
-      GoRoute(path: '/recruiter/offers/add', builder: (_, __) => const AddJobOfferPage()),
+      // Recruiter routes
+      GoRoute(
+        path: '/recruiter/home',
+        builder: (context, state) => const RecruiterHomePage(),
+      ),
+      GoRoute(
+        path: '/recruiter/swipe',
+        builder: (context, state) => const RecruiterSwipePage(),
+      ),
+      GoRoute(
+        path: '/recruiter/offers',
+        builder: (context, state) => const RecruiterJobOffersPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/offers/add',
+        builder: (context, state) => const AddJobOfferPage(),
+      ),
       GoRoute(
         path: '/recruiter/offers/:id/edit',
-        builder: (_, state) => EditJobOfferPage(
-            jobOfferId: state.pathParameters['id']!),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return EditJobOfferPage(jobOfferId: id);
+        },
       ),
-      GoRoute(path: '/recruiter/candidates', builder: (_, __) => const BrowseCandidatesPage()),
+      GoRoute(
+        path: '/recruiter/candidates',
+        builder: (context, state) => const BrowseCandidatesPage(),
+      ),
       GoRoute(
         path: '/recruiter/candidates/:id',
-        builder: (_, state) => CandidateDetailPage(
-            candidateUserId: state.pathParameters['id']!),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CandidateDetailPage(candidateUserId: id);
+        },
       ),
-      GoRoute(path: '/recruiter/matches', builder: (_, __) => const RecruiterMatchesPage()),
-      GoRoute(path: '/recruiter/profile', builder: (_, __) => const RecruiterProfilePage()),
-      GoRoute(path: '/recruiter/profile/edit', builder: (_, __) => const EditRecruiterProfilePage()),
-      GoRoute(path: '/recruiter/likes', builder: (_, __) => const LikesReceivedPage()),
-      GoRoute(path: '/recruiter/stats', builder: (_, __) => const RecruiterStatsPage()),
+      GoRoute(
+        path: '/recruiter/matches',
+        builder: (context, state) => const RecruiterMatchesPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/profile',
+        builder: (context, state) => const RecruiterProfilePage(),
+      ),
+      GoRoute(
+        path: '/recruiter/profile/edit',
+        builder: (context, state) => const EditRecruiterProfilePage(),
+      ),
+      GoRoute(
+        path: '/recruiter/likes',
+        builder: (context, state) => const LikesReceivedPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/stats',
+        builder: (context, state) => const RecruiterStatsPage(),
+      ),
 
-      // Shared
-      GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
+      // Shared routes
+      GoRoute(
+        path: '/messages',
+        builder: (context, state) => const MessagesPage(),
+      ),
       GoRoute(
         path: '/messages/:matchId',
-        builder: (_, state) => ConversationDetailPage(
-            matchId: state.pathParameters['matchId']!),
+        builder: (context, state) {
+          final matchId = state.pathParameters['matchId']!;
+          return ConversationDetailPage(matchId: matchId);
+        },
       ),
       GoRoute(
         path: '/match',
-        builder: (_, state) {
+        builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return MatchPage(
             matchId: extra['matchId'] as String? ?? '',
@@ -128,7 +210,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
     ],
   );
 });

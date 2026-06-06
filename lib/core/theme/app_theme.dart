@@ -3,13 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  static ThemeData get theme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         brightness: Brightness.light,
-        background: AppColors.background,
         surface: AppColors.surface,
       ),
       scaffoldBackgroundColor: AppColors.background,
@@ -91,37 +90,33 @@ class AppTheme {
     );
   }
 
-  static ThemeData get theme => lightTheme;
-
   static ThemeData get darkTheme {
-    const bg = Color(0xFF0D0D0D);
-    const surface = Color(0xFF1A1A1A);
-    const border = Color(0xFF2C2C2C);
-    const textPrimary = Color(0xFFF2F2F7);
-    const textSecondary = Color(0xFF8E8E93);
+    const darkBg = Color(0xFF0F1117);
+    const darkSurface = Color(0xFF1A1D27);
+    const darkSurfaceVariant = Color(0xFF252836);
+    const darkBorder = Color(0xFF2E3347);
+    const darkTextPrimary = Color(0xFFF1F2F6);
+    const darkTextSecondary = Color(0xFF9CA3AF);
+    const darkTextHint = Color(0xFF6B7280);
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         brightness: Brightness.dark,
-        background: bg,
-        surface: surface,
+        surface: darkSurface,
       ),
-      scaffoldBackgroundColor: bg,
-      textTheme: GoogleFonts.interTextTheme(
-        ThemeData(brightness: Brightness.dark).textTheme,
-      ),
+      scaffoldBackgroundColor: darkBg,
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       appBarTheme: AppBarTheme(
-        backgroundColor: bg,
-        foregroundColor: textPrimary,
+        backgroundColor: darkSurface,
+        foregroundColor: darkTextPrimary,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 17,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: darkTextPrimary,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -155,14 +150,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1E1E1E),
+        fillColor: darkSurfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: border),
+          borderSide: const BorderSide(color: darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -175,7 +170,7 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: GoogleFonts.inter(
-          color: textSecondary,
+          color: darkTextHint,
           fontSize: 14,
         ),
       ),
@@ -183,29 +178,41 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: border),
+          side: const BorderSide(color: darkBorder),
         ),
-        color: surface,
-      ),
-      dividerTheme: const DividerThemeData(color: border),
-      switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith(
-          (s) => s.contains(MaterialState.selected)
-              ? AppColors.primary
-              : Colors.grey,
-        ),
-        trackColor: MaterialStateProperty.resolveWith(
-          (s) => s.contains(MaterialState.selected)
-              ? AppColors.primary.withOpacity(0.4)
-              : Colors.grey.withOpacity(0.2),
-        ),
+        color: darkSurface,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-        indicatorColor: AppColors.primary.withOpacity(0.15),
-        labelTextStyle: MaterialStateProperty.all(
-          GoogleFonts.inter(fontSize: 11, color: textSecondary),
+        backgroundColor: darkSurface,
+        indicatorColor: AppColors.primaryLight.withOpacity(0.25),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(color: darkTextSecondary, fontSize: 11),
         ),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary);
+          }
+          return const IconThemeData(color: darkTextSecondary);
+        }),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkSurface,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: darkSurface,
+      ),
+      dividerColor: darkBorder,
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          return darkTextSecondary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary.withOpacity(0.4);
+          }
+          return darkBorder;
+        }),
       ),
     );
   }
