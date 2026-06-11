@@ -168,7 +168,10 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: Row(
+                  // IntrinsicHeight requis : stretch dans un item de ListView
+                  // (hauteur non bornée) provoque une exception de rendu.
+                  child: IntrinsicHeight(
+                    child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
@@ -273,6 +276,7 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
               )),
                   ],
                 ),
+                  ),
                 ),
               ),
             );

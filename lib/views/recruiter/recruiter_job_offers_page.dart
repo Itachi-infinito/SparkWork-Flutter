@@ -151,7 +151,11 @@ class _RecruiterJobOffersPageState
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Row(
+                // IntrinsicHeight borne la hauteur du Row : sans elle,
+                // stretch + ListView (hauteur non contrainte) => exception
+                // "infinite height" et page blanche.
+                child: IntrinsicHeight(
+                  child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
@@ -246,6 +250,7 @@ class _RecruiterJobOffersPageState
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             );

@@ -110,6 +110,28 @@ service cloud.firestore {
           && isMatchParticipant(resource.data.matchId);
     }
 
+    // Évaluations mutuelles après match
+    match /ratings/{ratingId} {
+      // L'auteur relit sa propre note ; le destinataire peut lire les
+      // notes le concernant (moyenne de profil)
+      allow read: if isAuth() && (
+          resource.data.fromUserId == request.auth.uid ||
+          resource.data.toUserId == request.auth.uid);
+      allow create: if isAuth()
+          && request.resource.data.fromUserId == request.auth.uid
+          && request.resource.data.score >= 1
+          && request.resource.data.score <= 5
+          && isMatchParticipant(request.resource.data.matchId);
+      // Upsert : l'auteur peut modifier sa note
+      allow update: if isAuth()
+          && resource.data.fromUserId == request.auth.uid
+          && request.resource.data.fromUserId == request.auth.uid
+          && request.resource.data.score >= 1
+          && request.resource.data.score <= 5;
+      allow delete: if isAuth()
+          && resource.data.fromUserId == request.auth.uid;
+    }
+
     // Signalements — écriture seule par le signaleur, lecture admin
     // uniquement (via la console / un back-office, jamais le client)
     match /reports/{reportId} {

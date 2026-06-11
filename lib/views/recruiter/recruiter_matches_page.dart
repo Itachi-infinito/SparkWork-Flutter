@@ -133,11 +133,13 @@ class _RecruiterMatchesPageState
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Row(
+                // IntrinsicHeight + stretch : barre d'accent à hauteur de carte
+                child: IntrinsicHeight(
+                  child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
                       width: 4,
-                      height: 88,
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Color(0xFF059669), AppColors.green],
@@ -205,6 +207,7 @@ class _RecruiterMatchesPageState
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             );
@@ -239,11 +242,15 @@ class _RateButtonState extends ConsumerState<_RateButton> {
   }
 
   Future<void> _check() async {
-    final session = ref.read(sessionProvider);
-    final r = await ref
-        .read(ratingRepositoryProvider)
-        .getRatingForMatch(session.userId, widget.matchId);
-    if (mounted) setState(() { _existingScore = r?.score; _checking = false; });
+    try {
+      final session = ref.read(sessionProvider);
+      final r = await ref
+          .read(ratingRepositoryProvider)
+          .getRatingForMatch(session.userId, widget.matchId);
+      if (mounted) setState(() { _existingScore = r?.score; _checking = false; });
+    } catch (_) {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   Future<void> _openDialog() async {

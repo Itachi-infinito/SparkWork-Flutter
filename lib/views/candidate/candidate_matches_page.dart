@@ -335,7 +335,11 @@ class _MatchCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: Row(
+        // IntrinsicHeight + stretch : la barre d'accent suit la hauteur de la
+        // carte sans contrainte infinie (crash) ni hauteur zéro (invisible).
+        child: IntrinsicHeight(
+          child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
               width: 4,
@@ -427,6 +431,7 @@ class _MatchCard extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -463,11 +468,15 @@ class _RateButtonState extends ConsumerState<_RateButton> {
   }
 
   Future<void> _check() async {
-    final session = ref.read(sessionProvider);
-    final r = await ref
-        .read(ratingRepositoryProvider)
-        .getRatingForMatch(session.userId, widget.matchId);
-    if (mounted) setState(() { _existingScore = r?.score; _checking = false; });
+    try {
+      final session = ref.read(sessionProvider);
+      final r = await ref
+          .read(ratingRepositoryProvider)
+          .getRatingForMatch(session.userId, widget.matchId);
+      if (mounted) setState(() { _existingScore = r?.score; _checking = false; });
+    } catch (_) {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   Future<void> _openDialog() async {
