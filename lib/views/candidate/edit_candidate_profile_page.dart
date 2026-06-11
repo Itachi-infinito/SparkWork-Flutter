@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
@@ -249,7 +250,7 @@ class _EditCandidateProfilePageState
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: Color(0xFF6C63FF),
+                            color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.camera_alt,
@@ -310,8 +311,7 @@ class _EditCandidateProfilePageState
                           selected: _experienceLevel == level,
                           onSelected: (_) =>
                               setState(() => _experienceLevel = level),
-                          selectedColor:
-                              const Color(0xFF6C63FF).withOpacity(0.2),
+                          selectedColor: AppColors.primaryLight,
                         ))
                     .toList(),
               ),
@@ -379,8 +379,7 @@ class _EditCandidateProfilePageState
                           selected: _remotePreference == mode,
                           onSelected: (_) =>
                               setState(() => _remotePreference = mode),
-                          selectedColor:
-                              const Color(0xFF6C63FF).withOpacity(0.2),
+                          selectedColor: AppColors.primaryLight,
                         ))
                     .toList(),
               ),
@@ -404,8 +403,7 @@ class _EditCandidateProfilePageState
                               }
                             });
                           },
-                          selectedColor:
-                              const Color(0xFF6C63FF).withOpacity(0.2),
+                          selectedColor: AppColors.primaryLight,
                         ))
                     .toList(),
               ),
