@@ -51,34 +51,54 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
       return;
     }
     setState(() { _loading = true; _error = null; });
+
+    // Capture everything before first await so we can complete the write
+    // even if GoRouter redirects (auth state change) and unmounts this widget.
+    final authService = ref.read(authServiceProvider);
+    final profileRepo = ref.read(candidateProfileRepositoryProvider);
+    final fullName = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    final location = _locationCtrl.text.trim();
+    final bio = _bioCtrl.text.trim();
+    final salaryMin = int.tryParse(_salaryMinCtrl.text.trim()) ?? 0;
+    final salaryMax = int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0;
+    final contractType = _contractType ?? '';
+    final level = _level ?? '';
+    final remotePreference = _remotePreference ?? '';
+    final skills = List<String>.from(_skills);
+
     try {
-      final authService = ref.read(authServiceProvider);
       final (ok, msg) = await authService.register(
-        fullName: _nameCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
+        fullName: fullName,
+        email: email,
+        password: password,
         role: 'candidate',
       );
-      if (!mounted) return;
-      if (!ok) { setState(() => _error = msg); return; }
+      if (!ok) {
+        if (mounted) setState(() => _error = msg);
+        return;
+      }
 
       final uid = authService.currentUser!.uid;
       final profile = CandidateProfile(
         profileId: '',
         userId: uid,
-        fullName: _nameCtrl.text.trim(),
-        location: _locationCtrl.text.trim(),
-        desiredContractType: _contractType ?? '',
-        desiredLevel: _level ?? '',
-        skills: _skills,
-        bio: _bioCtrl.text.trim(),
-        desiredSalaryMin: int.tryParse(_salaryMinCtrl.text.trim()) ?? 0,
-        desiredSalaryMax: int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0,
-        remotePreference: _remotePreference ?? '',
+        fullName: fullName,
+        location: location,
+        desiredContractType: contractType,
+        desiredLevel: level,
+        skills: skills,
+        bio: bio,
+        desiredSalaryMin: salaryMin,
+        desiredSalaryMax: salaryMax,
+        remotePreference: remotePreference,
       );
-      await ref.read(candidateProfileRepositoryProvider).insertProfile(profile);
-      if (!mounted) return;
-      context.go('/candidate/home');
+      // Write profile even if widget was already unmounted by GoRouter redirect.
+      await profileRepo.insertProfile(profile);
+      if (mounted) context.go('/candidate/home');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Erreur lors de l\'inscription.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
