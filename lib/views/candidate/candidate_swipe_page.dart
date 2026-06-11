@@ -10,10 +10,12 @@ import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/candidate_job_like_repository.dart';
+import '../../models/recruiter_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
+import '../../repositories/recruiter_profile_repository.dart';
 import '../../repositories/report_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
@@ -39,6 +41,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   CandidateProfile? _candidateProfile;
   Map<String, int> _scores = {};
   Map<String, bool> _superLikedByRecruiter = {};
+  Map<String, RecruiterProfile> _recruiterProfiles = {};
   bool _loading = true;
   String? _error;
 
@@ -130,12 +133,19 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
         }
       }
 
+      // Batch-fetch recruiter profiles for swipe card photos
+      final recruiterIds = unseen.map((o) => o.recruiterUserId).toSet().toList();
+      final recruiterProfiles = await ref
+          .read(recruiterProfileRepositoryProvider)
+          .getProfilesForUserIds(recruiterIds);
+
       if (mounted) {
         setState(() {
           _allOffers = unseen;
           _candidateProfile = profile;
           _scores = scores;
           _superLikedByRecruiter = superLiked;
+          _recruiterProfiles = recruiterProfiles;
           _loading = false;
         });
         _applyFilters();
@@ -211,10 +221,20 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
         return true;
       }).toList();
 
+      final newRecruiterIds = newUnseen
+          .map((o) => o.recruiterUserId)
+          .where((id) => !_recruiterProfiles.containsKey(id))
+          .toSet()
+          .toList();
+      final newRecruiterProfiles = await ref
+          .read(recruiterProfileRepositoryProvider)
+          .getProfilesForUserIds(newRecruiterIds);
+
       setState(() {
         _allOffers.addAll(newUnseen);
         _scores.addAll(newScores);
         _superLikedByRecruiter.addAll(newSuperLiked);
+        _recruiterProfiles.addAll(newRecruiterProfiles);
         _offers.addAll(filteredNew);
       });
     } finally {
@@ -639,9 +659,15 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                   if (index >= _offers.length) return const SizedBox();
                   final offer = _offers[index];
                   final score = _scores[offer.jobOfferId];
+                  final recruiterProfile =
+                      _recruiterProfiles[offer.recruiterUserId];
                   return Stack(
                     children: [
-                      _JobOfferCard(offer: offer, score: score),
+                      _JobOfferCard(
+                        offer: offer,
+                        score: score,
+                        recruiterProfile: recruiterProfile,
+                      ),
                       SwipeOverlay(type: _overlayType),
                     ],
                   );
@@ -793,23 +819,31 @@ class _FilterLabel extends StatelessWidget {
 class _JobOfferCard extends StatelessWidget {
   final JobOffer offer;
   final int? score;
-  const _JobOfferCard({required this.offer, this.score});
+  final RecruiterProfile? recruiterProfile;
+  const _JobOfferCard({required this.offer, this.score, this.recruiterProfile});
 
   @override
   Widget build(BuildContext context) {
     final shownSkills = offer.requiredSkillList.take(3).toList();
     final extra = offer.requiredSkillList.length - shownSkills.length;
-
     final isFlash = offer.isFlash && offer.isFlashActive;
+
+    final contactPhotoUrl = recruiterProfile?.contactPhotoUrl;
+    final logoUrl = recruiterProfile?.companyLogoUrl;
+    final hasContactPhoto = contactPhotoUrl != null && contactPhotoUrl.isNotEmpty;
+    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
+
+    // Background: contact photo OR flash gradient OR company gradient
+    final bgGradient = isFlash
+        ? const LinearGradient(
+            colors: [Color(0xFF92400E), Color(0xFFB45309), Color(0xFFF59E0B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : AvatarColors.gradientForString(offer.companyName);
+
     return Container(
       decoration: BoxDecoration(
-        gradient: isFlash
-            ? const LinearGradient(
-                colors: [Color(0xFF92400E), Color(0xFFB45309), Color(0xFFF59E0B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : AvatarColors.gradientForString(offer.companyName),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -824,62 +858,75 @@ class _JobOfferCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Decorative circles
-          Positioned(
-            top: -40, right: -40,
-            child: Container(
-              width: 160, height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.07),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 80, left: -50,
-            child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
-              ),
-            ),
-          ),
+          // ── Background ──────────────────────────────────────────────────
+          if (hasContactPhoto)
+            Image.network(
+              contactPhotoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  Container(decoration: BoxDecoration(gradient: bgGradient)),
+            )
+          else
+            Container(decoration: BoxDecoration(gradient: bgGradient)),
 
-          // Company initials — upper center
-          Positioned(
-            top: 0, left: 0, right: 0, bottom: 260,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    offer.initials,
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.92),
-                        fontSize: 80,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
+          // Decorative circles (only when no photo)
+          if (!hasContactPhoto) ...[
+            Positioned(
+              top: -40, right: -40,
+              child: Container(
+                width: 160, height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.07),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 80, left: -50,
+              child: Container(
+                width: 120, height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.05),
+                ),
+              ),
+            ),
+            // Company initials when no photo
+            Positioned(
+              top: 0, left: 0, right: 0, bottom: 260,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      offer.initials,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.92),
+                          fontSize: 80,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 4),
                     ),
-                    child: Text(offer.companyName,
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500)),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(offer.companyName,
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.85),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
 
-          // Dark gradient overlay — bottom 55%
+          // ── Dark gradient overlay — bottom ──────────────────────────────
           Positioned(
             left: 0, right: 0, bottom: 0,
             height: 300,
@@ -888,15 +935,42 @@ class _JobOfferCard extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Color(0xBB000000), Color(0xEE000000)],
+                  colors: [
+                    Colors.transparent,
+                    Color(0xBB000000),
+                    Color(0xEE000000)
+                  ],
                   stops: [0.0, 0.45, 1.0],
                 ),
               ),
             ),
           ),
 
-          // Flash badge — top left
-          if (isFlash)
+          // ── Company logo badge — top left (when contact photo is shown) ─
+          if (hasContactPhoto && hasLogo)
+            Positioned(
+              top: 16, left: 16,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.2), blurRadius: 6)
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(logoUrl,
+                      width: 40, height: 40, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox()),
+                ),
+              ),
+            ),
+
+          // ── Flash badge — top left (when no logo or no contact photo) ──
+          if (isFlash && !(hasContactPhoto && hasLogo))
             Positioned(
               top: 16, left: 16,
               child: Container(
@@ -922,18 +996,44 @@ class _JobOfferCard extends StatelessWidget {
               ),
             ),
 
-          // Score badge — top right
+          // Flash badge alongside logo (when both exist)
+          if (isFlash && hasContactPhoto && hasLogo)
+            Positioned(
+              top: 16, left: 64,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.bolt, color: Color(0xFFFBBF24), size: 12),
+                  SizedBox(width: 2),
+                  Text('FLASH',
+                      style: TextStyle(
+                          color: Color(0xFFFBBF24),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11)),
+                ]),
+              ),
+            ),
+
+          // ── Compatibility score — top right ─────────────────────────────
           if (score != null)
             Positioned(
               top: 16, right: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: score! >= 70 ? AppColors.green : AppColors.orange,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                        color: (score! >= 70 ? AppColors.green : AppColors.orange)
+                        color: (score! >= 70
+                                ? AppColors.green
+                                : AppColors.orange)
                             .withOpacity(0.5),
                         blurRadius: 10)
                   ],
@@ -953,13 +1053,29 @@ class _JobOfferCard extends StatelessWidget {
               ),
             ),
 
-          // Content overlay — bottom
+          // ── Content overlay — bottom ─────────────────────────────────────
           Positioned(
             left: 20, right: 20, bottom: 20,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Company name pill (only when contact photo shown — initials already show it)
+                if (hasContactPhoto)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(offer.companyName,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
+                  ),
                 Text(offer.title,
                     style: const TextStyle(
                         color: Colors.white,
@@ -981,7 +1097,8 @@ class _JobOfferCard extends StatelessWidget {
                 if (offer.hasSalary) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.green.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),

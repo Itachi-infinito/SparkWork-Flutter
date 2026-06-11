@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/recruiter_profile.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
+import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 
@@ -15,11 +17,11 @@ class RecruiterProfilePage extends ConsumerStatefulWidget {
       _RecruiterProfilePageState();
 }
 
-class _RecruiterProfilePageState
-    extends ConsumerState<RecruiterProfilePage> {
+class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
   int _offersCount = 0;
   int _matchesCount = 0;
   bool _loading = true;
+  RecruiterProfile? _profile;
 
   @override
   void initState() {
@@ -30,16 +32,16 @@ class _RecruiterProfilePageState
   Future<void> _load() async {
     setState(() => _loading = true);
     final session = ref.read(sessionProvider);
-    final offers = await ref
-        .read(jobOfferRepositoryProvider)
-        .getOffersByRecruiter(session.userId);
-    final matches = await ref
-        .read(matchRepositoryProvider)
-        .getMatchesByRecruiter(session.userId);
+    final results = await Future.wait([
+      ref.read(jobOfferRepositoryProvider).getOffersByRecruiter(session.userId),
+      ref.read(matchRepositoryProvider).getMatchesByRecruiter(session.userId),
+      ref.read(recruiterProfileRepositoryProvider).getProfile(session.userId),
+    ]);
     if (mounted) {
       setState(() {
-        _offersCount = offers.length;
-        _matchesCount = matches.length;
+        _offersCount = (results[0] as List).length;
+        _matchesCount = (results[1] as List).length;
+        _profile = results[2] as RecruiterProfile?;
         _loading = false;
       });
     }
@@ -48,12 +50,6 @@ class _RecruiterProfilePageState
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
-    final parts = session.userName.trim().split(' ');
-    final initials = parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-        : session.userName.isNotEmpty
-            ? session.userName[0].toUpperCase()
-            : 'R';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,147 +64,64 @@ class _RecruiterProfilePageState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Gradient hero
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.fromLTRB(
-                          20,
-                          MediaQuery.of(context).padding.top + 12,
-                          20,
-                          32),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF064E3B),
-                            Color(0xFF059669),
-                            AppColors.green,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.vertical(
-                            bottom: Radius.circular(32)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                onPressed: () =>
-                                    context.push('/settings'),
-                                icon: const Icon(
-                                    Icons.settings_outlined,
-                                    color: Colors.white),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundColor:
-                                Colors.white.withOpacity(0.2),
-                            child: Text(initials,
-                                style: const TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white)),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(session.userName,
-                              style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          const SizedBox(height: 4),
-                          Text(session.userEmail,
-                              style: TextStyle(
-                                  color: Colors.white.withOpacity(0.75),
-                                  fontSize: 13)),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text('Recruteur',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              await context
-                                  .push('/recruiter/profile/edit');
-                              _load();
-                            },
-                            icon: const Icon(Icons.edit_outlined,
-                                size: 16, color: Colors.white),
-                            label: const Text('Modifier le profil',
-                                style: TextStyle(color: Colors.white)),
-                            style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                    color:
-                                        Colors.white.withOpacity(0.5))),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Stats + Actions
+                    _buildHero(session),
                     Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Statistiques',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary)),
+                          // Company description
+                          if (_profile != null &&
+                              _profile!.companyDescription.isNotEmpty) ...[
+                            const _SectionTitle('À propos'),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Text(_profile!.companyDescription,
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      height: 1.5)),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          const _SectionTitle('Statistiques'),
                           const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                  child: _StatCard(
-                                      icon: Icons.work_outline,
-                                      label: 'Offres publiées',
-                                      value: '$_offersCount',
-                                      color: AppColors.primary)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                  child: _StatCard(
-                                      icon: Icons.favorite_outline,
-                                      label: 'Matches',
-                                      value: '$_matchesCount',
-                                      color: AppColors.red)),
-                            ],
-                          ),
+                          Row(children: [
+                            Expanded(
+                                child: _StatCard(
+                                    icon: Icons.work_outline,
+                                    label: 'Offres publiées',
+                                    value: '$_offersCount',
+                                    color: AppColors.primary)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: _StatCard(
+                                    icon: Icons.favorite_outline,
+                                    label: 'Matches',
+                                    value: '$_matchesCount',
+                                    color: AppColors.red)),
+                          ]),
                           const SizedBox(height: 24),
-                          const Text('Actions',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary)),
+
+                          const _SectionTitle('Actions'),
                           const SizedBox(height: 12),
                           _ActionTile(
                               icon: Icons.work_outline,
                               label: 'Gérer mes offres',
                               color: AppColors.primary,
-                              onTap: () =>
-                                  context.go('/recruiter/offers')),
+                              onTap: () => context.go('/recruiter/offers')),
                           _ActionTile(
                               icon: Icons.favorite_outline,
                               label: 'Voir mes matches',
                               color: AppColors.red,
-                              onTap: () =>
-                                  context.go('/recruiter/matches')),
+                              onTap: () => context.go('/recruiter/matches')),
                           _ActionTile(
                               icon: Icons.thumb_up_outlined,
                               label: 'Candidats likés',
@@ -219,8 +132,8 @@ class _RecruiterProfilePageState
                               icon: Icons.people_outline,
                               label: 'Parcourir les candidats',
                               color: AppColors.primaryDark,
-                              onTap: () => context
-                                  .push('/recruiter/candidates')),
+                              onTap: () =>
+                                  context.push('/recruiter/candidates')),
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -232,6 +145,171 @@ class _RecruiterProfilePageState
       bottomNavigationBar: const RecruiterNavBar(currentIndex: 4),
     );
   }
+
+  Widget _buildHero(session) {
+    final contactPhotoUrl = _profile?.contactPhotoUrl;
+    final logoUrl = _profile?.companyLogoUrl;
+    final companyName = _profile?.companyName ?? session.userName;
+    final location = _profile?.location ?? '';
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          20, MediaQuery.of(context).padding.top + 12, 20, 32),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF064E3B), Color(0xFF059669), AppColors.green],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: () => context.push('/settings'),
+                icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          // Contact photo (main avatar) + optional logo badge
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              // Contact photo
+              _CirclePhoto(url: contactPhotoUrl, name: companyName, radius: 48),
+
+              // Company logo badge (bottom-right if both exist)
+              if (logoUrl != null && logoUrl.isNotEmpty && contactPhotoUrl != null)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: Image.network(logoUrl,
+                          width: 32, height: 32, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox()),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          Text(companyName,
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
+          if (location.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 13, color: Colors.white70),
+                const SizedBox(width: 3),
+                Text(location,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(session.userEmail,
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.7), fontSize: 12)),
+          const SizedBox(height: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text('Recruteur',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await context.push('/recruiter/profile/edit');
+              _load();
+            },
+            icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.white),
+            label: const Text('Modifier le profil',
+                style: TextStyle(color: Colors.white)),
+            style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.white.withOpacity(0.5))),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CirclePhoto extends StatelessWidget {
+  final String? url;
+  final String name;
+  final double radius;
+  const _CirclePhoto({required this.url, required this.name, required this.radius});
+
+  String get _initials {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.isNotEmpty ? name[0].toUpperCase() : 'R';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (url != null && url!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(url!,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildInitials()),
+      );
+    }
+    return _buildInitials();
+  }
+
+  Widget _buildInitials() => CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.white.withOpacity(0.2),
+        child: Text(_initials,
+            style: TextStyle(
+                fontSize: radius * 0.6,
+                fontWeight: FontWeight.bold,
+                color: Colors.white)),
+      );
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary));
 }
 
 class _StatCard extends StatelessWidget {
@@ -266,8 +344,7 @@ class _StatCard extends StatelessWidget {
             Text(label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary)),
+                    fontSize: 12, color: AppColors.textSecondary)),
           ],
         ),
       );

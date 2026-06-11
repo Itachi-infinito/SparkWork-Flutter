@@ -47,8 +47,21 @@ class AppAvatar extends StatelessWidget {
             height: radius * 2,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _buildInitials(),
-            loadingBuilder: (_, child, progress) =>
-                progress == null ? child : _buildInitials(),
+            loadingBuilder: (_, child, progress) {
+              if (progress == null) return child;
+              return CircleAvatar(
+                radius: radius,
+                backgroundColor: AppColors.primaryLight,
+                child: SizedBox(
+                  width: radius * 0.6,
+                  height: radius * 0.6,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       );
