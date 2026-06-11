@@ -19,16 +19,7 @@ class AppAvatar extends StatelessWidget {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (photoPath != null && photoPath!.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: NetworkImage(photoPath!),
-        onBackgroundImageError: (_, __) {},
-        child: null,
-      );
-    }
+  Widget _buildInitials() {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primaryLight,
@@ -41,5 +32,27 @@ class AppAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (photoPath != null && photoPath!.isNotEmpty) {
+      return SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: ClipOval(
+          child: Image.network(
+            photoPath!,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildInitials(),
+            loadingBuilder: (_, child, progress) =>
+                progress == null ? child : _buildInitials(),
+          ),
+        ),
+      );
+    }
+    return _buildInitials();
   }
 }

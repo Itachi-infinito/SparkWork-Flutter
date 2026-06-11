@@ -83,12 +83,14 @@ class CandidateProfile {
     fullName: map['fullName'] as String? ?? '',
     location: map['location'] as String? ?? '',
     desiredContractType: map['desiredContractType'] as String? ?? '',
-    desiredLevel: map['desiredLevel'] as String? ?? '',
+    desiredLevel:
+        AppSkills.normalizeLevel(map['desiredLevel'] as String? ?? ''),
     skills: AppSkills.parseSkills(map['skills'] as String? ?? ''),
     bio: map['bio'] as String? ?? '',
     desiredSalaryMin: (map['desiredSalaryMin'] as num?)?.toInt() ?? 0,
     desiredSalaryMax: (map['desiredSalaryMax'] as num?)?.toInt() ?? 0,
-    remotePreference: map['remotePreference'] as String? ?? '',
+    remotePreference:
+        AppSkills.normalizeRemote(map['remotePreference'] as String? ?? ''),
     latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
     longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
     jobTitle: map['jobTitle'] as String?,

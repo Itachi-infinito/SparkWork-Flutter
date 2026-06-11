@@ -1,7 +1,8 @@
-﻿import 'dart:io';
+﻿import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
@@ -31,7 +32,8 @@ class _EditCandidateProfilePageState
   final _salaryMinCtrl = TextEditingController();
   final _salaryMaxCtrl = TextEditingController();
   String? _currentPhotoUrl;
-  File? _newImageFile;
+  XFile? _newImageFile;
+  Uint8List? _newImageBytes;
   bool _loading = false;
   bool _saving = false;
 
@@ -76,18 +78,61 @@ class _EditCandidateProfilePageState
     final picked = await picker.pickImage(
         source: ImageSource.gallery, imageQuality: 80);
     if (picked != null) {
-      setState(() => _newImageFile = File(picked.path));
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _newImageFile = picked;
+        _newImageBytes = bytes;
+      });
     }
   }
 
+  Widget _buildPhotoPreview() {
+    const double r = 52;
+    Widget placeholder = CircleAvatar(
+      radius: r,
+      backgroundColor: Colors.grey[200],
+      child: const Icon(Icons.person, size: r, color: Colors.grey),
+    );
+
+    if (_newImageBytes != null) {
+      return ClipOval(
+        child: Image.memory(
+          _newImageBytes!,
+          width: r * 2,
+          height: r * 2,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    if (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          _currentPhotoUrl!,
+          width: r * 2,
+          height: r * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => placeholder,
+          loadingBuilder: (_, child, progress) =>
+              progress == null ? child : placeholder,
+        ),
+      );
+    }
+    return placeholder;
+  }
+
   Future<String?> _uploadPhoto(String userId) async {
-    if (_newImageFile == null) return _currentPhotoUrl;
-    final ref = FirebaseStorage.instance
+    if (_newImageFile == null || _newImageBytes == null) return _currentPhotoUrl;
+    final storageRef = FirebaseStorage.instance
         .ref()
         .child('profile_photos')
         .child('$userId.jpg');
-    await ref.putFile(_newImageFile!);
-    return await ref.getDownloadURL();
+    await storageRef.putData(
+      _newImageBytes!,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    final url = await storageRef.getDownloadURL();
+    debugPrint('[SparkWork] Photo uploadée: $url');
+    return url;
   }
 
   Future<void> _save() async {
@@ -95,7 +140,26 @@ class _EditCandidateProfilePageState
     setState(() => _saving = true);
     try {
       final userId = ref.read(sessionProvider).userId;
-      final photoUrl = await _uploadPhoto(userId);
+
+      // Upload photo separately — if it fails, keep the existing URL
+      // so the rest of the profile data is not lost.
+      String? photoUrl = _currentPhotoUrl;
+      if (_newImageBytes != null) {
+        try {
+          photoUrl = await _uploadPhoto(userId);
+        } catch (uploadError) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Photo non sauvegardée : $uploadError'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      }
+
       final profile = CandidateProfile(
         profileId: userId,
         userId: userId,
@@ -119,7 +183,7 @@ class _EditCandidateProfilePageState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profil mis à jour !')),
         );
-        Navigator.of(context).pop();
+        context.pop();
       }
     } catch (e) {
       if (mounted) {
@@ -178,20 +242,7 @@ class _EditCandidateProfilePageState
                   onTap: _pickPhoto,
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 52,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: _newImageFile != null
-                            ? FileImage(_newImageFile!) as ImageProvider
-                            : (_currentPhotoUrl != null
-                                ? NetworkImage(_currentPhotoUrl!)
-                                : null),
-                        child: (_newImageFile == null &&
-                                _currentPhotoUrl == null)
-                            ? const Icon(Icons.person,
-                                size: 52, color: Colors.grey)
-                            : null,
-                      ),
+                      _buildPhotoPreview(),
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -253,7 +304,7 @@ class _EditCandidateProfilePageState
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: ['Junior', 'Intermédiaire', 'Senior', 'Expert']
+                children: AppSkills.levels
                     .map((level) => ChoiceChip(
                           label: Text(level),
                           selected: _experienceLevel == level,
@@ -270,7 +321,7 @@ class _EditCandidateProfilePageState
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: ['CDI', 'CDD', 'Intérim', 'Freelance', 'Stage']
+                children: AppSkills.contractTypes
                     .map((type) => FilterChip(
                       label: Text(type),
                       selected: _selectedContractTypes.contains(type),
@@ -322,7 +373,7 @@ class _EditCandidateProfilePageState
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: ['Présentiel', 'Hybride', 'Télétravail']
+                children: AppSkills.remoteModes
                     .map((mode) => ChoiceChip(
                           label: Text(mode),
                           selected: _remotePreference == mode,

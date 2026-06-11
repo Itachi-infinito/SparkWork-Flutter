@@ -18,6 +18,8 @@ class JobOffer {
   final String remoteMode;
   final String level;
   final bool isActive;
+  final bool isFlash;
+  final String flashEndDate;
 
   const JobOffer({
     required this.jobOfferId,
@@ -37,7 +39,39 @@ class JobOffer {
     required this.remoteMode,
     required this.level,
     this.isActive = true,
+    this.isFlash = false,
+    this.flashEndDate = '',
   });
+
+  bool get isFlashActive {
+    if (!isFlash || flashEndDate.isEmpty) return false;
+    try {
+      return DateTime.parse(flashEndDate).isAfter(DateTime.now());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Duration get flashRemaining {
+    if (!isFlash || flashEndDate.isEmpty) return Duration.zero;
+    try {
+      final r = DateTime.parse(flashEndDate).difference(DateTime.now());
+      return r.isNegative ? Duration.zero : r;
+    } catch (_) {
+      return Duration.zero;
+    }
+  }
+
+  String get flashRemainingDisplay {
+    if (!isFlashActive) return '';
+    final d = flashRemaining;
+    if (d == Duration.zero) return 'Expiré';
+    final hours = d.inHours;
+    final minutes = d.inMinutes % 60;
+    if (hours >= 24) return 'Dans ${d.inDays}j';
+    if (hours > 0) return 'Dans ${hours}h${minutes > 0 ? ' ${minutes}m' : ''}';
+    return 'Dans ${minutes}m';
+  }
 
   bool get hasSalary => salaryMin > 0 || salaryMax > 0;
 
@@ -77,6 +111,8 @@ class JobOffer {
         'remoteMode': remoteMode,
         'level': level,
         'isActive': isActive,
+        'isFlash': isFlash,
+        'flashEndDate': flashEndDate,
       };
 
   factory JobOffer.fromMap(Map<String, dynamic> map) => JobOffer(
@@ -97,6 +133,8 @@ class JobOffer {
         remoteMode: map['remoteMode'] as String? ?? '',
         level: map['level'] as String? ?? '',
         isActive: map['isActive'] as bool? ?? true,
+        isFlash: map['isFlash'] as bool? ?? false,
+        flashEndDate: map['flashEndDate'] as String? ?? '',
       );
 
   JobOffer copyWith({
@@ -117,6 +155,8 @@ class JobOffer {
     String? remoteMode,
     String? level,
     bool? isActive,
+    bool? isFlash,
+    String? flashEndDate,
   }) =>
       JobOffer(
         jobOfferId: jobOfferId ?? this.jobOfferId,
@@ -136,5 +176,7 @@ class JobOffer {
         remoteMode: remoteMode ?? this.remoteMode,
         level: level ?? this.level,
         isActive: isActive ?? this.isActive,
+        isFlash: isFlash ?? this.isFlash,
+        flashEndDate: flashEndDate ?? this.flashEndDate,
       );
 }

@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/terms_checkbox.dart';
 import '../../services/auth_service.dart';
 
 class RegisterRecruiterPage extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class _RegisterRecruiterPageState
   bool _loading = false;
   String? _error;
   bool _obscure = true;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -34,6 +36,11 @@ class _RegisterRecruiterPageState
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      setState(() =>
+          _error = 'Vous devez accepter les conditions d\'utilisation.');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final fullName = '${_nameCtrl.text.trim()} - ${_companyCtrl.text.trim()}';
@@ -64,23 +71,60 @@ class _RegisterRecruiterPageState
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Text('Créez votre compte recruteur',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  )),
-              const SizedBox(height: 6),
-              const Text('Trouvez les meilleurs talents Horeca',
-                  style: TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: 32),
-              if (_error != null)
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gradient header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                  24, MediaQuery.of(context).padding.top + 12, 24, 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF059669), AppColors.green],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(height: 14),
+                  const Icon(Icons.business_center_rounded,
+                      color: Colors.white, size: 28),
+                  const SizedBox(height: 8),
+                  const Text('Compte recruteur',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5)),
+                  const SizedBox(height: 4),
+                  Text('Trouvez les meilleurs talents Horeca',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.72),
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    if (_error != null)
                 Container(
                   padding: const EdgeInsets.all(14),
                   margin: const EdgeInsets.only(bottom: 20),
@@ -143,7 +187,12 @@ class _RegisterRecruiterPageState
                   return null;
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              TermsCheckbox(
+                value: _acceptedTerms,
+                onChanged: (v) => setState(() => _acceptedTerms = v),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loading ? null : _register,
                 style: ElevatedButton.styleFrom(
@@ -157,8 +206,11 @@ class _RegisterRecruiterPageState
                     : const Text('Créer mon compte recruteur'),
               ),
               const SizedBox(height: 24),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

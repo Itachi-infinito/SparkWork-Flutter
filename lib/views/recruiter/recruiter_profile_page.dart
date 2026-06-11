@@ -57,153 +57,174 @@ class _RecruiterProfilePageState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mon profil'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              await context.push('/recruiter/profile/edit');
-              _load();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(
-                  color: AppColors.green))
+              child: CircularProgressIndicator(color: AppColors.green))
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.green,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
+                    // Gradient hero
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.fromLTRB(
+                          20,
+                          MediaQuery.of(context).padding.top + 12,
+                          20,
+                          32),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF064E3B),
+                            Color(0xFF059669),
+                            AppColors.green,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(32)),
+                      ),
                       child: Column(
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                onPressed: () =>
+                                    context.push('/settings'),
+                                icon: const Icon(
+                                    Icons.settings_outlined,
+                                    color: Colors.white),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
                           CircleAvatar(
-                            radius: 44,
-                            backgroundColor: AppColors.greenLight,
+                            radius: 48,
+                            backgroundColor:
+                                Colors.white.withOpacity(0.2),
                             child: Text(initials,
                                 style: const TextStyle(
-                                    fontSize: 28,
+                                    fontSize: 30,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.green)),
+                                    color: Colors.white)),
                           ),
                           const SizedBox(height: 12),
                           Text(session.userName,
                               style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary)),
+                                  color: Colors.white)),
                           const SizedBox(height: 4),
                           Text(session.userEmail,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.75),
                                   fontSize: 13)),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.greenLight,
-                              borderRadius:
-                                  BorderRadius.circular(20),
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Text('Recruteur',
                                 style: TextStyle(
-                                    color: AppColors.green,
+                                    color: Colors.white,
                                     fontSize: 12,
-                                    fontWeight:
-                                        FontWeight.w600)),
+                                    fontWeight: FontWeight.w600)),
                           ),
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
                             onPressed: () async {
-                              await context.push(
-                                  '/recruiter/profile/edit');
+                              await context
+                                  .push('/recruiter/profile/edit');
                               _load();
                             },
-                            icon: const Icon(
-                                Icons.edit_outlined,
-                                size: 16),
-                            label: const Text(
-                                'Modifier le profil'),
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 16, color: Colors.white),
+                            label: const Text('Modifier le profil',
+                                style: TextStyle(color: Colors.white)),
                             style: OutlinedButton.styleFrom(
-                                foregroundColor:
-                                    AppColors.green,
-                                side: const BorderSide(
-                                    color: AppColors.green)),
+                                side: BorderSide(
+                                    color:
+                                        Colors.white.withOpacity(0.5))),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    const Text('Statistiques',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _StatCard(
-                                icon: Icons.work_outline,
-                                label: 'Offres publiées',
-                                value: '$_offersCount',
-                                color: AppColors.primary)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: _StatCard(
-                                icon: Icons.favorite_outline,
-                                label: 'Matches',
-                                value: '$_matchesCount',
-                                color: AppColors.red)),
-                      ],
+
+                    // Stats + Actions
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Statistiques',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary)),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: _StatCard(
+                                      icon: Icons.work_outline,
+                                      label: 'Offres publiées',
+                                      value: '$_offersCount',
+                                      color: AppColors.primary)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: _StatCard(
+                                      icon: Icons.favorite_outline,
+                                      label: 'Matches',
+                                      value: '$_matchesCount',
+                                      color: AppColors.red)),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          const Text('Actions',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary)),
+                          const SizedBox(height: 12),
+                          _ActionTile(
+                              icon: Icons.work_outline,
+                              label: 'Gérer mes offres',
+                              color: AppColors.primary,
+                              onTap: () =>
+                                  context.go('/recruiter/offers')),
+                          _ActionTile(
+                              icon: Icons.favorite_outline,
+                              label: 'Voir mes matches',
+                              color: AppColors.red,
+                              onTap: () =>
+                                  context.go('/recruiter/matches')),
+                          _ActionTile(
+                              icon: Icons.thumb_up_outlined,
+                              label: 'Candidats likés',
+                              color: AppColors.orange,
+                              onTap: () =>
+                                  context.push('/recruiter/likes')),
+                          _ActionTile(
+                              icon: Icons.people_outline,
+                              label: 'Parcourir les candidats',
+                              color: AppColors.primaryDark,
+                              onTap: () => context
+                                  .push('/recruiter/candidates')),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text('Actions',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 12),
-                    _ActionTile(
-                        icon: Icons.work_outline,
-                        label: 'Gérer mes offres',
-                        color: AppColors.primary,
-                        onTap: () =>
-                            context.go('/recruiter/offers')),
-                    _ActionTile(
-                        icon: Icons.favorite_outline,
-                        label: 'Voir mes matches',
-                        color: AppColors.red,
-                        onTap: () =>
-                            context.go('/recruiter/matches')),
-                    _ActionTile(
-                        icon: Icons.thumb_up_outlined,
-                        label: 'Candidats likés',
-                        color: AppColors.orange,
-                        onTap: () =>
-                            context.push('/recruiter/likes')),
-                    _ActionTile(
-                        icon: Icons.people_outline,
-                        label: 'Parcourir les candidats',
-                        color: AppColors.primaryDark,
-                        onTap: () => context
-                            .push('/recruiter/candidates')),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),

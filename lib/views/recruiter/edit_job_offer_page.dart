@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
@@ -32,6 +33,8 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
   bool _saving = false;
   String? _error;
   JobOffer? _originalOffer;
+  bool _isFlash = false;
+  DateTime? _flashEndDateTime;
 
   @override
   void initState() {
@@ -68,6 +71,12 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
         _contractType = AppSkills.contractTypes.contains(offer.contractType) ? offer.contractType : null;
         _level = AppSkills.levels.contains(offer.level) ? offer.level : null;
         _remoteMode = AppSkills.remoteModes.contains(offer.remoteMode) ? offer.remoteMode : null;
+        _isFlash = offer.isFlash;
+        if (offer.isFlash && offer.flashEndDate.isNotEmpty) {
+          try {
+            _flashEndDateTime = DateTime.parse(offer.flashEndDate).toLocal();
+          } catch (_) {}
+        }
         _initialLoading = false;
       });
     } catch (e) {
@@ -81,6 +90,10 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
     try {
       final salaryMin = int.tryParse(_salaryMinCtrl.text.trim()) ?? 0;
       final salaryMax = int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0;
+      if (_isFlash && _flashEndDateTime == null) {
+        setState(() => _error = 'Choisissez une date d\'expiration pour l\'offre Flash.');
+        return;
+      }
       final updated = _originalOffer!.copyWith(
         title: _titleCtrl.text.trim(),
         companyName: _companyCtrl.text.trim(),
@@ -93,6 +106,10 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
         requiredSkills: AppSkills.formatSkills(_requiredSkills),
         niceToHaveSkills: AppSkills.formatSkills(_niceSkills),
         description: _descriptionCtrl.text.trim(),
+        isFlash: _isFlash,
+        flashEndDate: _isFlash && _flashEndDateTime != null
+            ? _flashEndDateTime!.toUtc().toIso8601String()
+            : '',
       );
       await ref.read(jobOfferRepositoryProvider).updateOffer(updated);
       if (!mounted) return;
@@ -172,6 +189,18 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
                   const SizedBox(height: 12),
                   TextFormField(controller: _descriptionCtrl, maxLines: 6, decoration: const InputDecoration(hintText: 'Décrivez le poste...'),
                     validator: (v) => (v == null || v.trim().length < 10) ? 'Description requise (min 10 caractères)' : null),
+                  const SizedBox(height: 24),
+                  const Text('⚡ Offre Flash', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  const SizedBox(height: 8),
+                  _EditFlashSection(
+                    isFlash: _isFlash,
+                    flashEndDateTime: _flashEndDateTime,
+                    onToggle: (v) => setState(() {
+                      _isFlash = v;
+                      if (!v) _flashEndDateTime = null;
+                    }),
+                    onPickDate: _pickFlashDateTime,
+                  ),
                   const SizedBox(height: 32),
                   SizedBox(width: double.infinity, child: ElevatedButton.icon(
                     onPressed: _saving ? null : _save,
@@ -183,6 +212,101 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
                 ]),
               ),
             ),
+    );
+  }
+
+  Future<void> _pickFlashDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _flashEndDateTime ?? DateTime.now().add(const Duration(hours: 6)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      helpText: 'Date d\'expiration',
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+          _flashEndDateTime ?? DateTime.now().add(const Duration(hours: 6))),
+      helpText: 'Heure d\'expiration',
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _flashEndDateTime =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+}
+
+class _EditFlashSection extends StatelessWidget {
+  final bool isFlash;
+  final DateTime? flashEndDateTime;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onPickDate;
+
+  const _EditFlashSection({
+    required this.isFlash,
+    required this.flashEndDateTime,
+    required this.onToggle,
+    required this.onPickDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFFF9800);
+    return Container(
+      decoration: BoxDecoration(
+        color: isFlash ? const Color(0xFFFFF8E1) : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isFlash ? amber : AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.bolt, color: amber, size: 22),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Offre Flash',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text('Expire automatiquement à la date choisie',
+                          style: TextStyle(
+                              fontSize: 11, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                Switch(value: isFlash, onChanged: onToggle, activeColor: amber),
+              ],
+            ),
+          ),
+          if (isFlash) ...[
+            const Divider(height: 1),
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              leading: const Icon(Icons.schedule, color: amber),
+              title: Text(
+                flashEndDateTime == null
+                    ? 'Choisir la date d\'expiration *'
+                    : DateFormat('dd/MM/yyyy HH:mm').format(flashEndDateTime!),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: flashEndDateTime == null
+                        ? AppColors.textHint
+                        : AppColors.textPrimary),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onPickDate,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

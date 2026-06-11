@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
@@ -30,6 +31,8 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
   final List<String> _niceSkills = [];
   bool _loading = false;
   String? _error;
+  bool _isFlash = false;
+  DateTime? _flashEndDateTime;
 
   @override
   void dispose() {
@@ -58,6 +61,10 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         setState(() { _error = 'Le salaire minimum ne peut pas dépasser le maximum.'; });
         return;
       }
+      if (_isFlash && _flashEndDateTime == null) {
+        setState(() => _error = 'Choisissez une date d\'expiration pour l\'offre Flash.');
+        return;
+      }
 
       final offer = JobOffer(
         jobOfferId: '',
@@ -73,6 +80,10 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         niceToHaveSkills: AppSkills.formatSkills(_niceSkills),
         remoteMode: _remoteMode ?? '',
         level: _level ?? '',
+        isFlash: _isFlash,
+        flashEndDate: _isFlash && _flashEndDateTime != null
+            ? _flashEndDateTime!.toUtc().toIso8601String()
+            : '',
       );
 
       await ref.read(jobOfferRepositoryProvider).insertOffer(offer);
@@ -309,6 +320,19 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                   return null;
                 },
               ),
+              const SizedBox(height: 24),
+
+              _sectionLabel('⚡ Offre Flash'),
+              const SizedBox(height: 8),
+              _FlashSection(
+                isFlash: _isFlash,
+                flashEndDateTime: _flashEndDateTime,
+                onToggle: (v) => setState(() {
+                  _isFlash = v;
+                  if (!v) _flashEndDateTime = null;
+                }),
+                onPickDate: _pickFlashDateTime,
+              ),
               const SizedBox(height: 32),
 
               ElevatedButton.icon(
@@ -330,6 +354,28 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickFlashDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(hours: 6)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      helpText: 'Date d\'expiration',
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+          DateTime.now().add(const Duration(hours: 6))),
+      helpText: 'Heure d\'expiration',
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _flashEndDateTime =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
   }
 
   Widget _sectionLabel(String text) {
@@ -396,6 +442,86 @@ class _SkillPicker extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _FlashSection extends StatelessWidget {
+  final bool isFlash;
+  final DateTime? flashEndDateTime;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onPickDate;
+
+  const _FlashSection({
+    required this.isFlash,
+    required this.flashEndDateTime,
+    required this.onToggle,
+    required this.onPickDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFFF9800);
+    return Container(
+      decoration: BoxDecoration(
+        color: isFlash ? const Color(0xFFFFF8E1) : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isFlash ? amber : AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.bolt, color: amber, size: 22),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Offre Flash',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text(
+                          'Expire automatiquement à la date choisie',
+                          style: TextStyle(
+                              fontSize: 11, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: isFlash,
+                  onChanged: onToggle,
+                  activeColor: amber,
+                ),
+              ],
+            ),
+          ),
+          if (isFlash) ...[
+            const Divider(height: 1),
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              leading: const Icon(Icons.schedule, color: amber),
+              title: Text(
+                flashEndDateTime == null
+                    ? 'Choisir la date d\'expiration *'
+                    : DateFormat('dd/MM/yyyy HH:mm')
+                        .format(flashEndDateTime!),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: flashEndDateTime == null
+                        ? AppColors.textHint
+                        : AppColors.textPrimary),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onPickDate,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

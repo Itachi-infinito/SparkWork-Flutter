@@ -1,4 +1,6 @@
-﻿import 'package:appinio_swiper/appinio_swiper.dart';
+﻿import 'dart:async';
+import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
+import '../../repositories/report_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
@@ -47,6 +50,15 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
 
   SwipeOverlayType _overlayType = SwipeOverlayType.none;
 
+  DocumentSnapshot? _lastDoc;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  Set<String> _likedIds = {};
+  Set<String> _blockedIds = {};
+  final Set<String> _swipedOfferIds = {};
+  static const _batchSize = 20;
+  static const _loadMoreThreshold = 4;
+
   bool get _hasActiveFilters =>
       _filterContractType.isNotEmpty ||
       _filterLevel.isNotEmpty ||
@@ -72,6 +84,11 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
     setState(() {
       _loading = true;
       _error = null;
+      _allOffers = [];
+      _offers = [];
+      _lastDoc = null;
+      _hasMore = true;
+      _swipedOfferIds.clear();
     });
     try {
       final session = ref.read(sessionProvider);
@@ -79,26 +96,33 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       final jobOfferRepo = ref.read(jobOfferRepositoryProvider);
       final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
       final profileRepo = ref.read(candidateProfileRepositoryProvider);
-      final recruiterLikeRepo =
-          ref.read(recruiterCandidateLikeRepositoryProvider);
+      final recruiterLikeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
       final compatService = ref.read(compatibilityServiceProvider);
 
-      final allOffers = await jobOfferRepo.getAllOffers();
       final likedIds = await likeRepo.getLikedJobOfferIds(userId);
-      final likedSet = likedIds.toSet();
-      final unseen =
-          allOffers.where((o) => !likedSet.contains(o.jobOfferId)).toList();
+      _likedIds = likedIds.toSet();
+      _blockedIds =
+          (await ref.read(reportRepositoryProvider).getBlockedIds(userId))
+              .toSet();
       final profile = await profileRepo.getProfile(userId);
 
+      final (offers, lastDoc) = await jobOfferRepo.getOffersBatch(_batchSize);
+      _lastDoc = lastDoc;
+      _hasMore = offers.length == _batchSize;
+
+      final unseen = offers
+          .where((o) =>
+              !_likedIds.contains(o.jobOfferId) &&
+              !_blockedIds.contains(o.recruiterUserId))
+          .toList();
+
       final scores = <String, int>{};
-      final superLiked = <String, bool>{};   // était <int, bool>
+      final superLiked = <String, bool>{};
 
       if (profile != null) {
         for (final offer in unseen) {
-          scores[offer.jobOfferId] =
-              compatService.calculateScore(profile, offer);
-          superLiked[offer.jobOfferId] =
-              await recruiterLikeRepo.hasSuperLiked(
+          scores[offer.jobOfferId] = compatService.calculateScore(profile, offer);
+          superLiked[offer.jobOfferId] = await recruiterLikeRepo.hasSuperLiked(
             offer.recruiterUserId,
             userId,
             offer.jobOfferId,
@@ -129,6 +153,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   void _applyFilters() {
     setState(() {
       _offers = _allOffers.where((o) {
+        if (_swipedOfferIds.contains(o.jobOfferId)) return false;
         if (_filterContractType.isNotEmpty &&
             o.contractType != _filterContractType) return false;
         if (_filterLevel.isNotEmpty && o.level != _filterLevel) return false;
@@ -144,6 +169,57 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
         return true;
       }).toList();
     });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _lastDoc == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final session = ref.read(sessionProvider);
+      final userId = session.userId;
+      final jobOfferRepo = ref.read(jobOfferRepositoryProvider);
+      final recruiterLikeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
+      final compatService = ref.read(compatibilityServiceProvider);
+
+      final (offers, lastDoc) = await jobOfferRepo.getOffersBatch(_batchSize, startAfter: _lastDoc);
+      _lastDoc = lastDoc;
+      _hasMore = offers.length == _batchSize;
+
+      final newUnseen = offers
+          .where((o) =>
+              !_likedIds.contains(o.jobOfferId) &&
+              !_blockedIds.contains(o.recruiterUserId))
+          .toList();
+
+      final newScores = <String, int>{};
+      final newSuperLiked = <String, bool>{};
+      if (_candidateProfile != null) {
+        for (final offer in newUnseen) {
+          newScores[offer.jobOfferId] = compatService.calculateScore(_candidateProfile!, offer);
+          newSuperLiked[offer.jobOfferId] = await recruiterLikeRepo.hasSuperLiked(
+            offer.recruiterUserId, userId, offer.jobOfferId);
+        }
+      }
+
+      final filteredNew = newUnseen.where((o) {
+        if (_swipedOfferIds.contains(o.jobOfferId)) return false;
+        if (_filterContractType.isNotEmpty && o.contractType != _filterContractType) return false;
+        if (_filterLevel.isNotEmpty && o.level != _filterLevel) return false;
+        if (_filterRemoteMode.isNotEmpty && o.remoteMode != _filterRemoteMode) return false;
+        if (_filterLocation.isNotEmpty && !o.location.toLowerCase().contains(_filterLocation.toLowerCase())) return false;
+        if (_filterMinSalary != null && o.salaryMax > 0 && o.salaryMax < _filterMinSalary!) return false;
+        return true;
+      }).toList();
+
+      setState(() {
+        _allOffers.addAll(newUnseen);
+        _scores.addAll(newScores);
+        _superLikedByRecruiter.addAll(newSuperLiked);
+        _offers.addAll(filteredNew);
+      });
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   void _clearFilters() {
@@ -292,14 +368,15 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
     );
   }
 
-  Future<void> _handleSwipeRight(JobOffer offer) async {
+  Future<void> _handleSwipeRight(JobOffer offer, {bool isSuperLike = false}) async {
     final session = ref.read(sessionProvider);
     final candidateUserId = session.userId;
     final likeRepo = ref.read(candidateJobLikeRepositoryProvider);
     final recruiterLikeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
 
-    await likeRepo.addLike(candidateUserId, offer.jobOfferId);
+    await likeRepo.addLike(candidateUserId, offer.jobOfferId,
+        isSuperLike: isSuperLike);
 
     final recruiterUserId = offer.recruiterUserId;
     final mutual = await recruiterLikeRepo.hasRecruiterLikedCandidateAny(
@@ -313,6 +390,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           candidateUserId: candidateUserId,
           recruiterUserId: recruiterUserId,
           jobOfferId: offer.jobOfferId,
+          jobOfferTitle: offer.title,
+          companyName: offer.companyName,
         );
         NotificationService.showMatch(
           jobOfferTitle: offer.title,
@@ -330,19 +409,27 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   }
 
   void _onSwipeEnd(int previousIndex, int? targetIndex, SwiperActivity activity) {
-  setState(() => _overlayType = SwipeOverlayType.none); // reset
-  if (activity is Swipe) {
-    if (previousIndex < _offers.length) {
-      final offer = _offers[previousIndex];
-      if (activity.direction == AxisDirection.right) {
-        HapticFeedback.mediumImpact();
-        _handleSwipeRight(offer);
-      } else if (activity.direction == AxisDirection.left) {
-        HapticFeedback.lightImpact();
+    setState(() => _overlayType = SwipeOverlayType.none);
+    if (activity is Swipe) {
+      if (previousIndex < _offers.length) {
+        final offer = _offers[previousIndex];
+        _swipedOfferIds.add(offer.jobOfferId);
+        if (activity.direction == AxisDirection.right) {
+          HapticFeedback.mediumImpact();
+          _handleSwipeRight(offer);
+        } else if (activity.direction == AxisDirection.up) {
+          HapticFeedback.heavyImpact();
+          _handleSwipeRight(offer, isSuperLike: true);
+        } else if (activity.direction == AxisDirection.left) {
+          HapticFeedback.lightImpact();
+        }
       }
     }
+    final remaining = targetIndex != null ? _offers.length - targetIndex : 0;
+    if (remaining <= _loadMoreThreshold && _hasMore && !_loadingMore) {
+      _loadMore();
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -589,8 +676,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
             color: const Color(0xFFF59E0B),
             size: 50,
             onTap: () {
-              HapticFeedback.mediumImpact();
-              _swiperController.swipeRight();
+              HapticFeedback.heavyImpact();
+              _swiperController.swipeUp();
             },
           ),
           AnimatedActionButton(
@@ -710,166 +797,299 @@ class _JobOfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requiredSkills = offer.requiredSkillList;
-    final shownSkills = requiredSkills.take(3).toList();
-    final extraSkillsCount = requiredSkills.length - shownSkills.length;
+    final shownSkills = offer.requiredSkillList.take(3).toList();
+    final extra = offer.requiredSkillList.length - shownSkills.length;
 
+    final isFlash = offer.isFlash && offer.isFlashActive;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        gradient: isFlash
+            ? const LinearGradient(
+                colors: [Color(0xFF92400E), Color(0xFFB45309), Color(0xFFF59E0B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : AvatarColors.gradientForString(offer.companyName),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.10),
-              blurRadius: 20,
-              offset: const Offset(0, 8))
+              color: isFlash
+                  ? const Color(0xFFF59E0B).withOpacity(0.4)
+                  : Colors.black.withOpacity(0.35),
+              blurRadius: 28,
+              offset: const Offset(0, 14)),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              gradient: AvatarColors.gradientForString(offer.companyName),
-            ),
-            child: Stack(
-              children: [
-                Center(child: Text(offer.initials, style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.bold, letterSpacing: 2))),
-                if (score != null)
-                  Positioned(
-                    top: 14, right: 14,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: score! >= 70 ? AppColors.green : const Color(0xFFF59E0B),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.bolt, color: Colors.white, size: 14),
-                          const SizedBox(width: 2),
-                          Text('$score%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+          // Decorative circles
+          Positioned(
+            top: -40, right: -40,
+            child: Container(
+              width: 160, height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.07),
+              ),
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+          Positioned(
+            top: 80, left: -50,
+            child: Container(
+              width: 120, height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.05),
+              ),
+            ),
+          ),
+
+          // Company initials — upper center
+          Positioned(
+            top: 0, left: 0, right: 0, bottom: 260,
+            child: Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(offer.title,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(offer.companyName,
-                      style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                        child: Text(offer.location,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13),
-                            overflow: TextOverflow.ellipsis)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 6, runSpacing: 6, children: [
-                    if (offer.contractType.isNotEmpty)
-                      _Badge(label: offer.contractType),
-                    if (offer.level.isNotEmpty)
-                      _Badge(label: offer.level),
-                    if (offer.remoteMode.isNotEmpty)
-                      _Badge(label: offer.remoteMode),
-                  ]),
-                  if (offer.hasSalary) ...[
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      const Icon(Icons.euro,
-                          size: 16, color: AppColors.green),
-                      const SizedBox(width: 6),
-                      Text(offer.salaryDisplay,
-                          style: const TextStyle(
-                              color: AppColors.green,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14)),
-                    ]),
-                  ],
-                  if (shownSkills.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Wrap(spacing: 6, runSpacing: 6, children: [
-                      ...shownSkills.map((s) => _SkillChip(label: s)),
-                      if (extraSkillsCount > 0)
-                        _SkillChip(label: '+$extraSkillsCount'),
-                    ]),
-                  ],
-                  const SizedBox(height: 12),
-                  Text(offer.description,
-                      style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    offer.initials,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.92),
+                        fontSize: 80,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(offer.companyName,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                  ),
                 ],
               ),
             ),
           ),
+
+          // Dark gradient overlay — bottom 55%
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            height: 300,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xBB000000), Color(0xEE000000)],
+                  stops: [0.0, 0.45, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Flash badge — top left
+          if (isFlash)
+            Positioned(
+              top: 16, left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt, color: Color(0xFFFBBF24), size: 14),
+                    SizedBox(width: 3),
+                    Text('FLASH',
+                        style: TextStyle(
+                            color: Color(0xFFFBBF24),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            letterSpacing: 1)),
+                  ],
+                ),
+              ),
+            ),
+
+          // Score badge — top right
+          if (score != null)
+            Positioned(
+              top: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: score! >= 70 ? AppColors.green : AppColors.orange,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: (score! >= 70 ? AppColors.green : AppColors.orange)
+                            .withOpacity(0.5),
+                        blurRadius: 10)
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt, color: Colors.white, size: 14),
+                    const SizedBox(width: 3),
+                    Text('$score%',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ],
+                ),
+              ),
+            ),
+
+          // Content overlay — bottom
+          Positioned(
+            left: 20, right: 20, bottom: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(offer.title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2)),
+                const SizedBox(height: 5),
+                Row(children: [
+                  const Icon(Icons.location_on_outlined,
+                      color: Colors.white60, size: 13),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(offer.location,
+                        style: const TextStyle(
+                            color: Colors.white60, fontSize: 13),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+                if (offer.hasSalary) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: AppColors.green.withOpacity(0.5)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.euro, color: AppColors.green, size: 13),
+                      const SizedBox(width: 3),
+                      Text(offer.salaryDisplay,
+                          style: const TextStyle(
+                              color: AppColors.green,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      if (offer.contractType.isNotEmpty)
+                        _CardBadge(offer.contractType),
+                      if (offer.level.isNotEmpty) _CardBadge(offer.level),
+                      if (offer.remoteMode.isNotEmpty)
+                        _CardBadge(offer.remoteMode),
+                      ...shownSkills.map((s) => _CardBadge(s)),
+                      if (extra > 0) _CardBadge('+$extra'),
+                    ]),
+                    const Spacer(),
+                    if (isFlash) _FlashCountdown(offer: offer),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Badge extends StatelessWidget {
+class _CardBadge extends StatelessWidget {
   final String label;
-  const _Badge({required this.label});
+  const _CardBadge(this.label);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.border)),
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
       child: Text(label,
           style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500)),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
     );
   }
 }
 
-class _SkillChip extends StatelessWidget {
-  final String label;
-  const _SkillChip({required this.label});
+class _FlashCountdown extends StatefulWidget {
+  final JobOffer offer;
+  const _FlashCountdown({required this.offer});
+  @override
+  State<_FlashCountdown> createState() => _FlashCountdownState();
+}
+
+class _FlashCountdownState extends State<_FlashCountdown> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final label = widget.offer.flashRemainingDisplay;
+    if (label.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-          color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(6)),
-      child: Text(label,
-          style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500)),
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer_outlined, color: Colors.white, size: 12),
+          const SizedBox(width: 3),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

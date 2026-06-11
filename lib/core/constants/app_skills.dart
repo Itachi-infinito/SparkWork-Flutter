@@ -64,4 +64,17 @@ class AppSkills {
     return skills.where((s) => s.isNotEmpty).join(', ');
   }
   static List<String> get all => horecaSkills;
+
+  // Migration des anciennes valeurs saisies via une version précédente
+  // de l'édition de profil (listes hardcodées divergentes).
+  static String normalizeLevel(String value) {
+    if (value == 'Intermédiaire') return 'Confirmé';
+    return value;
+  }
+
+  static String normalizeRemote(String value) {
+    if (value == 'Hybride') return 'Télétravail partiel';
+    if (value == 'Télétravail') return 'Télétravail total';
+    return value;
+  }
 }

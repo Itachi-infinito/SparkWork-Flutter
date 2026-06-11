@@ -29,34 +29,19 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool forceServer = false}) async {
     setState(() => _loading = true);
     final userId = ref.read(sessionProvider).userId;
-    final profile =
-        await ref.read(candidateProfileRepositoryProvider).getProfile(userId);
+    final profile = await ref
+        .read(candidateProfileRepositoryProvider)
+        .getProfile(userId, forceServer: forceServer);
+    debugPrint('[SparkWork] Profile loaded — photoUrl: ${profile?.photoUrl}');
     if (mounted) setState(() { _profile = profile; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon profil'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              await context.push('/candidate/profile/edit');
-              _load(); // ← recharge le profil + recalcule le score de complétion
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
@@ -103,33 +88,60 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
       color: AppColors.primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Center(
+            // Gradient hero
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                  20, MediaQuery.of(context).padding.top + 12, 20, 32),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF0D0117),
+                    Color(0xFF1E0A3C),
+                    AppColors.primary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(32)),
+              ),
               child: Column(
                 children: [
-                  AppAvatar(name: p.fullName, radius: 44, photoPath: p.photoPath),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        onPressed: () => context.push('/settings'),
+                        icon: const Icon(Icons.settings_outlined,
+                            color: Colors.white),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  AppAvatar(name: p.fullName, radius: 48, photoPath: p.photoPath),
                   const SizedBox(height: 12),
                   Text(p.fullName,
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: context.textPrimaryColor)),
+                          color: Colors.white)),
                   if (p.location.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.location_on_outlined,
-                            size: 14, color: context.textSecondaryColor),
+                        const Icon(Icons.location_on_outlined,
+                            size: 14, color: Colors.white70),
                         const SizedBox(width: 4),
                         Text(p.location,
-                            style: TextStyle(
-                                color: context.textSecondaryColor,
-                                fontSize: 13)),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
                       ],
                     ),
                   ],
@@ -137,77 +149,83 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                   OutlinedButton.icon(
                     onPressed: () async {
                       await context.push('/candidate/profile/edit');
-                      _load();
+                      _load(forceServer: true);
                     },
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Modifier le profil'),
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 16, color: Colors.white),
+                    label: const Text('Modifier le profil',
+                        style: TextStyle(color: Colors.white)),
                     style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary)),
+                        side: BorderSide(
+                            color: Colors.white.withOpacity(0.5))),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
 
-            // Complétion de profil
-            if (score < 100)
-              ProfileCompletionCard(score: score, missing: missing),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (score < 100) ...[
+                    ProfileCompletionCard(score: score, missing: missing),
+                    const SizedBox(height: 20),
+                  ],
 
-            const SizedBox(height: 20),
+                  if (p.bio.isNotEmpty) ...[
+                    _SectionTitle('À propos'),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: context.surfaceColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.borderColor),
+                      ),
+                      child: Text(p.bio,
+                          style: TextStyle(
+                              color: context.textPrimaryColor, height: 1.5)),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
-            // Bio
-            if (p.bio.isNotEmpty) ...[
-              _SectionTitle('À propos'),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.surfaceColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.borderColor),
-                ),
-                child: Text(p.bio,
-                    style: TextStyle(
-                        color: context.textPrimaryColor, height: 1.5)),
+                  _SectionTitle('Compétences'),
+                  const SizedBox(height: 8),
+                  p.skillList.isEmpty
+                      ? Text('Aucune compétence renseignée.',
+                          style: TextStyle(
+                              color: context.textHintColor, fontSize: 13))
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: p.skillList
+                              .map((s) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(s,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w500)),
+                                  ))
+                              .toList(),
+                        ),
+                  const SizedBox(height: 20),
+
+                  _SectionTitle('Préférences'),
+                  const SizedBox(height: 8),
+                  _PrefsGrid(profile: p),
+                  const SizedBox(height: 32),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
-
-            // Compétences
-            _SectionTitle('Compétences'),
-            const SizedBox(height: 8),
-            p.skillList.isEmpty
-                ? Text('Aucune compétence renseignée.',
-                    style: TextStyle(
-                        color: context.textHintColor, fontSize: 13))
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: p.skillList
-                        .map((s) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(s,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w500)),
-                            ))
-                        .toList(),
-                  ),
-            const SizedBox(height: 20),
-
-            // Préférences
-            _SectionTitle('Préférences'),
-            const SizedBox(height: 8),
-            _PrefsGrid(profile: p),
-            const SizedBox(height: 32),
+            ),
           ],
         ),
       ),

@@ -10,6 +10,7 @@ import '../../models/message.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/message_repository.dart';
+import '../../repositories/report_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../services/unread_service.dart';
@@ -69,8 +70,17 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         ? await matchRepo.getMatchesByCandidate(session.userId)
         : await matchRepo.getMatchesByRecruiter(session.userId);
 
+    // Masquer les conversations avec les utilisateurs bloqués
+    final blocked = await ref
+        .read(reportRepositoryProvider)
+        .getBlockedIds(session.userId);
+    final visibleMatches = matches.where((m) {
+      final other = session.isCandidate ? m.recruiterUserId : m.candidateUserId;
+      return !blocked.contains(other);
+    }).toList();
+
     final items = <_ConvItem>[];
-    for (final m in matches) {
+    for (final m in visibleMatches) {
       final offer = await offerRepo.getOfferById(m.jobOfferId);
       final last = await msgRepo.getLastMessage(m.matchId);
       items.add(_ConvItem(match: m, offer: offer, lastMessage: last));
@@ -222,7 +232,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [

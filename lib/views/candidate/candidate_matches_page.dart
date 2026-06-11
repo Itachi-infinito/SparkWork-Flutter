@@ -8,6 +8,7 @@ import '../../models/match.dart';
 import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
+import '../../repositories/rating_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 
@@ -137,21 +138,39 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
           final offer = _likedOffers[i];
           return GestureDetector(
             onTap: () => context.push('/candidate/offers/${offer.jobOfferId}'),
-            child: Card(
-              elevation: 0,
-              color: AppColors.surface,
-              shape: RoundedRectangleBorder(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
+              child: Row(
                   children: [
                     Container(
                       width: 52, height: 52,
-                      decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-                      child: Center(child: Text(offer.initials, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16))),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryDark, AppColors.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(child: Text(offer.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -178,7 +197,6 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
                     const Icon(Icons.chevron_right, color: AppColors.textHint),
                   ],
                 ),
-              ),
             ),
           );
         },
@@ -272,37 +290,114 @@ class _MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final offer = item.offer;
-    return Card(
-      elevation: 0,
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.border)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          Container(
-            width: 56, height: 56,
-            decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-            child: Center(child: Text(offer?.initials ?? '?', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18))),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(offer?.title ?? 'Offre supprimée', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
-            if (offer?.companyName.isNotEmpty ?? false) ...[
-              const SizedBox(height: 2),
-              Text(offer!.companyName, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-            ],
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 34,
-              child: ElevatedButton.icon(
-                onPressed: onMessage,
-                icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                label: const Text('Envoyer un message', style: TextStyle(fontSize: 12)),
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 88,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryDark, AppColors.primary],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
-          ])),
-        ]),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primaryDark, AppColors.primary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                        child: Text(offer?.initials ?? '?',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18))),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(offer?.title ?? 'Offre supprimée',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.textPrimary)),
+                        if (offer?.companyName.isNotEmpty ?? false) ...[
+                          const SizedBox(height: 2),
+                          Text(offer!.companyName,
+                              style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13)),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 34,
+                                child: ElevatedButton.icon(
+                                  onPressed: onMessage,
+                                  icon: const Icon(Icons.chat_bubble_outline,
+                                      size: 14),
+                                  label: const Text('Message',
+                                      style: TextStyle(fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8))),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _RateButton(
+                              matchId: item.match.matchId,
+                              toUserId: item.match.recruiterUserId,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -317,4 +412,138 @@ class _SmallChip extends StatelessWidget {
     decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
     child: Text(label, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w500)),
   );
+}
+
+class _RateButton extends ConsumerStatefulWidget {
+  final String matchId;
+  final String toUserId;
+  const _RateButton({required this.matchId, required this.toUserId});
+  @override
+  ConsumerState<_RateButton> createState() => _RateButtonState();
+}
+
+class _RateButtonState extends ConsumerState<_RateButton> {
+  int? _existingScore;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final session = ref.read(sessionProvider);
+    final r = await ref
+        .read(ratingRepositoryProvider)
+        .getRatingForMatch(session.userId, widget.matchId);
+    if (mounted) setState(() { _existingScore = r?.score; _checking = false; });
+  }
+
+  Future<void> _openDialog() async {
+    int selected = _existingScore ?? 0;
+    final comment = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Évaluer'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Votre expérience avec ce recruteur ?',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => IconButton(
+                  onPressed: () => setD(() => selected = i + 1),
+                  icon: Icon(
+                    selected >= i + 1 ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: selected >= i + 1
+                        ? const Color(0xFFF59E0B)
+                        : AppColors.textHint,
+                    size: 36,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                )),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: comment,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'Commentaire (optionnel)',
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: selected == 0 ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Envoyer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final session = ref.read(sessionProvider);
+    await ref.read(ratingRepositoryProvider).addRating(
+      fromUserId: session.userId,
+      toUserId: widget.toUserId,
+      matchId: widget.matchId,
+      score: selected,
+      comment: comment.text.trim(),
+    );
+    if (mounted) {
+      setState(() => _existingScore = selected);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Évaluation envoyée !'),
+        backgroundColor: AppColors.green,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const SizedBox(
+          width: 34, height: 34,
+          child: Center(child: SizedBox(width: 16, height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2))));
+    }
+    return SizedBox(
+      height: 34,
+      child: OutlinedButton.icon(
+        onPressed: _openDialog,
+        icon: Icon(
+          _existingScore != null ? Icons.star_rounded : Icons.star_outline_rounded,
+          size: 14,
+          color: _existingScore != null
+              ? const Color(0xFFF59E0B)
+              : AppColors.textSecondary,
+        ),
+        label: Text(
+          _existingScore != null ? '$_existingScore★' : 'Évaluer',
+          style: TextStyle(
+              fontSize: 12,
+              color: _existingScore != null
+                  ? const Color(0xFFF59E0B)
+                  : AppColors.textSecondary),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          side: BorderSide(
+              color: _existingScore != null
+                  ? const Color(0xFFF59E0B)
+                  : AppColors.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
 }

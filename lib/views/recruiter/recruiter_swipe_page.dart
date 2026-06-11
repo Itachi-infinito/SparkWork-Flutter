@@ -1,4 +1,5 @@
 ﻿import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,9 +12,14 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../repositories/candidate_job_like_repository.dart';
+import '../../repositories/report_repository.dart';
+import 'package:flutter/services.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../core/utils/avatar_colors.dart';
+import '../../core/widgets/animated_action_button.dart';
+import '../../core/widgets/swipe_overlay.dart';
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
   const RecruiterSwipePage({super.key});
@@ -43,6 +49,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
       _filterLocation.isNotEmpty ||
       _filterSkill.isNotEmpty;
 
+  DocumentSnapshot? _lastDoc;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  Set<String> _likedIds = {};
+  Set<String> _blockedIds = {};
+  final Set<String> _swipedProfileIds = {};
+  SwipeOverlayType _overlayType = SwipeOverlayType.none;
+  static const _batchSize = 20;
+  static const _loadMoreThreshold = 4;
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +72,14 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _items = [];
+      _activeItems = [];
+      _lastDoc = null;
+      _hasMore = true;
+      _swipedProfileIds.clear();
+    });
     try {
       final session = ref.read(sessionProvider);
       final repo = ref.read(recruiterCandidateLikeRepositoryProvider);
@@ -66,7 +89,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
       _myOffers = await offerRepo.getOffersByRecruiter(session.userId);
       if (_myOffers.isEmpty) {
-        if (mounted) setState(() { _loading = false; _items = []; _activeItems = []; });
+        if (mounted) setState(() => _loading = false);
         return;
       }
       if (_selectedOffer == null) {
@@ -78,11 +101,22 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         );
       }
 
-      final allProfiles = await profileRepo.getAllProfiles();
       final likedIds = await repo.getLikedCandidateIds(session.userId);
+      _likedIds = likedIds.toSet();
+      _blockedIds = (await ref
+              .read(reportRepositoryProvider)
+              .getBlockedIds(session.userId))
+          .toSet();
 
-      final unseenProfiles = allProfiles
-          .where((p) => p.userId != session.userId && !likedIds.contains(p.userId))
+      final (profiles, lastDoc) = await profileRepo.getProfilesBatch(_batchSize);
+      _lastDoc = lastDoc;
+      _hasMore = profiles.length == _batchSize;
+
+      final unseenProfiles = profiles
+          .where((p) =>
+              p.userId != session.userId &&
+              !_likedIds.contains(p.userId) &&
+              !_blockedIds.contains(p.userId))
           .toList();
 
       _items = unseenProfiles.map((p) {
@@ -99,6 +133,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   void _applyFilters() {
     setState(() {
       _activeItems = _items.where((item) {
+        if (_swipedProfileIds.contains(item.profile.userId)) return false;
         final p = item.profile;
         if (_filterLocation.isNotEmpty &&
             !p.location.toLowerCase().contains(_filterLocation.toLowerCase())) {
@@ -120,6 +155,53 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         return true;
       }).toList();
     });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _lastDoc == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final session = ref.read(sessionProvider);
+      final profileRepo = ref.read(candidateProfileRepositoryProvider);
+      final compat = ref.read(compatibilityServiceProvider);
+
+      final (profiles, lastDoc) = await profileRepo.getProfilesBatch(_batchSize, startAfter: _lastDoc);
+      _lastDoc = lastDoc;
+      _hasMore = profiles.length == _batchSize;
+
+      final newUnseen = profiles
+          .where((p) =>
+              p.userId != session.userId &&
+              !_likedIds.contains(p.userId) &&
+              !_blockedIds.contains(p.userId))
+          .toList();
+
+      final newItems = newUnseen.map((p) {
+        final score = _selectedOffer != null ? compat.calculateScore(p, _selectedOffer!) : 50;
+        return _SwipeItem(profile: p, score: score);
+      }).toList();
+
+      final filteredNew = newItems.where((item) {
+        if (_swipedProfileIds.contains(item.profile.userId)) return false;
+        final p = item.profile;
+        if (_filterLocation.isNotEmpty && !p.location.toLowerCase().contains(_filterLocation.toLowerCase())) return false;
+        if (_filterContractType.isNotEmpty) {
+          final types = AppSkills.parseSkills(p.desiredContractType);
+          if (!types.any((t) => t == _filterContractType)) return false;
+        }
+        if (_filterLevel.isNotEmpty && p.desiredLevel != _filterLevel) return false;
+        if (_filterRemoteMode.isNotEmpty && p.remotePreference != _filterRemoteMode) return false;
+        if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) return false;
+        return true;
+      }).toList();
+
+      setState(() {
+        _items.addAll(newItems);
+        _activeItems.addAll(filteredNew);
+      });
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   void _showFilterSheet() {
@@ -307,14 +389,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     );
   }
 
-  Future<void> _handleLike(_SwipeItem item) async {
+  Future<void> _handleLike(_SwipeItem item, {bool isSuperLike = false}) async {
     if (_selectedOffer == null) return;
     final session = ref.read(sessionProvider);
     final likeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final candidateLikeRepo = ref.read(candidateJobLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
 
-    await likeRepo.addLike(session.userId, item.profile.userId, _selectedOffer!.jobOfferId);
+    await likeRepo.addLike(
+        session.userId, item.profile.userId, _selectedOffer!.jobOfferId,
+        isSuperLike: isSuperLike);
 
     final candidateAlsoLiked = await candidateLikeRepo.hasLiked(item.profile.userId, _selectedOffer!.jobOfferId);
     if (candidateAlsoLiked) {
@@ -324,6 +408,8 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           candidateUserId: item.profile.userId,
           recruiterUserId: session.userId,
           jobOfferId: _selectedOffer!.jobOfferId,
+          jobOfferTitle: _selectedOffer!.title,
+          companyName: item.profile.fullName,
         );
         if (mounted) {
           context.push('/match', extra: {
@@ -337,10 +423,24 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   void _onSwipeEnd(int prev, int? target, SwiperActivity activity) async {
+    setState(() => _overlayType = SwipeOverlayType.none);
     if (activity is Swipe) {
-      if (activity.direction == AxisDirection.right || activity.direction == AxisDirection.up) {
-        if (prev < _activeItems.length) await _handleLike(_activeItems[prev]);
+      if (prev < _activeItems.length) {
+        _swipedProfileIds.add(_activeItems[prev].profile.userId);
+        if (activity.direction == AxisDirection.right) {
+          HapticFeedback.mediumImpact();
+          await _handleLike(_activeItems[prev]);
+        } else if (activity.direction == AxisDirection.up) {
+          HapticFeedback.heavyImpact();
+          await _handleLike(_activeItems[prev], isSuperLike: true);
+        } else if (activity.direction == AxisDirection.left) {
+          HapticFeedback.lightImpact();
+        }
       }
+    }
+    final remaining = target != null ? _activeItems.length - target : 0;
+    if (remaining <= _loadMoreThreshold && _hasMore && !_loadingMore) {
+      _loadMore();
     }
     if (target != null && target >= _activeItems.length) {
       if (mounted) setState(() => _activeItems = []);
@@ -469,27 +569,81 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     return Column(
       children: [
         Expanded(
-          child: AppinioSwiper(
-            controller: _controller,
-            cardCount: _activeItems.length,
-            onSwipeEnd: _onSwipeEnd,
-            cardBuilder: (context, index) {
-              if (index >= _activeItems.length) return const SizedBox();
-              return _buildCard(_activeItems[index]);
-            },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Listener(
+              onPointerMove: (event) {
+                final dx = event.delta.dx;
+                final dy = event.delta.dy;
+                SwipeOverlayType newType;
+                if (dy < -2 && dy.abs() > dx.abs()) {
+                  newType = SwipeOverlayType.superLike;
+                } else if (dx > 2) {
+                  newType = SwipeOverlayType.like;
+                } else if (dx < -2) {
+                  newType = SwipeOverlayType.pass;
+                } else {
+                  return;
+                }
+                if (newType != _overlayType) {
+                  setState(() => _overlayType = newType);
+                }
+              },
+              onPointerUp: (_) =>
+                  setState(() => _overlayType = SwipeOverlayType.none),
+              child: AppinioSwiper(
+                controller: _controller,
+                cardCount: _activeItems.length,
+                onSwipeEnd: _onSwipeEnd,
+                cardBuilder: (context, index) {
+                  if (index >= _activeItems.length) return const SizedBox();
+                  return Stack(
+                    children: [
+                      _buildCard(_activeItems[index]),
+                      SwipeOverlay(type: _overlayType),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _ActionButton(icon: Icons.close, color: AppColors.red, size: 56, onTap: () => _controller.swipeLeft()),
-              _ActionButton(icon: Icons.bolt, color: AppColors.orange, size: 46, onTap: () => _controller.swipeRight()),
-              _ActionButton(icon: Icons.favorite, color: AppColors.green, size: 56, onTap: () => _controller.swipeRight()),
+              AnimatedActionButton(
+                icon: Icons.close,
+                color: AppColors.red,
+                size: 60,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _controller.swipeLeft();
+                },
+              ),
+              AnimatedActionButton(
+                icon: Icons.bolt,
+                color: AppColors.orange,
+                size: 50,
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  _controller.swipeUp();
+                },
+              ),
+              AnimatedActionButton(
+                icon: Icons.favorite,
+                color: AppColors.green,
+                size: 60,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  _controller.swipeRight();
+                },
+              ),
             ],
           ),
         ),
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -497,97 +651,180 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   Widget _buildCard(_SwipeItem item) {
     final p = item.profile;
     final scoreColor = item.score >= 70 ? AppColors.green : AppColors.orange;
+    final gradient = AvatarColors.gradientForString(p.fullName);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 28,
+              offset: const Offset(0, 14)),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            height: 140,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.green, Color(0xFF059669)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Photo or gradient background
+          if (p.photoUrl != null && p.photoUrl!.isNotEmpty)
+            Image.network(
+              p.photoUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(gradient: gradient),
               ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            )
+          else
+            Container(decoration: BoxDecoration(gradient: gradient)),
+
+          // Decorative circles (only shown when no photo)
+          if (p.photoUrl == null || p.photoUrl!.isEmpty) ...[
+            Positioned(
+              top: -40, right: -40,
+              child: Container(
+                width: 160, height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.07),
+                ),
+              ),
             ),
-            child: Stack(children: [
-              Center(
+            // Initials
+            Positioned(
+              top: 0, left: 0, right: 0, bottom: 260,
+              child: Center(
                 child: Text(
                   p.initials,
-                  style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.92),
+                      fontSize: 80,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
-              Positioned(
-                top: 12, right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: scoreColor, borderRadius: BorderRadius.circular(20)),
-                  child: Text('${item.score}%',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+
+          // Dark gradient overlay — bottom 55%
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            height: 300,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xBB000000), Color(0xEE000000)],
+                  stops: [0.0, 0.45, 1.0],
                 ),
               ),
-            ]),
+            ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // Score badge — top right
+          Positioned(
+            top: 16, right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: scoreColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: scoreColor.withOpacity(0.5), blurRadius: 10)
+                ],
+              ),
+              child: Text('${item.score}%',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13)),
+            ),
+          ),
+
+          // Content overlay — bottom
+          Positioned(
+            left: 20, right: 20, bottom: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(p.fullName,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
                 if (p.location.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                    const Icon(Icons.location_on_outlined,
+                        color: Colors.white60, size: 13),
                     const SizedBox(width: 4),
-                    Text(p.location, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    Text(p.location,
+                        style: const TextStyle(
+                            color: Colors.white60, fontSize: 13)),
                   ]),
-                ],
-                const SizedBox(height: 12),
-                Wrap(spacing: 6, runSpacing: 4, children: [
-                  if (p.desiredContractType.isNotEmpty)
-                    _Badge(p.desiredContractType, AppColors.primaryLight, AppColors.primary),
-                  if (p.desiredLevel.isNotEmpty)
-                    _Badge(p.desiredLevel, AppColors.greenLight, AppColors.green),
-                  if (p.remotePreference.isNotEmpty)
-                    _Badge(p.remotePreference, AppColors.orangeLight, AppColors.orange),
-                ]),
-                if (p.skillList.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6, runSpacing: 4,
-                    children: p.skillList.take(5)
-                        .map((s) => _Badge(s, AppColors.primaryLight, AppColors.primary))
-                        .toList(),
-                  ),
                 ],
                 if (p.hasSalary) ...[
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    const Icon(Icons.euro, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(p.salaryDisplay, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                  ]),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: AppColors.green.withOpacity(0.5)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.euro,
+                          color: AppColors.green, size: 13),
+                      const SizedBox(width: 3),
+                      Text(p.salaryDisplay,
+                          style: const TextStyle(
+                              color: AppColors.green,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                    ]),
+                  ),
                 ],
-                if (p.bio.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(p.bio,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                ],
-              ]),
+                const SizedBox(height: 10),
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  if (p.desiredContractType.isNotEmpty)
+                    _CardBadge(p.desiredContractType),
+                  if (p.desiredLevel.isNotEmpty)
+                    _CardBadge(p.desiredLevel),
+                  if (p.remotePreference.isNotEmpty)
+                    _CardBadge(p.remotePreference),
+                  ...p.skillList.take(3).map(_CardBadge.new),
+                ]),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CardBadge extends StatelessWidget {
+  final String label;
+  const _CardBadge(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
     );
   }
 }
@@ -619,42 +856,3 @@ class _ActiveChip extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
-  final String text;
-  final Color bg;
-  final Color fg;
-  const _Badge(this.text, this.bg, this.fg);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(text, style: TextStyle(fontSize: 11, color: fg)),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final double size;
-  final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.color, required this.size, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size, height: size,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          shape: BoxShape.circle,
-          border: Border.all(color: color, width: 2),
-        ),
-        child: Icon(icon, color: color, size: size * 0.45),
-      ),
-    );
-  }
-}

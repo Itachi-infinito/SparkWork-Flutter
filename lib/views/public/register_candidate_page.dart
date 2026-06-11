@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_skills.dart';
+import '../../core/widgets/terms_checkbox.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/auth_service.dart';
@@ -32,6 +33,7 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
   bool _loading = false;
   String? _error;
   bool _obscure = true;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -43,6 +45,11 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      setState(() =>
+          _error = 'Vous devez accepter les conditions d\'utilisation.');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final authService = ref.read(authServiceProvider);
@@ -89,23 +96,69 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_error != null)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: AppColors.redLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(_error!,
-                      style: const TextStyle(color: AppColors.red)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gradient header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                  24, MediaQuery.of(context).padding.top + 12, 24, 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1E0A3C), AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(height: 14),
+                  const Icon(Icons.person_search_rounded,
+                      color: Colors.white, size: 28),
+                  const SizedBox(height: 8),
+                  const Text('Profil candidat',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5)),
+                  const SizedBox(height: 4),
+                  Text('Trouvez votre prochain emploi Horeca',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.72),
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_error != null)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: AppColors.redLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(_error!,
+                            style: const TextStyle(color: AppColors.red)),
+                      ),
               _buildSection('Informations personnelles'),
               const SizedBox(height: 12),
               TextFormField(
@@ -222,7 +275,12 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
                   alignLabelWithHint: true,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              TermsCheckbox(
+                value: _acceptedTerms,
+                onChanged: (v) => setState(() => _acceptedTerms = v),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loading ? null : _register,
                 child: _loading
@@ -231,8 +289,11 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
                     : const Text('Créer mon compte'),
               ),
               const SizedBox(height: 24),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

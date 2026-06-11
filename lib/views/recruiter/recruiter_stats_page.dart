@@ -192,7 +192,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                   drawVerticalLine: false,
                   horizontalInterval: 25,
                   getDrawingHorizontalLine: (_) =>
-                      const FlLine(color: AppColors.border, strokeWidth: 1),
+                      FlLine(color: AppColors.border, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: [

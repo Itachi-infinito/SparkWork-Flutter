@@ -46,8 +46,13 @@ service cloud.firestore {
     }
 
     // Candidate likes a job offer
+    // Lecture limitée : le candidat voit ses likes, le recruteur voit les
+    // likes reçus sur ses offres (vérifié via le doc de l'offre).
     match /candidate_job_likes/{docId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (
+          resource.data.candidateUserId == request.auth.uid ||
+          get(/databases/$(database)/documents/job_offers/$(resource.data.jobOfferId))
+              .data.recruiterUserId == request.auth.uid);
       allow create: if isAuth()
           && request.resource.data.candidateUserId == request.auth.uid;
       allow delete: if isAuth()
@@ -55,15 +60,21 @@ service cloud.firestore {
     }
 
     // Recruiter likes a candidate
+    // Lecture limitée aux deux parties concernées.
     match /recruiter_candidate_likes/{docId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (
+          resource.data.recruiterUserId == request.auth.uid ||
+          resource.data.candidateUserId == request.auth.uid);
       allow create: if isAuth()
           && request.resource.data.recruiterUserId == request.auth.uid;
-      allow delete: if isAuth()
-          && resource.data.recruiterUserId == request.auth.uid;
+      // Le recruteur supprime ses likes ; le candidat peut aussi purger
+      // les likes le concernant (suppression de compte RGPD)
+      allow delete: if isAuth() && (
+          resource.data.recruiterUserId == request.auth.uid ||
+          resource.data.candidateUserId == request.auth.uid);
     }
 
-    // Matches — only participants read/write
+    // Matches — only participants read/write/delete
     match /matches/{matchId} {
       allow read: if isAuth() && (
           resource.data.candidateUserId == request.auth.uid ||
@@ -74,6 +85,10 @@ service cloud.firestore {
       allow update: if isAuth() && (
           resource.data.candidateUserId == request.auth.uid ||
           resource.data.recruiterUserId == request.auth.uid);
+      // Suppression de compte : un participant peut effacer ses matches
+      allow delete: if isAuth() && (
+          resource.data.candidateUserId == request.auth.uid ||
+          resource.data.recruiterUserId == request.auth.uid);
     }
 
     // Messages (flat collection with matchId field)
@@ -82,8 +97,25 @@ service cloud.firestore {
       allow create: if isAuth()
           && request.resource.data.senderUserId == request.auth.uid
           && isMatchParticipant(request.resource.data.matchId);
-      // allow update for markAsSeen (participant marks other's message as seen)
-      allow update: if isAuth() && isMatchParticipant(resource.data.matchId);
+      // markAsSeen uniquement : seul le champ seenAt peut être modifié,
+      // et seulement sur les messages reçus (pas les siens)
+      allow update: if isAuth()
+          && isMatchParticipant(resource.data.matchId)
+          && resource.data.senderUserId != request.auth.uid
+          && request.resource.data.diff(resource.data)
+              .affectedKeys().hasOnly(['seenAt']);
+      // Suppression de compte : un participant peut effacer les messages
+      // de ses conversations (les messages avant le match — cf. purge)
+      allow delete: if isAuth()
+          && isMatchParticipant(resource.data.matchId);
+    }
+
+    // Signalements — écriture seule par le signaleur, lecture admin
+    // uniquement (via la console / un back-office, jamais le client)
+    match /reports/{reportId} {
+      allow create: if isAuth()
+          && request.resource.data.reporterUserId == request.auth.uid;
+      allow read, update, delete: if false;
     }
   }
 }

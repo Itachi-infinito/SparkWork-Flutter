@@ -8,6 +8,7 @@ import '../../views/public/login_page.dart';
 import '../../views/public/register_page.dart';
 import '../../views/public/register_candidate_page.dart';
 import '../../views/public/register_recruiter_page.dart';
+import '../../views/public/legal_page.dart';
 import '../../views/candidate/candidate_home_page.dart';
 import '../../views/candidate/candidate_swipe_page.dart';
 import '../../views/candidate/candidate_matches_page.dart';
@@ -40,6 +41,8 @@ const _publicPaths = [
   '/register',
   '/register/candidate',
   '/register/recruiter',
+  '/legal/terms',
+  '/legal/privacy',
 ];
 
 bool _isPublic(String path) =>
@@ -62,7 +65,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/welcome';
       }
 
-      if (session.isLoggedIn && _isPublic(path) && path != '/splash') {
+      if (session.isLoggedIn &&
+          _isPublic(path) &&
+          path != '/splash' &&
+          !path.startsWith('/legal')) {
         return session.isCandidate ? '/candidate/home' : '/recruiter/home';
       }
 
@@ -92,6 +98,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register/recruiter',
         builder: (context, state) => const RegisterRecruiterPage(),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        builder: (context, state) => const LegalPage(isPrivacy: false),
+      ),
+      GoRoute(
+        path: '/legal/privacy',
+        builder: (context, state) => const LegalPage(isPrivacy: true),
       ),
 
       // Candidate routes

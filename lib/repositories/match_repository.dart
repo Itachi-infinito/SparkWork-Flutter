@@ -18,16 +18,26 @@ class MatchRepository {
     required String candidateUserId,
     required String recruiterUserId,
     required String jobOfferId,
+    String jobOfferTitle = '',
+    String companyName = '',
   }) async {
     final ref = await _col.add({
       'candidateUserId': candidateUserId,
       'recruiterUserId': recruiterUserId,
       'jobOfferId': jobOfferId,
+      'jobOfferTitle': jobOfferTitle,
+      'companyName': companyName,
       'candidateAnimationSeen': false,
       'recruiterAnimationSeen': false,
       'createdAt': DateTime.now().toIso8601String(),
     });
     return ref.id;
+  }
+
+  Future<Match?> getMatchById(String matchId) async {
+    final doc = await _col.doc(matchId).get();
+    if (!doc.exists) return null;
+    return _fromDoc(doc);
   }
 
   Future<bool> matchExists(

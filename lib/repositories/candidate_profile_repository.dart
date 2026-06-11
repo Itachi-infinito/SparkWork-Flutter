@@ -15,9 +15,10 @@ class CandidateProfileRepository {
     return CandidateProfile.fromMap({...data, 'profileId': doc.id});
   }
 
-  Future<CandidateProfile?> getProfile(String userId) async {
-    final q =
-        await _col.where('userId', isEqualTo: userId).limit(1).get();
+  Future<CandidateProfile?> getProfile(String userId, {bool forceServer = false}) async {
+    final q = await _col.where('userId', isEqualTo: userId).limit(1).get(
+      forceServer ? const GetOptions(source: Source.server) : null,
+    );
     if (q.docs.isEmpty) return null;
     return _fromDoc(q.docs.first);
   }
@@ -53,5 +54,14 @@ class CandidateProfileRepository {
     } else {
       await insertProfile(profile);
     }
+  }
+
+  Future<(List<CandidateProfile>, DocumentSnapshot?)> getProfilesBatch(
+      int limit, {DocumentSnapshot? startAfter}) async {
+    Query<Map<String, dynamic>> query = _col.limit(limit);
+    if (startAfter != null) query = query.startAfterDocument(startAfter);
+    final q = await query.get();
+    final last = q.docs.isNotEmpty ? q.docs.last : null;
+    return (q.docs.map(_fromDoc).toList(), last);
   }
 }

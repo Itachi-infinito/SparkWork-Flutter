@@ -28,18 +28,17 @@ class DefaultFirebaseOptions {
     measurementId: 'G-C2782RVGXV',
   );
 
-  // ⚠️ Garde tes vrais valeurs Android et iOS ici — ne touche pas à ces sections
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: '1:000000000000:android:000000000000000000000000',
+    apiKey: 'AIzaSyBAQx8uo7kgbCxBpdeuE4b2Y7SM_6SSIkc',
+    appId: '1:937376123870:android:1d871d5dd8d05c8d5feb4f',
     messagingSenderId: '937376123870',
     projectId: 'sparkwork-f41ec',
     storageBucket: 'sparkwork-f41ec.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: '1:000000000000:ios:000000000000000000000000',
+    apiKey: 'AIzaSyCLkUahFqBnFQV4aIxzYeIpw1Cu5GIGR9w',
+    appId: '1:937376123870:ios:6267024edcb16cbb5feb4f',
     messagingSenderId: '937376123870',
     projectId: 'sparkwork-f41ec',
     storageBucket: 'sparkwork-f41ec.firebasestorage.app',

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/email_verification_banner.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
@@ -113,6 +114,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const EmailVerificationBanner(),
             Text('Bonjour, $displayName 👋',
                 style: TextStyle(
                     fontSize: 22,
@@ -304,21 +306,22 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: context.surfaceColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.borderColor),
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
             Text(value,
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 2),
+                    fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
-                    fontSize: 11, color: context.textSecondaryColor)),
+                    fontSize: 11,
+                    color: color.withOpacity(0.75),
+                    fontWeight: FontWeight.w500)),
           ],
         ),
       ),
@@ -394,18 +397,26 @@ class _QuickAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: context.surfaceColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.borderColor),
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 8),
             Text(label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 11, color: context.textSecondaryColor)),
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),

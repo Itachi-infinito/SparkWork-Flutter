@@ -54,4 +54,14 @@ class JobOfferRepository {
   Future<void> deleteOffer(String jobOfferId) async {
     await _col.doc(jobOfferId).delete();
   }
+
+  Future<(List<JobOffer>, DocumentSnapshot?)> getOffersBatch(
+      int limit, {DocumentSnapshot? startAfter}) async {
+    Query<Map<String, dynamic>> query =
+        _col.where('isActive', isEqualTo: true).limit(limit);
+    if (startAfter != null) query = query.startAfterDocument(startAfter);
+    final q = await query.get();
+    final last = q.docs.isNotEmpty ? q.docs.last : null;
+    return (q.docs.map(_fromDoc).toList(), last);
+  }
 }
