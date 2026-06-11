@@ -155,13 +155,35 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
               onTap: () =>
                   context.push('/recruiter/candidates/${c.userId}'),
               child: Container(
-                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.orange.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Row(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 4,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.orange, Color(0xFFF97316)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
                   children: [
                     Stack(
                       children: [
@@ -247,6 +269,10 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                     const Icon(Icons.chevron_right,
                         color: AppColors.textHint),
                   ],
+                ),
+              )),
+                  ],
+                ),
                 ),
               ),
             );

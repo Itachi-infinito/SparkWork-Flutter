@@ -48,32 +48,66 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('SparkWork'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Gradient hero header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                  20, MediaQuery.of(context).padding.top + 16, 20, 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D0117), Color(0xFF1E0A3C), AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('SparkWork',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.settings_outlined,
+                            color: Colors.white),
+                        onPressed: () => context.push('/settings'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Bonjour, ${session.userName.split(' ').first} 👋',
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text('Prêt à trouver votre prochain poste ?',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.75),
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             const EmailVerificationBanner(),
-            Text('Bonjour, ${session.userName.split(' ').first} 👋',
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary)),
-            const SizedBox(height: 4),
-            const Text('Prêt à trouver votre prochain poste ?',
-                style: TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
 
             GestureDetector(
               onTap: () => context.go('/candidate/swipe'),
@@ -209,6 +243,9 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                       style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                     ),
                   ),
+                ],
+              ),
+            ),
                 ],
               ),
             ),

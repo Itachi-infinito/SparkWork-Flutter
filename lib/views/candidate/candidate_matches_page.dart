@@ -78,27 +78,58 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Activité'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          tabs: [
-            Tab(child: _TabLabel(icon: Icons.favorite, label: 'Matches', count: _matches.length, active: true)),
-            Tab(child: _TabLabel(icon: Icons.bookmark_border, label: 'Mes likes', count: _likedOffers.length, active: false)),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildMatchesTab(),
-          _buildLikesTab(),
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0D0117), Color(0xFF1E0A3C), AppColors.primary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: Row(
+                      children: [
+                        const Text('Activité',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white54,
+                    indicatorColor: Colors.white,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    tabs: [
+                      Tab(child: _TabLabel(icon: Icons.favorite, label: 'Matches', count: _matches.length, active: true)),
+                      Tab(child: _TabLabel(icon: Icons.bookmark_border, label: 'Mes likes', count: _likedOffers.length, active: false)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildMatchesTab(),
+                _buildLikesTab(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: const CandidateNavBar(currentIndex: 2),

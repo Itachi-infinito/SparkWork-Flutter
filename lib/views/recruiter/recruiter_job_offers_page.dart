@@ -137,83 +137,113 @@ class _RecruiterJobOffersPageState
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (ctx, i) {
             final offer = _offers[i];
-            return Card(
-              elevation: 0,
-              color: AppColors.surface,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppColors.border)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.green.withOpacity(0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(offer.title,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: AppColors.textPrimary)),
-                              const SizedBox(height: 2),
-                              Text(offer.companyName,
-                                  style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 13)),
-                            ],
-                          ),
+                    Container(
+                      width: 4,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF059669), AppColors.green],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
-                        PopupMenuButton<String>(
-                          onSelected: (v) {
-                            if (v == 'edit') {
-                              context
-                                  .push(
-                                      '/recruiter/offers/${offer.jobOfferId}/edit')
-                                  .then((_) => _load());
-                            }
-                            if (v == 'delete') _delete(offer);
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                                value: 'edit',
-                                child: ListTile(
-                                    leading: Icon(Icons.edit_outlined),
-                                    title: Text('Modifier'),
-                                    contentPadding: EdgeInsets.zero,
-                                    dense: true)),
-                            PopupMenuItem(
-                                value: 'delete',
-                                child: ListTile(
-                                    leading: Icon(Icons.delete_outline,
-                                        color: AppColors.red),
-                                    title: Text('Supprimer',
-                                        style: TextStyle(
-                                            color: AppColors.red)),
-                                    contentPadding: EdgeInsets.zero,
-                                    dense: true)),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(offer.title,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: AppColors.textPrimary)),
+                                      const SizedBox(height: 2),
+                                      Text(offer.companyName,
+                                          style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) {
+                                    if (v == 'edit') {
+                                      context
+                                          .push(
+                                              '/recruiter/offers/${offer.jobOfferId}/edit')
+                                          .then((_) => _load());
+                                    }
+                                    if (v == 'delete') _delete(offer);
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                        value: 'edit',
+                                        child: ListTile(
+                                            leading: Icon(Icons.edit_outlined),
+                                            title: Text('Modifier'),
+                                            contentPadding: EdgeInsets.zero,
+                                            dense: true)),
+                                    PopupMenuItem(
+                                        value: 'delete',
+                                        child: ListTile(
+                                            leading: Icon(Icons.delete_outline,
+                                                color: AppColors.red),
+                                            title: Text('Supprimer',
+                                                style: TextStyle(
+                                                    color: AppColors.red)),
+                                            contentPadding: EdgeInsets.zero,
+                                            dense: true)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                _Tag(offer.contractType,
+                                    AppColors.greenLight, AppColors.green),
+                                if (offer.location.isNotEmpty)
+                                  _Tag(offer.location,
+                                      AppColors.surfaceVariant,
+                                      AppColors.textSecondary),
+                                if (offer.hasSalary)
+                                  _Tag(offer.salaryDisplay,
+                                      AppColors.primaryLight, AppColors.primary),
+                                if (offer.isFlash && offer.isFlashActive)
+                                  _Tag('⚡ Flash',
+                                      const Color(0xFFFFF3CD),
+                                      const Color(0xFFB45309)),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _Tag(offer.contractType,
-                            AppColors.primaryLight, AppColors.primary),
-                        if (offer.location.isNotEmpty)
-                          _Tag(offer.location,
-                              AppColors.surfaceVariant,
-                              AppColors.textSecondary),
-                        if (offer.hasSalary)
-                          _Tag(offer.salaryDisplay,
-                              AppColors.greenLight, AppColors.green),
-                      ],
+                      ),
                     ),
                   ],
                 ),

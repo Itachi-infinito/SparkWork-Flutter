@@ -99,31 +99,67 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
         : session.userName;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SparkWork'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Gradient hero header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                  20, MediaQuery.of(context).padding.top + 16, 20, 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF064E3B), Color(0xFF059669), AppColors.green],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('SparkWork',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.settings_outlined,
+                            color: Colors.white),
+                        onPressed: () => context.push('/settings'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Bonjour, $displayName 👋',
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text('Trouvez les meilleurs talents Horeca',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.75),
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             const EmailVerificationBanner(),
-            Text('Bonjour, $displayName 👋',
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: context.textPrimaryColor)),
-            const SizedBox(height: 4),
-            Text('Trouvez les meilleurs talents Horeca',
-                style: TextStyle(color: context.textSecondaryColor)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
 
             // Stats row
             Row(
@@ -287,6 +323,9 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                         context.push('/messages/${m['matchId']}'),
                   )),
             ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -342,9 +381,15 @@ class _RecentMatchTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: context.surfaceColor,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.green.withOpacity(0.07),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
