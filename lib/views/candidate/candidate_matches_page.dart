@@ -339,7 +339,6 @@ class _MatchCard extends StatelessWidget {
           children: [
             Container(
               width: 4,
-              height: 88,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.primaryDark, AppColors.primary],

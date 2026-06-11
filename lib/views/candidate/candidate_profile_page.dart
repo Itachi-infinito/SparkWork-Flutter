@@ -261,49 +261,73 @@ class _PrefsGrid extends StatelessWidget {
               : profile.remotePreference),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 2.8,
-      children: items
-          .map((item) => Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: context.surfaceColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.borderColor),
-                ),
-                child: Row(
-                  children: [
-                    Icon(item.$1, size: 18, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(item.$2,
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: context.textSecondaryColor)),
-                          Text(item.$3,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: context.textPrimaryColor),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ))
-          .toList(),
+    return Column(
+      children: [
+        Row(children: [
+          Expanded(child: _PrefTile(item: items[0])),
+          const SizedBox(width: 10),
+          Expanded(child: _PrefTile(item: items[1])),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _PrefTile(item: items[2])),
+          const SizedBox(width: 10),
+          Expanded(child: _PrefTile(item: items[3])),
+        ]),
+      ],
+    );
+  }
+}
+
+class _PrefTile extends StatelessWidget {
+  final (IconData, String, String) item;
+  const _PrefTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(item.$1, size: 16, color: AppColors.primary),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.$2,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.textSecondary)),
+                Text(item.$3,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
