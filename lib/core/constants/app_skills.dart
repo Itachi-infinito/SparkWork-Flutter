@@ -73,8 +73,18 @@ class AppSkills {
   }
 
   static String normalizeRemote(String value) {
-    if (value == 'Hybride') return 'Télétravail partiel';
-    if (value == 'Télétravail') return 'Télétravail total';
-    return value;
+    // Supporte les valeurs multiples ("Présentiel,Télétravail partiel")
+    String normalizeOne(String v) {
+      if (v == 'Hybride') return 'Télétravail partiel';
+      if (v == 'Télétravail') return 'Télétravail total';
+      return v;
+    }
+
+    if (!value.contains(',')) return normalizeOne(value.trim());
+    return value
+        .split(',')
+        .map((v) => normalizeOne(v.trim()))
+        .where((v) => v.isNotEmpty)
+        .join(',');
   }
 }

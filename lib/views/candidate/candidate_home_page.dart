@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/email_verification_banner.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
@@ -47,7 +48,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
     final session = ref.watch(sessionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,8 +153,8 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
             ),
             const SizedBox(height: 24),
 
-            const Text('Accès rapide',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary)),
+            Text('Accès rapide',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.textPrimaryColor)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -193,8 +194,9 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.06),
@@ -214,19 +216,19 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                       child: const Icon(Icons.thumb_up_outlined, color: AppColors.red, size: 22),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Mes offres likées',
-                              style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                          SizedBox(height: 2),
+                              style: TextStyle(fontWeight: FontWeight.w600, color: context.textPrimaryColor)),
+                          const SizedBox(height: 2),
                           Text('Retrouvez les offres que vous avez aimées',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                              style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
                         ],
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: context.textSecondaryColor),
                   ],
                 ),
               ),

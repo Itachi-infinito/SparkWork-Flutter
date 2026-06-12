@@ -288,8 +288,9 @@ class _PrefTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.borderColor),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.06),
@@ -314,13 +315,13 @@ class _PrefTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.$2,
-                    style: const TextStyle(
-                        fontSize: 10, color: AppColors.textSecondary)),
+                    style: TextStyle(
+                        fontSize: 10, color: context.textSecondaryColor)),
                 Text(item.$3,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
+                        color: context.textPrimaryColor),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1),
               ],

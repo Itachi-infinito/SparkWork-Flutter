@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../models/job_offer.dart';
 import '../../models/match.dart';
@@ -130,7 +131,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         : const [Color(0xFF064E3B), Color(0xFF059669), AppColors.green];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           Container(
@@ -221,10 +222,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 _searchQuery.isNotEmpty
                     ? 'Aucun résultat'
                     : 'Aucune conversation',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary),
+                    color: context.textPrimaryColor),
               ),
               const SizedBox(height: 8),
               Text(
@@ -232,8 +233,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                     ? 'Aucune conversation ne correspond à votre recherche.'
                     : 'Vos conversations apparaîtront ici après un match.',
                 textAlign: TextAlign.center,
-                style:
-                    const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: context.textSecondaryColor),
               ),
             ],
           ),
@@ -263,8 +263,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -285,10 +286,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                             children: [
                               Expanded(
                                 child: Text(title,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: AppColors.textPrimary)),
+                                        color: context.textPrimaryColor)),
                               ),
                               if (timeStr.isNotEmpty)
                                 Text(timeStr,

@@ -6,6 +6,7 @@ class RecruiterProfile {
   final String location;
   final String website;
   final String sector;
+  final String companyNumber; // numéro BCE/TVA belge validé à l'inscription
   final String? contactPhotoUrl;
   final String? companyLogoUrl;
 
@@ -17,6 +18,7 @@ class RecruiterProfile {
     this.location = '',
     this.website = '',
     this.sector = '',
+    this.companyNumber = '',
     this.contactPhotoUrl,
     this.companyLogoUrl,
   });
@@ -35,6 +37,7 @@ class RecruiterProfile {
     'location': location,
     'website': website,
     'sector': sector,
+    'companyNumber': companyNumber,
     if (contactPhotoUrl != null) 'contactPhotoUrl': contactPhotoUrl,
     if (companyLogoUrl != null) 'companyLogoUrl': companyLogoUrl,
   };
@@ -47,6 +50,7 @@ class RecruiterProfile {
     location: map['location'] as String? ?? '',
     website: map['website'] as String? ?? '',
     sector: map['sector'] as String? ?? '',
+    companyNumber: map['companyNumber'] as String? ?? '',
     contactPhotoUrl: map['contactPhotoUrl'] as String?,
     companyLogoUrl: map['companyLogoUrl'] as String?,
   );
@@ -59,6 +63,7 @@ class RecruiterProfile {
     String? location,
     String? website,
     String? sector,
+    String? companyNumber,
     String? contactPhotoUrl,
     String? companyLogoUrl,
   }) => RecruiterProfile(
@@ -69,6 +74,7 @@ class RecruiterProfile {
     location: location ?? this.location,
     website: website ?? this.website,
     sector: sector ?? this.sector,
+    companyNumber: companyNumber ?? this.companyNumber,
     contactPhotoUrl: contactPhotoUrl ?? this.contactPhotoUrl,
     companyLogoUrl: companyLogoUrl ?? this.companyLogoUrl,
   );

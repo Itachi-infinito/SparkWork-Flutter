@@ -52,7 +52,7 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
     final session = ref.watch(sessionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.green))

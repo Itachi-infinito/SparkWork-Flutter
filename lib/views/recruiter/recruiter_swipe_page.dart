@@ -146,7 +146,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         if (_filterLevel.isNotEmpty && p.desiredLevel != _filterLevel) {
           return false;
         }
-        if (_filterRemoteMode.isNotEmpty && p.remotePreference != _filterRemoteMode) {
+        if (_filterRemoteMode.isNotEmpty &&
+            !AppSkills.parseSkills(p.remotePreference)
+                .contains(_filterRemoteMode)) {
           return false;
         }
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) {
@@ -190,7 +192,8 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           if (!types.any((t) => t == _filterContractType)) return false;
         }
         if (_filterLevel.isNotEmpty && p.desiredLevel != _filterLevel) return false;
-        if (_filterRemoteMode.isNotEmpty && p.remotePreference != _filterRemoteMode) return false;
+        if (_filterRemoteMode.isNotEmpty &&
+            !AppSkills.parseSkills(p.remotePreference).contains(_filterRemoteMode)) return false;
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) return false;
         return true;
       }).toList();
@@ -450,10 +453,10 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Explorer les candidats'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [
           Stack(

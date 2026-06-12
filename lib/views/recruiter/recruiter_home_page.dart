@@ -99,7 +99,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
         : session.userName;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -220,15 +220,16 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(
+            child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
     if (_profile == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Profil candidat'), backgroundColor: AppColors.background, elevation: 0),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(title: const Text('Profil candidat'), backgroundColor: Theme.of(context).scaffoldBackgroundColor, elevation: 0),
         body: const Center(child: Text('Profil introuvable.', style: TextStyle(color: AppColors.textSecondary))),
       );
     }
@@ -236,7 +237,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
     final profile = _profile!;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(

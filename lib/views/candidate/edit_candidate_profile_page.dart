@@ -29,7 +29,7 @@ class _EditCandidateProfilePageState
   List<String> _selectedSkills = [];
   String? _experienceLevel;
   List<String> _selectedContractTypes = [];
-  String _remotePreference = '';
+  List<String> _selectedRemoteModes = [];
   final _salaryMinCtrl = TextEditingController();
   final _salaryMaxCtrl = TextEditingController();
   String? _currentPhotoUrl;
@@ -61,7 +61,9 @@ class _EditCandidateProfilePageState
         _selectedContractTypes = profile.contractType.isEmpty
             ? []
             : profile.contractType.split(',');
-        _remotePreference = profile.remotePreference;
+        _selectedRemoteModes = profile.remotePreference.isEmpty
+            ? []
+            : profile.remotePreference.split(',').map((s) => s.trim()).toList();
         _salaryMinCtrl.text = profile.desiredSalaryMin > 0
             ? profile.desiredSalaryMin.toString()
             : '';
@@ -173,7 +175,7 @@ class _EditCandidateProfilePageState
         desiredContractType: _selectedContractTypes.join(','),
         desiredSalaryMin: int.tryParse(_salaryMinCtrl.text.trim()) ?? 0,
         desiredSalaryMax: int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0,
-        remotePreference: _remotePreference,
+        remotePreference: _selectedRemoteModes.join(','),
         photoUrl: photoUrl,
       );
       await ref
@@ -374,11 +376,14 @@ class _EditCandidateProfilePageState
               Wrap(
                 spacing: 8,
                 children: AppSkills.remoteModes
-                    .map((mode) => ChoiceChip(
+                    .map((mode) => FilterChip(
                           label: Text(mode),
-                          selected: _remotePreference == mode,
-                          onSelected: (_) =>
-                              setState(() => _remotePreference = mode),
+                          selected: _selectedRemoteModes.contains(mode),
+                          onSelected: (sel) => setState(() {
+                            sel
+                                ? _selectedRemoteModes.add(mode)
+                                : _selectedRemoteModes.remove(mode);
+                          }),
                           selectedColor: AppColors.primaryLight,
                         ))
                     .toList(),

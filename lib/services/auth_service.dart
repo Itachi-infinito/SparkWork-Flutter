@@ -27,6 +27,7 @@ class AuthService {
     required String email,
     required String password,
     required String role,
+    Map<String, dynamic>? extraData,
   }) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
@@ -41,6 +42,7 @@ class AuthService {
         'role': role,
         'acceptedTermsAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
+        ...?extraData,
       });
       // Email de vérification — non bloquant si l'envoi échoue
       try {

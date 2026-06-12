@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../models/message.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
@@ -265,7 +266,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
     final lastMyMessageId = myMessages.isNotEmpty ? myMessages.last.messageId : null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -395,14 +396,14 @@ class _Bubble extends StatelessWidget {
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: isMe ? null : AppColors.surface,
+              color: isMe ? null : context.surfaceColor,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
                 bottomLeft: Radius.circular(isMe ? 16 : 4),
                 bottomRight: Radius.circular(isMe ? 4 : 16),
               ),
-              border: isMe ? null : Border.all(color: AppColors.border),
+              border: isMe ? null : Border.all(color: context.borderColor),
               boxShadow: isMe
                   ? [
                       BoxShadow(
@@ -415,7 +416,7 @@ class _Bubble extends StatelessWidget {
             ),
             child: Text(
               message.content,
-              style: TextStyle(color: isMe ? Colors.white : AppColors.textPrimary, fontSize: 14),
+              style: TextStyle(color: isMe ? Colors.white : context.textPrimaryColor, fontSize: 14),
             ),
           ),
           if (showSeenIndicator)
@@ -448,9 +449,9 @@ class _InputBar extends StatelessWidget {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.border)),
+        decoration: BoxDecoration(
+          color: context.surfaceColor,
+          border: Border(top: BorderSide(color: context.borderColor)),
         ),
         child: Row(
           children: [
@@ -459,9 +460,9 @@ class _InputBar extends StatelessWidget {
                 controller: controller,
                 decoration: InputDecoration(
                   hintText: 'Écrivez un message...',
-                  hintStyle: const TextStyle(color: AppColors.textHint),
+                  hintStyle: TextStyle(color: context.textHintColor),
                   filled: true,
-                  fillColor: AppColors.background,
+                  fillColor: context.bgColor,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                 ),

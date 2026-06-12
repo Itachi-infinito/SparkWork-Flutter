@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/shimmer_loading.dart';
 import '../../models/job_offer.dart';
 import '../../models/match.dart';
@@ -77,7 +78,7 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           Container(
@@ -172,8 +173,9 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.surfaceColor,
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.borderColor),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
@@ -208,9 +210,9 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(offer.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary)),
+                          Text(offer.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.textPrimaryColor)),
                           const SizedBox(height: 2),
-                          Text(offer.companyName, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          Text(offer.companyName, style: TextStyle(color: context.textSecondaryColor, fontSize: 12)),
                           if (offer.location.isNotEmpty)
                             Row(children: [
                               const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textSecondary),
@@ -254,9 +256,9 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(width: 80, height: 80, decoration: const BoxDecoration(color: AppColors.redLight, shape: BoxShape.circle), child: const Icon(Icons.favorite, color: AppColors.red, size: 40)),
         const SizedBox(height: 20),
-        const Text('Pas encore de match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        Text('Pas encore de match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
         const SizedBox(height: 8),
-        const Text('Continuez à swiper pour trouver votre futur employeur !', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+        Text('Continuez à swiper pour trouver votre futur employeur !', textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
         const SizedBox(height: 24),
         ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: const Text('Découvrir des offres')),
       ]),
@@ -269,9 +271,9 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(width: 80, height: 80, decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), child: const Icon(Icons.favorite_border, color: AppColors.primary, size: 40)),
         const SizedBox(height: 20),
-        const Text('Aucune offre likée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        Text('Aucune offre likée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
         const SizedBox(height: 8),
-        const Text('Les offres que vous aimez apparaîtront ici.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+        Text('Les offres que vous aimez apparaîtront ici.', textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
         const SizedBox(height: 24),
         ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: const Text('Découvrir des offres')),
       ]),
@@ -323,7 +325,7 @@ class _MatchCard extends StatelessWidget {
     final offer = item.offer;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -385,15 +387,15 @@ class _MatchCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(offer?.title ?? 'Offre supprimée',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: AppColors.textPrimary)),
+                                color: context.textPrimaryColor)),
                         if (offer?.companyName.isNotEmpty ?? false) ...[
                           const SizedBox(height: 2),
                           Text(offer!.companyName,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                              style: TextStyle(
+                                  color: context.textSecondaryColor,
                                   fontSize: 13)),
                         ],
                         const SizedBox(height: 10),

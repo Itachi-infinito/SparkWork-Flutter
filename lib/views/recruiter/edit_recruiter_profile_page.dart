@@ -27,6 +27,7 @@ class _EditRecruiterProfilePageState
 
   String? _currentContactPhotoUrl;
   String? _currentLogoUrl;
+  String _companyNumber = '';
   Uint8List? _newContactPhotoBytes;
   Uint8List? _newLogoBytes;
 
@@ -61,6 +62,7 @@ class _EditRecruiterProfilePageState
       setState(() {
         _currentContactPhotoUrl = profile.contactPhotoUrl;
         _currentLogoUrl = profile.companyLogoUrl;
+        _companyNumber = profile.companyNumber;
       });
     } else {
       // Pre-fill company name from session
@@ -134,6 +136,7 @@ class _EditRecruiterProfilePageState
         companyDescription: _descCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
         website: _websiteCtrl.text.trim(),
+        companyNumber: _companyNumber,
         contactPhotoUrl: contactPhotoUrl,
         companyLogoUrl: logoUrl,
       );
@@ -166,9 +169,9 @@ class _EditRecruiterProfilePageState
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
             icon: const Icon(Icons.close), onPressed: () => context.pop()),

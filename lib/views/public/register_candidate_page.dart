@@ -26,9 +26,9 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
   final _salaryMinCtrl = TextEditingController();
   final _salaryMaxCtrl = TextEditingController();
 
-  String? _contractType;
+  final List<String> _contractTypes = [];
   String? _level;
-  String? _remotePreference;
+  final List<String> _remotePreferences = [];
   final List<String> _skills = [];
   bool _loading = false;
   String? _error;
@@ -63,9 +63,9 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
     final bio = _bioCtrl.text.trim();
     final salaryMin = int.tryParse(_salaryMinCtrl.text.trim()) ?? 0;
     final salaryMax = int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0;
-    final contractType = _contractType ?? '';
+    final contractType = _contractTypes.join(',');
     final level = _level ?? '';
-    final remotePreference = _remotePreference ?? '';
+    final remotePreference = _remotePreferences.join(',');
     final skills = List<String>.from(_skills);
 
     try {
@@ -109,10 +109,10 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Profil candidat'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -225,15 +225,28 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _contractType,
-                decoration: const InputDecoration(labelText: 'Type de contrat souhaité'),
-                items: AppSkills.contractTypes
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+              // Multi-sélection : un candidat peut viser CDI ET CDD, etc.
+              const Text('Type(s) de contrat souhaité(s)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: AppSkills.contractTypes
+                    .map((c) => FilterChip(
+                          label: Text(c),
+                          selected: _contractTypes.contains(c),
+                          onSelected: (sel) => setState(() {
+                            sel
+                                ? _contractTypes.add(c)
+                                : _contractTypes.remove(c);
+                          }),
+                          selectedColor: AppColors.primaryLight,
+                          checkmarkColor: AppColors.primary,
+                        ))
                     .toList(),
-                onChanged: (v) => setState(() => _contractType = v),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _level,
                 decoration: const InputDecoration(labelText: 'Niveau d\'expérience'),
@@ -242,14 +255,26 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
                     .toList(),
                 onChanged: (v) => setState(() => _level = v),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _remotePreference,
-                decoration: const InputDecoration(labelText: 'Préférence télétravail'),
-                items: AppSkills.remoteModes
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+              const SizedBox(height: 16),
+              const Text('Mode(s) de travail accepté(s)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: AppSkills.remoteModes
+                    .map((r) => FilterChip(
+                          label: Text(r),
+                          selected: _remotePreferences.contains(r),
+                          onSelected: (sel) => setState(() {
+                            sel
+                                ? _remotePreferences.add(r)
+                                : _remotePreferences.remove(r);
+                          }),
+                          selectedColor: AppColors.primaryLight,
+                          checkmarkColor: AppColors.primary,
+                        ))
                     .toList(),
-                onChanged: (v) => setState(() => _remotePreference = v),
               ),
               const SizedBox(height: 24),
               _buildSection('Prétentions salariales (€/mois)'),

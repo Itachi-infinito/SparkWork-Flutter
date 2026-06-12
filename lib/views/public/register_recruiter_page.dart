@@ -2,7 +2,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/company_number.dart';
 import '../../core/widgets/terms_checkbox.dart';
+import '../../models/recruiter_profile.dart';
+import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/auth_service.dart';
 
 class RegisterRecruiterPage extends ConsumerStatefulWidget {
@@ -20,6 +23,7 @@ class _RegisterRecruiterPageState
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _companyCtrl = TextEditingController();
+  final _companyNumberCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
   bool _obscure = true;
@@ -31,6 +35,7 @@ class _RegisterRecruiterPageState
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _companyCtrl.dispose();
+    _companyNumberCtrl.dispose();
     super.dispose();
   }
 
@@ -42,20 +47,45 @@ class _RegisterRecruiterPageState
       return;
     }
     setState(() { _loading = true; _error = null; });
+
+    // Capture avant le premier await : GoRouter peut démonter le widget
+    // dès que l'état d'authentification change.
+    final authService = ref.read(authServiceProvider);
+    final profileRepo = ref.read(recruiterProfileRepositoryProvider);
+    final name = _nameCtrl.text.trim();
+    final company = _companyCtrl.text.trim();
+    final companyNumber = CompanyNumber.normalize(_companyNumberCtrl.text);
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
     try {
-      final fullName = '${_nameCtrl.text.trim()} - ${_companyCtrl.text.trim()}';
-      final (ok, msg) = await ref.read(authServiceProvider).register(
+      final fullName = '$name - $company';
+      final (ok, msg) = await authService.register(
         fullName: fullName,
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
+        email: email,
+        password: password,
         role: 'recruiter',
+        extraData: {
+          'companyNumber': companyNumber,
+          // La structure du numéro BCE a été validée (clé mod-97)
+          'companyNumberVerified': true,
+        },
       );
-      if (!mounted) return;
       if (!ok) {
-        setState(() { _error = msg; });
-      } else {
-        context.go('/recruiter/home');
+        if (mounted) setState(() => _error = msg);
+        return;
       }
+      // Crée le profil entreprise (nom + numéro BCE) pour les cartes de swipe
+      final uid = authService.currentUser!.uid;
+      await profileRepo.upsertProfile(RecruiterProfile(
+        profileId: '',
+        userId: uid,
+        companyName: company,
+        companyNumber: companyNumber,
+      ));
+      if (mounted) context.go('/recruiter/home');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Erreur lors de l\'inscription.');
     } finally {
       if (mounted) setState(() { _loading = false; });
     }
@@ -64,10 +94,10 @@ class _RegisterRecruiterPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Compte recruteur'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -153,6 +183,28 @@ class _RegisterRecruiterPageState
                 ),
                 validator: (v) =>
                     (v == null || v.trim().length < 2) ? 'Nom établissement requis' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _companyNumberCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro d\'entreprise (BCE) *',
+                  hintText: 'ex: 0123.456.749 ou BE0123456749',
+                  prefixIcon: Icon(Icons.verified_outlined),
+                  helperText:
+                      'Vérifié automatiquement — atteste que vous êtes une entreprise.',
+                  helperMaxLines: 2,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Numéro d\'entreprise requis';
+                  }
+                  if (!CompanyNumber.isValid(v)) {
+                    return 'Numéro BCE invalide (10 chiffres, clé de contrôle incorrecte)';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(

@@ -125,10 +125,10 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Modifier l'offre"),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
         actions: [
