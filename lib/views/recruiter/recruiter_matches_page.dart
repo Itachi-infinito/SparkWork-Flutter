@@ -11,6 +11,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/rating_repository.dart';
 import '../../services/session_service.dart';
+import '../shared/interview_widgets.dart';
 import '../shared/nav_bar.dart';
 import '../../core/widgets/app_avatar.dart';
 
@@ -171,7 +172,9 @@ class _RecruiterMatchesPageState
                                           color: context.textSecondaryColor,
                                           fontSize: 13)),
                                   const SizedBox(height: 10),
-                                  Row(
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 6,
                                     children: [
                                       SizedBox(
                                         height: 34,
@@ -193,7 +196,13 @@ class _RecruiterMatchesPageState
                                                       BorderRadius.circular(8))),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      InterviewButton(
+                                        matchId: item.match.matchId,
+                                        recruiterUserId:
+                                            item.match.recruiterUserId,
+                                        candidateUserId:
+                                            item.match.candidateUserId,
+                                      ),
                                       _RateButton(
                                         matchId: item.match.matchId,
                                         toUserId: item.match.candidateUserId,

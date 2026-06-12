@@ -11,6 +11,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/rating_repository.dart';
 import '../../services/session_service.dart';
+import '../shared/interview_widgets.dart';
 import '../shared/nav_bar.dart';
 
 class CandidateMatchesPage extends ConsumerStatefulWidget {
@@ -399,27 +400,31 @@ class _MatchCard extends StatelessWidget {
                                   fontSize: 13)),
                         ],
                         const SizedBox(height: 10),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 34,
-                                child: ElevatedButton.icon(
-                                  onPressed: onMessage,
-                                  icon: const Icon(Icons.chat_bubble_outline,
-                                      size: 14),
-                                  label: const Text('Message',
-                                      style: TextStyle(fontSize: 12)),
-                                  style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8))),
-                                ),
+                            SizedBox(
+                              height: 34,
+                              child: ElevatedButton.icon(
+                                onPressed: onMessage,
+                                icon: const Icon(Icons.chat_bubble_outline,
+                                    size: 14),
+                                label: const Text('Message',
+                                    style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8))),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            InterviewButton(
+                              matchId: item.match.matchId,
+                              recruiterUserId: item.match.recruiterUserId,
+                              candidateUserId: item.match.candidateUserId,
+                            ),
                             _RateButton(
                               matchId: item.match.matchId,
                               toUserId: item.match.recruiterUserId,

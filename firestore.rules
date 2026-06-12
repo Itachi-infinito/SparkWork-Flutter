@@ -132,6 +132,32 @@ service cloud.firestore {
           && resource.data.fromUserId == request.auth.uid;
     }
 
+    // Propositions d'entretien — créées par le recruteur du match,
+    // lues/répondues par les deux parties
+    match /interviews/{interviewId} {
+      allow read: if isAuth() && (
+          resource.data.recruiterUserId == request.auth.uid ||
+          resource.data.candidateUserId == request.auth.uid);
+      allow create: if isAuth()
+          && request.resource.data.recruiterUserId == request.auth.uid
+          && isMatchParticipant(request.resource.data.matchId);
+      // Candidat : accepte/refuse ; recruteur : annule.
+      // Les participants ne peuvent pas se réattribuer le doc.
+      allow update: if isAuth()
+          && (resource.data.recruiterUserId == request.auth.uid ||
+              resource.data.candidateUserId == request.auth.uid)
+          && request.resource.data.recruiterUserId
+              == resource.data.recruiterUserId
+          && request.resource.data.candidateUserId
+              == resource.data.candidateUserId
+          && request.resource.data.matchId == resource.data.matchId;
+      // Re-proposition / purge : le recruteur supprime ses propositions ;
+      // le candidat peut purger celles le concernant (suppression compte)
+      allow delete: if isAuth() && (
+          resource.data.recruiterUserId == request.auth.uid ||
+          resource.data.candidateUserId == request.auth.uid);
+    }
+
     // Signalements — écriture seule par le signaleur, lecture admin
     // uniquement (via la console / un back-office, jamais le client)
     match /reports/{reportId} {

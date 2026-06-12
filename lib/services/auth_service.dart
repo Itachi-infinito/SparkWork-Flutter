@@ -153,11 +153,13 @@ class AuthService {
       }
     }
 
-    // Likes envoyés / reçus
+    // Likes envoyés / reçus + propositions d'entretien
     for (final (col, field) in [
       ('candidate_job_likes', 'candidateUserId'),
       ('recruiter_candidate_likes', 'recruiterUserId'),
       ('recruiter_candidate_likes', 'candidateUserId'),
+      ('interviews', 'recruiterUserId'),
+      ('interviews', 'candidateUserId'),
     ]) {
       final q = await _db.collection(col).where(field, isEqualTo: uid).get();
       await _deleteInBatches(q.docs.map((d) => d.reference).toList());

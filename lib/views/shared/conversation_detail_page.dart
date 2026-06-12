@@ -11,6 +11,7 @@ import '../../repositories/message_repository.dart';
 import '../../repositories/report_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/unread_service.dart';
+import 'interview_widgets.dart';
 
 class ConversationDetailPage extends ConsumerStatefulWidget {
   final String matchId;
@@ -343,6 +344,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 )
               : Column(
               children: [
+                InterviewBanner(matchId: widget.matchId),
                 Expanded(
                   child: _messages.isEmpty
                       ? const Center(
