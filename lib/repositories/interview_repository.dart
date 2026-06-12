@@ -14,9 +14,22 @@ class InterviewRepository {
   }
 
   /// Dernière proposition pour un match (une seule active à la fois).
+  ///
+  /// IMPORTANT : les règles Firestore n'autorisent la lecture qu'aux
+  /// participants. Pour qu'une requête liste passe, elle doit PROUVER
+  /// cette condition — d'où le filtre d'égalité sur le champ participant
+  /// (where matchId seul serait rejeté en bloc : "rules are not filters").
   /// Tri côté client pour éviter un index composite where+orderBy.
-  Future<Interview?> getForMatch(String matchId) async {
-    final q = await _col.where('matchId', isEqualTo: matchId).get();
+  Future<Interview?> getForMatch(
+    String matchId, {
+    required String userId,
+    required bool isRecruiter,
+  }) async {
+    final q = await _col
+        .where('matchId', isEqualTo: matchId)
+        .where(isRecruiter ? 'recruiterUserId' : 'candidateUserId',
+            isEqualTo: userId)
+        .get();
     if (q.docs.isEmpty) return null;
     final all = q.docs.map(_fromDoc).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -32,7 +45,12 @@ class InterviewRepository {
     required List<DateTime> slots,
     String message = '',
   }) async {
-    final existing = await _col.where('matchId', isEqualTo: matchId).get();
+    // Filtre recruiterUserId requis pour que la requête soit prouvable
+    // par les règles (cf. getForMatch).
+    final existing = await _col
+        .where('matchId', isEqualTo: matchId)
+        .where('recruiterUserId', isEqualTo: recruiterUserId)
+        .get();
     for (final doc in existing.docs) {
       final status = (doc.data() as Map<String, dynamic>)['status'] as String?;
       if (status != 'accepted') await doc.reference.delete();

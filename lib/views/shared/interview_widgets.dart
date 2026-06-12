@@ -43,9 +43,12 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
 
   Future<void> _load() async {
     try {
-      final i = await ref
-          .read(interviewRepositoryProvider)
-          .getForMatch(widget.matchId);
+      final session = ref.read(sessionProvider);
+      final i = await ref.read(interviewRepositoryProvider).getForMatch(
+            widget.matchId,
+            userId: session.userId,
+            isRecruiter: session.isRecruiter,
+          );
       if (mounted) setState(() { _interview = i; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -135,9 +138,12 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
 
   Future<void> _load() async {
     try {
-      final i = await ref
-          .read(interviewRepositoryProvider)
-          .getForMatch(widget.matchId);
+      final session = ref.read(sessionProvider);
+      final i = await ref.read(interviewRepositoryProvider).getForMatch(
+            widget.matchId,
+            userId: session.userId,
+            isRecruiter: session.isRecruiter,
+          );
       if (mounted) setState(() => _interview = i);
     } catch (_) {}
   }
@@ -348,13 +354,24 @@ Future<bool> showProposeInterviewDialog(
   );
 
   if (sent != true) return false;
-  await ref.read(interviewRepositoryProvider).propose(
-        matchId: matchId,
-        recruiterUserId: recruiterUserId,
-        candidateUserId: candidateUserId,
-        slots: slots,
-        message: msgCtrl.text.trim(),
-      );
+  try {
+    await ref.read(interviewRepositoryProvider).propose(
+          matchId: matchId,
+          recruiterUserId: recruiterUserId,
+          candidateUserId: candidateUserId,
+          slots: slots,
+          message: msgCtrl.text.trim(),
+        );
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Envoi impossible : $e'),
+        backgroundColor: AppColors.red,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+    return false;
+  }
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Proposition d\'entretien envoyée !'),
@@ -447,21 +464,33 @@ Future<bool> showRespondInterviewDialog(
     ),
   );
 
-  if (result == 'accept' && selected != null) {
-    await ref
-        .read(interviewRepositoryProvider)
-        .accept(interview.interviewId, selected!);
+  try {
+    if (result == 'accept' && selected != null) {
+      await ref
+          .read(interviewRepositoryProvider)
+          .accept(interview.interviewId, selected!);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Entretien confirmé — ${formatSlot(selected!)}'),
+          backgroundColor: AppColors.green,
+        ));
+      }
+      return true;
+    }
+    if (result == 'decline') {
+      await ref
+          .read(interviewRepositoryProvider)
+          .decline(interview.interviewId);
+      return true;
+    }
+  } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Entretien confirmé — ${formatSlot(selected!)}'),
-        backgroundColor: AppColors.green,
+        content: Text('Réponse impossible : $e'),
+        backgroundColor: AppColors.red,
+        duration: const Duration(seconds: 5),
       ));
     }
-    return true;
-  }
-  if (result == 'decline') {
-    await ref.read(interviewRepositoryProvider).decline(interview.interviewId);
-    return true;
   }
   return false;
 }
