@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
 import '../../models/match.dart';
@@ -84,16 +85,16 @@ class _RecruiterMatchesPageState
                     color: AppColors.red, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Pas encore de match',
+              Text('Pas encore de match',
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                   'Continuez à swiper pour matcher avec des candidats !',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => context.go('/recruiter/swipe'),
@@ -121,7 +122,7 @@ class _RecruiterMatchesPageState
             final offerTitle = item.offer?.title ?? 'Offre supprimée';
             return Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.surfaceColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -160,14 +161,14 @@ class _RecruiterMatchesPageState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(name,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
-                                          color: AppColors.textPrimary)),
+                                          color: context.textPrimaryColor)),
                                   const SizedBox(height: 2),
                                   Text(offerTitle,
-                                      style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                                      style: TextStyle(
+                                          color: context.textSecondaryColor,
                                           fontSize: 13)),
                                   const SizedBox(height: 10),
                                   Row(
@@ -264,8 +265,8 @@ class _RateButtonState extends ConsumerState<_RateButton> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Votre expérience avec ce candidat ?',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text('Votre expérience avec ce candidat ?',
+                  style: TextStyle(fontSize: 13, color: context.textSecondaryColor)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -275,7 +276,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
                     selected >= i + 1 ? Icons.star_rounded : Icons.star_outline_rounded,
                     color: selected >= i + 1
                         ? const Color(0xFFF59E0B)
-                        : AppColors.textHint,
+                        : context.textHintColor,
                     size: 36,
                   ),
                   padding: EdgeInsets.zero,
@@ -340,7 +341,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
           size: 14,
           color: _existingScore != null
               ? const Color(0xFFF59E0B)
-              : AppColors.textSecondary,
+              : context.textSecondaryColor,
         ),
         label: Text(
           _existingScore != null ? '$_existingScore★' : 'Évaluer',
@@ -348,14 +349,14 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               fontSize: 12,
               color: _existingScore != null
                   ? const Color(0xFFF59E0B)
-                  : AppColors.textSecondary),
+                  : context.textSecondaryColor),
         ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           side: BorderSide(
               color: _existingScore != null
                   ? const Color(0xFFF59E0B)
-                  : AppColors.border),
+                  : context.borderColor),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),

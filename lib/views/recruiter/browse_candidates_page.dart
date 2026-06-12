@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../models/candidate_profile.dart';
@@ -103,7 +104,7 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surfaceColor,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
@@ -197,9 +198,9 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                       locationCtrl.clear();
                     }),
                     style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.textSecondary)),
-                    child: const Text('Réinitialiser',
-                        style: TextStyle(color: AppColors.textSecondary)),
+                        side: BorderSide(color: context.textSecondaryColor)),
+                    child: Text('Réinitialiser',
+                        style: TextStyle(color: context.textSecondaryColor)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -293,7 +294,7 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
               controller: _searchCtrl,
               decoration: InputDecoration(
                 hintText: 'Nom, ville, compétence...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                prefixIcon: Icon(Icons.search, color: context.textHintColor),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -301,15 +302,15 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                       )
                     : null,
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: context.surfaceColor,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border)),
+                    borderSide: BorderSide(color: context.borderColor)),
                 enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border)),
+                    borderSide: BorderSide(color: context.borderColor)),
               ),
             ),
           ),
@@ -321,9 +322,9 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                 children: [
                   Text(
                     '${_filtered.length} candidat${_filtered.length > 1 ? 's' : ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: context.textSecondaryColor,
                         fontWeight: FontWeight.w500),
                   ),
                   if (_hasActiveFilters) ...[
@@ -366,17 +367,17 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                                   color: AppColors.primary, size: 36),
                             ),
                             const SizedBox(height: 16),
-                            const Text('Aucun candidat trouvé',
+                            Text('Aucun candidat trouvé',
                                 style: TextStyle(
-                                    color: AppColors.textPrimary,
+                                    color: context.textPrimaryColor,
                                     fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
                             Text(
                               _hasActiveFilters
                                   ? 'Modifiez vos filtres'
                                   : 'Revenez plus tard',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                              style: TextStyle(
+                                  color: context.textSecondaryColor,
                                   fontSize: 13),
                             ),
                           ],
@@ -416,9 +417,9 @@ class _CandidateCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Row(
           children: [
@@ -429,19 +430,19 @@ class _CandidateCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(profile.fullName,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: AppColors.textPrimary)),
+                          color: context.textPrimaryColor)),
                   if (profile.location.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Row(children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 12, color: AppColors.textSecondary),
+                      Icon(Icons.location_on_outlined,
+                          size: 12, color: context.textSecondaryColor),
                       const SizedBox(width: 2),
                       Text(profile.location,
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
+                          style: TextStyle(
+                              color: context.textSecondaryColor, fontSize: 12)),
                     ]),
                   ],
                   const SizedBox(height: 8),
@@ -469,11 +470,11 @@ class _CandidateCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
+                            color: context.surfaceVariantColor,
                             borderRadius: BorderRadius.circular(20)),
                         child: Text(s,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
+                            style: TextStyle(
+                                color: context.textSecondaryColor,
                                 fontSize: 10)),
                       )).toList(),
                     ),
@@ -481,7 +482,7 @@ class _CandidateCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textHint),
+            Icon(Icons.chevron_right, color: context.textHintColor),
           ],
         ),
       ),

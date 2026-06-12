@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../models/recruiter_profile.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
@@ -79,13 +80,13 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: AppColors.surface,
+                                color: context.surfaceColor,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.border),
+                                border: Border.all(color: context.borderColor),
                               ),
                               child: Text(_profile!.companyDescription,
-                                  style: const TextStyle(
-                                      color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                      color: context.textPrimaryColor,
                                       height: 1.5)),
                             ),
                             const SizedBox(height: 20),
@@ -306,10 +307,10 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(
+      style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary));
+          color: context.textPrimaryColor));
 }
 
 class _StatCard extends StatelessWidget {
@@ -327,9 +328,9 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
@@ -343,8 +344,8 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+                style: TextStyle(
+                    fontSize: 12, color: context.textSecondaryColor)),
           ],
         ),
       );
@@ -369,9 +370,9 @@ class _ActionTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.surfaceColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.borderColor),
             ),
             child: Row(
               children: [
@@ -379,12 +380,12 @@ class _ActionTile extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                     child: Text(label,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textPrimary,
+                            color: context.textPrimaryColor,
                             fontWeight: FontWeight.w500))),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.textHint, size: 20),
+                Icon(Icons.chevron_right,
+                    color: context.textHintColor, size: 20),
               ],
             ),
           ),

@@ -1,9 +1,10 @@
-﻿import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
@@ -218,7 +219,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -326,10 +327,10 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           locationCtrl.clear();
                         }),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.textSecondary),
+                          side: BorderSide(color: context.textSecondaryColor),
                         ),
-                        child: const Text('Réinitialiser',
-                            style: TextStyle(color: AppColors.textSecondary)),
+                        child: Text('Réinitialiser',
+                            style: TextStyle(color: context.textSecondaryColor)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -529,16 +530,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
             child: const Icon(Icons.people_outline, color: AppColors.green, size: 48),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Aucun candidat disponible',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
           ),
           const SizedBox(height: 8),
           Text(
             _hasActiveFilters
                 ? 'Essayez de modifier vos filtres'
                 : 'Revenez plus tard !',
-            style: const TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.textSecondaryColor),
           ),
           const SizedBox(height: 24),
           if (_hasActiveFilters)

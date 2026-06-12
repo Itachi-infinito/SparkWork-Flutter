@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../core/widgets/app_avatar.dart';
@@ -146,16 +147,16 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
         profile.desiredLevel.toLowerCase() == offer.level.toLowerCase();
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Compatibilité avec l\'offre',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+      Text('Compatibilité avec l\'offre',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
       const SizedBox(height: 10),
       Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -174,13 +175,13 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
                 Text('avec "${offer.title}"',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(color: context.textSecondaryColor, fontSize: 12),
                     overflow: TextOverflow.ellipsis),
               ]),
             ),
           ]),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.borderColor),
           const SizedBox(height: 12),
           if (skillsMatch != null)
             _ScoreRow(
@@ -230,7 +231,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(title: const Text('Profil candidat'), backgroundColor: Theme.of(context).scaffoldBackgroundColor, elevation: 0),
-        body: const Center(child: Text('Profil introuvable.', style: TextStyle(color: AppColors.textSecondary))),
+        body: Center(child: Text('Profil introuvable.', style: TextStyle(color: context.textSecondaryColor))),
       );
     }
 
@@ -287,20 +288,20 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                     label: 'Contrat',
                     value: profile.desiredContractType.isNotEmpty ? profile.desiredContractType : 'Non renseigné',
                   ),
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: context.borderColor),
                   _DetailRow(
                     icon: Icons.bar_chart_outlined,
                     label: 'Niveau',
                     value: profile.desiredLevel.isNotEmpty ? profile.desiredLevel : 'Non renseigné',
                   ),
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: context.borderColor),
                   _DetailRow(
                     icon: Icons.home_work_outlined,
                     label: 'Télétravail',
                     value: profile.remotePreference.isNotEmpty ? profile.remotePreference : 'Non renseigné',
                   ),
                   if (profile.hasSalary) ...[
-                    const Divider(height: 1, color: AppColors.border),
+                    Divider(height: 1, color: context.borderColor),
                     _DetailRow(
                       icon: Icons.euro_outlined,
                       label: 'Salaire souhaité',
@@ -310,16 +311,16 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                 ]),
                 const SizedBox(height: 16),
                 if (profile.skillList.isNotEmpty) ...[
-                  const Text('Compétences',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Compétences',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: context.surfaceColor,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border)),
+                        border: Border.all(color: context.borderColor)),
                     child: Wrap(
                       spacing: 8, runSpacing: 6,
                       children: profile.skillList.map((s) => Container(
@@ -335,38 +336,38 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   const SizedBox(height: 16),
                 ],
                 if (profile.bio.isNotEmpty) ...[
-                  const Text('À propos',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('À propos',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: context.surfaceColor,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border)),
+                        border: Border.all(color: context.borderColor)),
                     child: Text(profile.bio,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, height: 1.6)),
+                        style: TextStyle(color: context.textPrimaryColor, fontSize: 14, height: 1.6)),
                   ),
                   const SizedBox(height: 24),
                 ],
                 if (_recruiterOffers.isNotEmpty) ...[
-                  const Text('Associer à une offre',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Associer à une offre',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   if (_recruiterOffers.length == 1)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: context.surfaceColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border)),
+                          border: Border.all(color: context.borderColor)),
                       child: Row(children: [
-                        const Icon(Icons.work_outline, size: 18, color: AppColors.textSecondary),
+                        Icon(Icons.work_outline, size: 18, color: context.textSecondaryColor),
                         const SizedBox(width: 10),
                         Expanded(child: Text(_selectedOffer?.title ?? '',
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14))),
+                            style: TextStyle(color: context.textPrimaryColor, fontSize: 14))),
                       ]),
                     )
                   else
@@ -390,12 +391,12 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                         color: AppColors.orangeLight, borderRadius: BorderRadius.circular(12)),
-                    child: const Row(children: [
+                    child: Row(children: [
                       Icon(Icons.info_outline, color: AppColors.orange, size: 18),
                       SizedBox(width: 10),
                       Expanded(child: Text(
                         'Publiez une offre avant de pouvoir liker un candidat.',
-                        style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                        style: TextStyle(fontSize: 13, color: context.textPrimaryColor),
                       )),
                     ]),
                   ),
@@ -415,7 +416,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                         _alreadyLiked ? 'Déjà liké' : 'Liker ce candidat',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _alreadyLiked ? AppColors.textSecondary : AppColors.red,
+                      backgroundColor: _alreadyLiked ? context.textSecondaryColor : AppColors.red,
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
@@ -443,13 +444,13 @@ class _ScoreRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(children: [
-        Icon(icon, size: 16, color: AppColors.textSecondary),
+        Icon(icon, size: 16, color: context.textSecondaryColor),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text(label, style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
             Text(detail,
-                style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+                style: TextStyle(fontSize: 12, color: context.textPrimaryColor, fontWeight: FontWeight.w500)),
           ]),
         ),
         Container(
@@ -478,13 +479,13 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
       const SizedBox(height: 10),
       Container(
         decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.surfaceColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border)),
+            border: Border.all(color: context.borderColor)),
         child: Column(children: children),
       ),
     ]);
@@ -502,12 +503,12 @@ class _DetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
+        Icon(icon, size: 18, color: context.textSecondaryColor),
         const SizedBox(width: 12),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+        Text(label, style: TextStyle(color: context.textSecondaryColor, fontSize: 14)),
         const Spacer(),
         Flexible(child: Text(value,
-            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500, fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontWeight: FontWeight.w500, fontSize: 14),
             textAlign: TextAlign.end)),
       ]),
     );

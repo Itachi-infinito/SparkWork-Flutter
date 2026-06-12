@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../models/recruiter_profile.dart';
 import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
@@ -294,10 +295,10 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(
+      style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 14,
-          color: AppColors.textPrimary));
+          color: context.textPrimaryColor));
 }
 
 class _PhotoUploadTile extends StatelessWidget {
@@ -345,9 +346,9 @@ class _PhotoUploadTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
@@ -367,15 +368,15 @@ class _PhotoUploadTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
-                    color: AppColors.textPrimary),
+                    color: context.textPrimaryColor),
                 textAlign: TextAlign.center),
             const SizedBox(height: 2),
             Text(hint,
-                style: const TextStyle(
-                    fontSize: 10, color: AppColors.textSecondary),
+                style: TextStyle(
+                    fontSize: 10, color: context.textSecondaryColor),
                 textAlign: TextAlign.center),
           ],
         ),

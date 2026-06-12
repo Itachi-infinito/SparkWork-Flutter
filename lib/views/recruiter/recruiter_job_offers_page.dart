@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../services/session_service.dart';
@@ -102,16 +103,16 @@ class _RecruiterJobOffersPageState
                     color: AppColors.green, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Aucune offre',
+              Text('Aucune offre',
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                   'Publiez votre première offre pour trouver des candidats.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () async {
@@ -139,7 +140,7 @@ class _RecruiterJobOffersPageState
             final offer = _offers[i];
             return Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.surfaceColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -181,14 +182,14 @@ class _RecruiterJobOffersPageState
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(offer.title,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 15,
-                                              color: AppColors.textPrimary)),
+                                              color: context.textPrimaryColor)),
                                       const SizedBox(height: 2),
                                       Text(offer.companyName,
-                                          style: const TextStyle(
-                                              color: AppColors.textSecondary,
+                                          style: TextStyle(
+                                              color: context.textSecondaryColor,
                                               fontSize: 13)),
                                     ],
                                   ),
@@ -234,8 +235,8 @@ class _RecruiterJobOffersPageState
                                     AppColors.greenLight, AppColors.green),
                                 if (offer.location.isNotEmpty)
                                   _Tag(offer.location,
-                                      AppColors.surfaceVariant,
-                                      AppColors.textSecondary),
+                                      context.surfaceVariantColor,
+                                      context.textSecondaryColor),
                                 if (offer.hasSalary)
                                   _Tag(offer.salaryDisplay,
                                       AppColors.primaryLight, AppColors.primary),

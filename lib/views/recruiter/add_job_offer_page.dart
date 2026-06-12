@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
@@ -380,10 +381,10 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
   Widget _sectionLabel(String text) {
     return Text(text,
-        style: const TextStyle(
+        style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 15,
-            color: AppColors.textPrimary));
+            color: context.textPrimaryColor));
   }
 }
 
@@ -464,10 +465,10 @@ class _FlashSection extends StatelessWidget {
     const amber = Color(0xFFFF9800);
     return Container(
       decoration: BoxDecoration(
-        color: isFlash ? const Color(0xFFFFF8E1) : AppColors.surface,
+        color: isFlash ? const Color(0xFFFFF8E1) : context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: isFlash ? amber : AppColors.border),
+            color: isFlash ? amber : context.borderColor),
       ),
       child: Column(
         children: [
@@ -477,17 +478,17 @@ class _FlashSection extends StatelessWidget {
               children: [
                 const Icon(Icons.bolt, color: amber, size: 22),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Offre Flash',
+                      const Text('Offre Flash',
                           style: TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 14)),
                       Text(
                           'Expire automatiquement à la date choisie',
                           style: TextStyle(
-                              fontSize: 11, color: AppColors.textSecondary)),
+                              fontSize: 11, color: context.textSecondaryColor)),
                     ],
                   ),
                 ),
@@ -513,8 +514,8 @@ class _FlashSection extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 13,
                     color: flashEndDateTime == null
-                        ? AppColors.textHint
-                        : AppColors.textPrimary),
+                        ? context.textHintColor
+                        : context.textPrimaryColor),
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: onPickDate,

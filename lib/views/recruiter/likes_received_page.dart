@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
@@ -118,16 +119,16 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                     color: AppColors.orange, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Aucun like reçu',
+              Text('Aucun like reçu',
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+                      color: context.textPrimaryColor)),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                   'Les candidats qui ont liké vos offres apparaîtront ici.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => context.go('/recruiter/offers/add'),
@@ -156,7 +157,7 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                   context.push('/recruiter/candidates/${c.userId}'),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
@@ -214,10 +215,10 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                             children: [
                               Expanded(
                                 child: Text(c.fullName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: AppColors.textPrimary)),
+                                        color: context.textPrimaryColor)),
                               ),
                               if (item.isSuperLike)
                                 Container(
@@ -237,13 +238,13 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                           ),
                           const SizedBox(height: 2),
                           Text('sur "${item.offer.title}"',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                              style: TextStyle(
+                                  color: context.textSecondaryColor,
                                   fontSize: 12)),
                           if (c.location.isNotEmpty)
                             Text(c.location,
-                                style: const TextStyle(
-                                    color: AppColors.textHint,
+                                style: TextStyle(
+                                    color: context.textHintColor,
                                     fontSize: 11)),
                           if (c.skillList.isNotEmpty) ...[
                             const SizedBox(height: 6),
@@ -269,8 +270,8 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right,
-                        color: AppColors.textHint),
+                    Icon(Icons.chevron_right,
+                        color: context.textHintColor),
                   ],
                 ),
               )),

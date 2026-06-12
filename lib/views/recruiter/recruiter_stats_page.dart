@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
@@ -113,12 +114,12 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                     ),
                     const SizedBox(height: 24),
                     if (_totalLikesGiven > 0) ...[
-                      const Text(
+                      Text(
                         'Entonnoir de recrutement',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: context.textPrimaryColor,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -139,19 +140,19 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Likes → Matches',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+              color: context.textSecondaryColor,
             ),
           ),
           const SizedBox(height: 20),
@@ -177,9 +178,9 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
                             labels[i],
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: AppColors.textSecondary,
+                              color: context.textSecondaryColor,
                             ),
                           ),
                         );
@@ -192,7 +193,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                   drawVerticalLine: false,
                   horizontalInterval: 25,
                   getDrawingHorizontalLine: (_) =>
-                      FlLine(color: AppColors.border, strokeWidth: 1),
+                      FlLine(color: context.borderColor, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: [
@@ -243,24 +244,24 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Conseils',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
         ),
         const SizedBox(height: 12),
         ...tips.map((t) => Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.surfaceColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.borderColor),
           ),
           child: Row(children: [
             Icon(t.$2, color: t.$3, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(t.$1, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+              child: Text(t.$1, style: TextStyle(fontSize: 13, color: context.textPrimaryColor)),
             ),
           ]),
         )),
@@ -287,9 +288,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +308,7 @@ class _StatCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              Text(label, style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
             ],
           ),
         ],
@@ -332,7 +333,7 @@ class _Legend extends StatelessWidget {
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
       const SizedBox(width: 4),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+      Text(label, style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
     ],
   );
 }

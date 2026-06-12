@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
@@ -169,7 +170,7 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
                     items: AppSkills.remoteModes.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                     onChanged: (v) => setState(() => _remoteMode = v)),
                   const SizedBox(height: 24),
-                  const Text('Rémunération (€/mois)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Rémunération (€/mois)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(child: TextFormField(controller: _salaryMinCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Min', prefixIcon: Icon(Icons.euro_outlined)))),
@@ -177,20 +178,20 @@ class _EditJobOfferPageState extends ConsumerState<EditJobOfferPage> {
                     Expanded(child: TextFormField(controller: _salaryMaxCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Max', prefixIcon: Icon(Icons.euro_outlined)))),
                   ]),
                   const SizedBox(height: 24),
-                  const Text('Compétences requises', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Compétences requises', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 12),
                   _SkillPicker(selected: _requiredSkills, accentColor: AppColors.primary, bgColor: AppColors.primaryLight, onChanged: (s) => setState(() { _requiredSkills..clear()..addAll(s); })),
                   const SizedBox(height: 24),
-                  const Text('Compétences appréciées', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Compétences appréciées', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 12),
                   _SkillPicker(selected: _niceSkills, accentColor: AppColors.green, bgColor: AppColors.greenLight, onChanged: (s) => setState(() { _niceSkills..clear()..addAll(s); })),
                   const SizedBox(height: 24),
-                  const Text('Description du poste *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('Description du poste *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 12),
                   TextFormField(controller: _descriptionCtrl, maxLines: 6, decoration: const InputDecoration(hintText: 'Décrivez le poste...'),
                     validator: (v) => (v == null || v.trim().length < 10) ? 'Description requise (min 10 caractères)' : null),
                   const SizedBox(height: 24),
-                  const Text('⚡ Offre Flash', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                  Text('⚡ Offre Flash', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 8),
                   _EditFlashSection(
                     isFlash: _isFlash,
@@ -256,9 +257,9 @@ class _EditFlashSection extends StatelessWidget {
     const amber = Color(0xFFFF9800);
     return Container(
       decoration: BoxDecoration(
-        color: isFlash ? const Color(0xFFFFF8E1) : AppColors.surface,
+        color: isFlash ? const Color(0xFFFFF8E1) : context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isFlash ? amber : AppColors.border),
+        border: Border.all(color: isFlash ? amber : context.borderColor),
       ),
       child: Column(
         children: [
@@ -268,16 +269,16 @@ class _EditFlashSection extends StatelessWidget {
               children: [
                 const Icon(Icons.bolt, color: amber, size: 22),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Offre Flash',
+                      const Text('Offre Flash',
                           style: TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 14)),
                       Text('Expire automatiquement à la date choisie',
                           style: TextStyle(
-                              fontSize: 11, color: AppColors.textSecondary)),
+                              fontSize: 11, color: context.textSecondaryColor)),
                     ],
                   ),
                 ),
@@ -298,8 +299,8 @@ class _EditFlashSection extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 13,
                     color: flashEndDateTime == null
-                        ? AppColors.textHint
-                        : AppColors.textPrimary),
+                        ? context.textHintColor
+                        : context.textPrimaryColor),
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: onPickDate,
