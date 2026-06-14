@@ -8,6 +8,8 @@ import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
+import '../shared/quota_reached_bottom_sheet.dart';
 
 class AddJobOfferPage extends ConsumerStatefulWidget {
   const AddJobOfferPage({super.key});
@@ -51,6 +53,19 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
     setState(() { _loading = true; _error = null; });
     try {
       final session = ref.read(sessionProvider);
+      final subSvc = ref.read(subscriptionServiceProvider);
+      final canCreate = await subSvc.canCreateOffer(session.userId);
+      if (!canCreate) {
+        final sub = await subSvc.getSubscription(session.userId);
+        if (mounted) {
+          await showQuotaReachedSheet(
+            context,
+            quotaType: QuotaType.offers,
+            currentPlan: sub.effectivePlan,
+          );
+        }
+        return;
+      }
       final salaryMin = int.tryParse(_salaryMinCtrl.text.trim()) ?? 0;
       final salaryMax = int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0;
 

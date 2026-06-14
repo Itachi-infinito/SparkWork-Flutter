@@ -17,6 +17,8 @@ import '../../repositories/report_repository.dart';
 import 'package:flutter/services.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
+import '../shared/quota_reached_bottom_sheet.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
@@ -57,6 +59,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   Set<String> _blockedIds = {};
   final Set<String> _swipedProfileIds = {};
   SwipeOverlayType _overlayType = SwipeOverlayType.none;
+  int _remainingSwipes = 9999;
   static const _batchSize = 20;
   static const _loadMoreThreshold = 4;
 
@@ -126,6 +129,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
       }).toList();
       _items.sort((a, b) => b.score.compareTo(a.score));
       _applyFilters();
+
+      final remaining = await ref.read(subscriptionServiceProvider).getRemainingSwipes(session.userId);
+      if (mounted) setState(() => _remainingSwipes = remaining);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -396,6 +402,25 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   Future<void> _handleLike(_SwipeItem item, {bool isSuperLike = false}) async {
     if (_selectedOffer == null) return;
     final session = ref.read(sessionProvider);
+    final subSvc = ref.read(subscriptionServiceProvider);
+
+    final consumed = await subSvc.consumeSwipe(session.userId);
+    if (!consumed) {
+      final sub = await subSvc.getSubscription(session.userId);
+      final resetTime = await subSvc.getQuotaResetTime(session.userId);
+      if (mounted) {
+        await showQuotaReachedSheet(
+          context,
+          quotaType: QuotaType.swipes,
+          currentPlan: sub.effectivePlan,
+          resetTime: resetTime,
+        );
+      }
+      return;
+    }
+    final remaining = await subSvc.getRemainingSwipes(session.userId);
+    if (mounted) setState(() => _remainingSwipes = remaining);
+
     final likeRepo = ref.read(recruiterCandidateLikeRepositoryProvider);
     final candidateLikeRepo = ref.read(candidateJobLikeRepositoryProvider);
     final matchRepo = ref.read(matchRepositoryProvider);
@@ -612,6 +637,43 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
             ),
           ),
         ),
+        if (_remainingSwipes != 9999)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _remainingSwipes <= 5
+                      ? AppColors.red.withOpacity(0.1)
+                      : AppColors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _remainingSwipes <= 5 ? AppColors.red : AppColors.green,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.swipe,
+                        size: 14,
+                        color: _remainingSwipes <= 5 ? AppColors.red : AppColors.green),
+                    const SizedBox(width: 6),
+                    Text(
+                      _remainingSwipes == 0
+                          ? 'Plus de swipes disponibles'
+                          : '$_remainingSwipes swipe${_remainingSwipes > 1 ? 's' : ''} restant${_remainingSwipes > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _remainingSwipes <= 5 ? AppColors.red : AppColors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
           child: Row(
@@ -628,7 +690,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               ),
               AnimatedActionButton(
                 icon: Icons.bolt,
-                color: AppColors.orange,
+                color: _remainingSwipes == 0 ? Colors.grey : AppColors.orange,
                 size: 50,
                 onTap: () {
                   HapticFeedback.heavyImpact();
@@ -637,7 +699,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               ),
               AnimatedActionButton(
                 icon: Icons.favorite,
-                color: AppColors.green,
+                color: _remainingSwipes == 0 ? Colors.grey : AppColors.green,
                 size: 60,
                 onTap: () {
                   HapticFeedback.mediumImpact();

@@ -53,7 +53,7 @@ class InterviewRepository {
         .where('recruiterUserId', isEqualTo: recruiterUserId)
         .get();
     for (final doc in existing.docs) {
-      final status = (doc.data() as Map<String, dynamic>)['status'] as String?;
+      final status = doc.data()['status'] as String?;
       if (status != 'accepted') await doc.reference.delete();
     }
     final ref = await _col.add({

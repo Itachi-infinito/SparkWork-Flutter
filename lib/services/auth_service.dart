@@ -44,6 +44,20 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         ...?extraData,
       });
+      // Essai Pro 14 jours offerts au premier signup recruteur
+      if (role == 'recruiter') {
+        try {
+          final now = DateTime.now();
+          await _db.collection('recruiter_subscriptions').doc(uid).set({
+            'userId': uid,
+            'plan': 'free',
+            'status': 'trial',
+            'trialStartDate': now.toIso8601String(),
+            'trialEndDate':
+                now.add(const Duration(days: 14)).toIso8601String(),
+          });
+        } catch (_) {}
+      }
       // Email de vérification — non bloquant si l'envoi échoue
       try {
         await cred.user!.sendEmailVerification();

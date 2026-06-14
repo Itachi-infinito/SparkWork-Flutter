@@ -1076,6 +1076,28 @@ class _JobOfferCard extends StatelessWidget {
                             fontSize: 12,
                             fontWeight: FontWeight.w500)),
                   ),
+                if (recruiterProfile?.isVerifiedEmployer == true)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.verified, color: Colors.white, size: 11),
+                        SizedBox(width: 4),
+                        Text('Employeur vérifié',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
                 Text(offer.title,
                     style: const TextStyle(
                         color: Colors.white,

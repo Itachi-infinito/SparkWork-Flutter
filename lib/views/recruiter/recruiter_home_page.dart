@@ -9,7 +9,9 @@ import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
+import '../../models/subscription.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
 
 class RecruiterHomePage extends ConsumerStatefulWidget {
@@ -24,6 +26,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
   int _matchCount = 0;
   int _swipedCount = 0;
   List<Map<String, dynamic>> _recentMatches = [];
+  RecruiterSubscription? _sub;
 
   @override
   void initState() {
@@ -31,7 +34,16 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPendingMatch();
       await _loadStats();
+      _loadSubscription();
     });
+  }
+
+  Future<void> _loadSubscription() async {
+    final session = ref.read(sessionProvider);
+    final sub = await ref
+        .read(subscriptionServiceProvider)
+        .getSubscription(session.userId);
+    if (mounted) setState(() => _sub = sub);
   }
 
   Future<void> _checkPendingMatch() async {
@@ -159,6 +171,13 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
             const EmailVerificationBanner(),
+            if (_sub?.isTrialActive == true) ...[
+              const SizedBox(height: 8),
+              _TrialBanner(
+                daysLeft: _sub!.trialDaysRemaining,
+                onManage: () => context.push('/recruiter/plans'),
+              ),
+            ],
             const SizedBox(height: 8),
 
             // Stats row
@@ -417,6 +436,60 @@ class _RecentMatchTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TrialBanner extends StatelessWidget {
+  final int daysLeft;
+  final VoidCallback onManage;
+  const _TrialBanner({required this.daysLeft, required this.onManage});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onManage,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4C1D95), AppColors.primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.star, color: Colors.amber, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Essai Pro en cours',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                  Text(
+                    '$daysLeft jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const Text('Gérer mon plan',
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Colors.white70)),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Colors.white70, size: 16),
+          ],
+        ),
       ),
     );
   }

@@ -165,5 +165,20 @@ service cloud.firestore {
           && request.resource.data.reporterUserId == request.auth.uid;
       allow read, update, delete: if false;
     }
+
+    // Abonnements recruteurs — lecture/écriture par le propriétaire
+    match /recruiter_subscriptions/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Quotas de swipes — lecture/écriture par le propriétaire
+    match /swipe_quotas/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Crédits de boost — lecture/écriture par le propriétaire
+    match /boost_credits/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
   }
 }

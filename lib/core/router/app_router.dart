@@ -33,6 +33,7 @@ import '../../views/shared/conversation_detail_page.dart';
 import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
+import '../../views/recruiter/plan_selection_page.dart';
 
 const _publicPaths = [
   '/splash',
@@ -199,6 +200,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/recruiter/stats',
         builder: (context, state) => const RecruiterStatsPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/plans',
+        builder: (context, state) => const PlanSelectionPage(),
       ),
 
       // Shared routes

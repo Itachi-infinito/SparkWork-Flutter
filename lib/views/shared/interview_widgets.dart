@@ -198,11 +198,11 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           color: AppColors.red.withOpacity(0.1),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.event_busy, size: 18, color: AppColors.red),
-              const SizedBox(width: 8),
-              const Expanded(
+              Icon(Icons.event_busy, size: 18, color: AppColors.red),
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   'Le candidat a refusé — proposer de nouveaux créneaux',
                   style: TextStyle(
@@ -212,7 +212,7 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.red),
+              Icon(Icons.chevron_right, size: 18, color: AppColors.red),
             ],
           ),
         ),
@@ -626,15 +626,15 @@ Future<bool> showRespondInterviewDialog(
               ],
               if (interview.meetingLink.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.videocam_outlined,
+                    Icon(Icons.videocam_outlined,
                         size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Réunion en ligne prévue',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12.5,
                             color: AppColors.textSecondary),
                       ),

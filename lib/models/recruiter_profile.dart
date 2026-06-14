@@ -9,6 +9,7 @@ class RecruiterProfile {
   final String companyNumber; // numéro BCE/TVA belge validé à l'inscription
   final String? contactPhotoUrl;
   final String? companyLogoUrl;
+  final bool isVerifiedEmployer; // true = plan Pro actif
 
   const RecruiterProfile({
     required this.profileId,
@@ -21,6 +22,7 @@ class RecruiterProfile {
     this.companyNumber = '',
     this.contactPhotoUrl,
     this.companyLogoUrl,
+    this.isVerifiedEmployer = false,
   });
 
   String get initials {
@@ -40,6 +42,7 @@ class RecruiterProfile {
     'companyNumber': companyNumber,
     if (contactPhotoUrl != null) 'contactPhotoUrl': contactPhotoUrl,
     if (companyLogoUrl != null) 'companyLogoUrl': companyLogoUrl,
+    'isVerifiedEmployer': isVerifiedEmployer,
   };
 
   factory RecruiterProfile.fromMap(Map<String, dynamic> map) => RecruiterProfile(
@@ -53,6 +56,7 @@ class RecruiterProfile {
     companyNumber: map['companyNumber'] as String? ?? '',
     contactPhotoUrl: map['contactPhotoUrl'] as String?,
     companyLogoUrl: map['companyLogoUrl'] as String?,
+    isVerifiedEmployer: map['isVerifiedEmployer'] as bool? ?? false,
   );
 
   RecruiterProfile copyWith({
@@ -66,6 +70,7 @@ class RecruiterProfile {
     String? companyNumber,
     String? contactPhotoUrl,
     String? companyLogoUrl,
+    bool? isVerifiedEmployer,
   }) => RecruiterProfile(
     profileId: profileId ?? this.profileId,
     userId: userId ?? this.userId,
@@ -77,5 +82,6 @@ class RecruiterProfile {
     companyNumber: companyNumber ?? this.companyNumber,
     contactPhotoUrl: contactPhotoUrl ?? this.contactPhotoUrl,
     companyLogoUrl: companyLogoUrl ?? this.companyLogoUrl,
+    isVerifiedEmployer: isVerifiedEmployer ?? this.isVerifiedEmployer,
   );
 }

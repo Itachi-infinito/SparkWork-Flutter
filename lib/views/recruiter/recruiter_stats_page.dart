@@ -1,12 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
-import '../../repositories/job_offer_repository.dart';
-import '../../repositories/match_repository.dart';
-import '../../repositories/recruiter_candidate_like_repository.dart';
+import '../../models/subscription.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
 
 class RecruiterStatsPage extends ConsumerStatefulWidget {
@@ -21,6 +21,8 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   int _totalOffers = 0;
   int _totalLikesGiven = 0;
   int _totalMatches = 0;
+  SubscriptionPlan _plan = SubscriptionPlan.free;
+  List<String> _unmatchedLikerIds = [];
 
   @override
   void initState() {
@@ -31,24 +33,25 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final userId = ref.read(sessionProvider).userId;
+    final subSvc = ref.read(subscriptionServiceProvider);
 
-    final myOffers = await ref
-        .read(jobOfferRepositoryProvider)
-        .getOffersByRecruiter(userId);
+    final sub = await subSvc.getSubscription(userId);
+    final plan = sub.effectivePlan;
 
-    final likedIds = await ref
-        .read(recruiterCandidateLikeRepositoryProvider)
-        .getLikedCandidateIds(userId);
+    if (plan == SubscriptionPlan.free) {
+      if (mounted) setState(() { _plan = plan; _loading = false; });
+      return;
+    }
 
-    final matches = await ref
-        .read(matchRepositoryProvider)
-        .getMatchesByRecruiter(userId);
+    final stats = await subSvc.getStats(userId);
 
     if (mounted) {
       setState(() {
-        _totalOffers = myOffers.length;
-        _totalLikesGiven = likedIds.length;
-        _totalMatches = matches.length;
+        _plan = plan;
+        _totalOffers = stats.totalOffers;
+        _totalLikesGiven = stats.totalLikes;
+        _totalMatches = stats.totalMatches;
+        _unmatchedLikerIds = stats.unmatchedLikerIds;
         _loading = false;
       });
     }
@@ -69,70 +72,159 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.orange))
-          : RefreshIndicator(
-              onRefresh: _load,
-              color: AppColors.orange,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.4,
+          : _plan == SubscriptionPlan.free
+              ? _buildLockedState(context)
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: AppColors.orange,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _StatCard(
-                          label: 'Offres publiées',
-                          value: '$_totalOffers',
-                          icon: Icons.work_outline,
-                          color: AppColors.primary,
+                        GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.4,
+                          children: [
+                            _StatCard(
+                              label: 'Offres publiées',
+                              value: '$_totalOffers',
+                              icon: Icons.work_outline,
+                              color: AppColors.primary,
+                            ),
+                            _StatCard(
+                              label: 'Candidats likés',
+                              value: '$_totalLikesGiven',
+                              icon: Icons.thumb_up_outlined,
+                              color: AppColors.orange,
+                            ),
+                            _StatCard(
+                              label: 'Matches',
+                              value: '$_totalMatches',
+                              icon: Icons.favorite,
+                              color: AppColors.green,
+                            ),
+                            _StatCard(
+                              label: 'Taux de match',
+                              value: '$matchRate%',
+                              icon: Icons.trending_up,
+                              color: const Color(0xFF8B5CF6),
+                            ),
+                          ],
                         ),
-                        _StatCard(
-                          label: 'Candidats likés',
-                          value: '$_totalLikesGiven',
-                          icon: Icons.thumb_up_outlined,
-                          color: AppColors.orange,
-                        ),
-                        _StatCard(
-                          label: 'Matches',
-                          value: '$_totalMatches',
-                          icon: Icons.favorite,
-                          color: AppColors.green,
-                        ),
-                        _StatCard(
-                          label: 'Taux de match',
-                          value: '$matchRate%',
-                          icon: Icons.trending_up,
-                          color: const Color(0xFF8B5CF6),
-                        ),
+                        if (_plan == SubscriptionPlan.pro && _unmatchedLikerIds.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          _buildUnmatchedSection(),
+                        ],
+                        const SizedBox(height: 24),
+                        if (_totalLikesGiven > 0) ...[
+                          Text(
+                            'Entonnoir de recrutement',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildChart(matchRate),
+                          const SizedBox(height: 24),
+                        ],
+                        _buildTips(),
+                        const SizedBox(height: 32),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    if (_totalLikesGiven > 0) ...[
-                      Text(
-                        'Entonnoir de recrutement',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: context.textPrimaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildChart(matchRate),
-                      const SizedBox(height: 24),
-                    ],
-                    _buildTips(),
-                    const SizedBox(height: 32),
-                  ],
+                  ),
                 ),
+      bottomNavigationBar: const RecruiterNavBar(currentIndex: 4),
+    );
+  }
+
+  Widget _buildLockedState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.lock_outline, color: AppColors.primary, size: 48),
+            ),
+            const SizedBox(height: 20),
+            Text('Statistiques réservées',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor)),
+            const SizedBox(height: 10),
+            Text(
+              'Passez au plan Starter ou Pro pour accéder à vos statistiques de recrutement.',
+              style: TextStyle(color: context.textSecondaryColor, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/recruiter/plans'),
+              icon: const Icon(Icons.arrow_upward),
+              label: const Text('Voir les plans'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-      bottomNavigationBar: const RecruiterNavBar(currentIndex: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnmatchedSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.visibility, color: Color(0xFF8B5CF6), size: 18),
+            const SizedBox(width: 6),
+            Text('Candidats intéressés sans match',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${_unmatchedLikerIds.length} candidat${_unmatchedLikerIds.length > 1 ? 's' : ''} ont aimé vos offres mais vous ne les avez pas encore swipés.',
+          style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => context.push('/recruiter/swipe'),
+            icon: const Icon(Icons.swipe, color: Color(0xFF8B5CF6)),
+            label: const Text('Explorer ces candidats',
+                style: TextStyle(color: Color(0xFF8B5CF6))),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF8B5CF6)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
