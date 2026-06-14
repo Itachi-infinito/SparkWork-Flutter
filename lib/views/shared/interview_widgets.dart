@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../models/interview.dart';
@@ -11,6 +12,12 @@ const _amber = Color(0xFFF59E0B);
 
 String formatSlot(DateTime d) =>
     DateFormat('EEE d MMM • HH:mm', 'fr_FR').format(d);
+
+Future<void> _openLink(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return;
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 /// Bouton compact "Entretien" à placer dans une carte de match.
 /// S'adapte au rôle de l'utilisateur connecté :
@@ -57,17 +64,25 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
 
   Future<void> _onTap() async {
     final session = ref.read(sessionProvider);
+    final i = _interview;
     bool changed = false;
+
+    // Entretien accepté avec lien → ouvrir directement
+    if (i != null && i.isAccepted && i.meetingLink.isNotEmpty) {
+      await _openLink(i.meetingLink);
+      return;
+    }
+
     if (session.isRecruiter) {
       changed = await showProposeInterviewDialog(
         context, ref,
         matchId: widget.matchId,
         recruiterUserId: widget.recruiterUserId,
         candidateUserId: widget.candidateUserId,
-        existing: _interview,
+        existing: i,
       );
-    } else if (_interview != null) {
-      changed = await showRespondInterviewDialog(context, ref, _interview!);
+    } else if (i != null) {
+      changed = await showRespondInterviewDialog(context, ref, i);
     }
     if (changed) _load();
   }
@@ -78,25 +93,34 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
     final session = ref.watch(sessionProvider);
     final i = _interview;
 
-    // Candidat sans proposition active : rien à afficher
-    final hasActive = i != null && (i.isPending || i.isAccepted);
-    if (!session.isRecruiter && !hasActive) return const SizedBox.shrink();
-
     late final IconData icon;
     late final String label;
     late final Color color;
-    if (i == null || i.isDeclined || i.isCancelled) {
+
+    if (i == null || i.isCancelled) {
+      // Pas d'entretien actif
+      if (!session.isRecruiter) return const SizedBox.shrink();
       icon = Icons.calendar_month_outlined;
       label = 'Entretien';
       color = context.textSecondaryColor;
+    } else if (i.isDeclined) {
+      // Candidat a refusé
+      if (!session.isRecruiter) return const SizedBox.shrink();
+      icon = Icons.event_busy;
+      label = 'Refusé — reproposer';
+      color = AppColors.red;
     } else if (i.isPending) {
       icon = Icons.schedule;
       label = session.isRecruiter ? 'En attente' : 'Répondre';
       color = _amber;
     } else {
-      icon = Icons.event_available;
+      // Accepté
+      final hasLink = i.meetingLink.isNotEmpty;
+      icon = hasLink ? Icons.video_call : Icons.event_available;
       final d = i.acceptedDate;
-      label = d != null ? DateFormat('d MMM HH:mm', 'fr_FR').format(d) : 'Confirmé';
+      label = hasLink
+          ? 'Rejoindre l\'appel'
+          : (d != null ? DateFormat('d MMM HH:mm', 'fr_FR').format(d) : 'Confirmé');
       color = AppColors.green;
     }
 
@@ -151,11 +175,49 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
   @override
   Widget build(BuildContext context) {
     final i = _interview;
-    if (i == null || i.isDeclined || i.isCancelled) {
-      return const SizedBox.shrink();
-    }
+    if (i == null || i.isCancelled) return const SizedBox.shrink();
+
     final session = ref.watch(sessionProvider);
-    final isCandidate = session.isCandidate;
+    final isRecruiter = session.isRecruiter;
+
+    // Candidat a refusé → bandeau visible seulement pour le recruteur
+    if (i.isDeclined) {
+      if (!isRecruiter) return const SizedBox.shrink();
+      return GestureDetector(
+        onTap: () async {
+          final changed = await showProposeInterviewDialog(
+            context, ref,
+            matchId: i.matchId,
+            recruiterUserId: i.recruiterUserId,
+            candidateUserId: i.candidateUserId,
+            existing: i,
+          );
+          if (changed) _load();
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          color: AppColors.red.withOpacity(0.1),
+          child: Row(
+            children: [
+              const Icon(Icons.event_busy, size: 18, color: AppColors.red),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Le candidat a refusé — proposer de nouveaux créneaux',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.red,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.red),
+            ],
+          ),
+        ),
+      );
+    }
 
     final Color color = i.isAccepted ? AppColors.green : _amber;
     String text;
@@ -163,17 +225,19 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
       final d = i.acceptedDate;
       text = 'Entretien confirmé${d != null ? ' — ${formatSlot(d)}' : ''}';
     } else {
-      text = isCandidate
+      text = !isRecruiter
           ? 'Entretien proposé — choisissez un créneau'
           : 'Proposition d\'entretien envoyée — en attente';
     }
 
+    final hasLink = i.isAccepted && i.meetingLink.isNotEmpty;
+
     return GestureDetector(
       onTap: () async {
         bool changed = false;
-        if (isCandidate && i.isPending) {
+        if (!isRecruiter && i.isPending) {
           changed = await showRespondInterviewDialog(context, ref, i);
-        } else if (!isCandidate) {
+        } else if (isRecruiter) {
           changed = await showProposeInterviewDialog(
             context, ref,
             matchId: i.matchId,
@@ -200,7 +264,31 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
                       fontWeight: FontWeight.w600,
                       color: color)),
             ),
-            if (isCandidate && i.isPending)
+            if (hasLink)
+              GestureDetector(
+                onTap: () => _openLink(i.meetingLink),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.green,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.video_call, size: 14, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text('Rejoindre',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              )
+            else if (!isRecruiter && i.isPending)
               Icon(Icons.chevron_right, size: 18, color: color),
           ],
         ),
@@ -209,7 +297,7 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
   }
 }
 
-/// Dialog recruteur : choisir des créneaux + message, envoyer.
+/// Dialog recruteur : choisir des créneaux + message + lien visio, envoyer.
 /// Retourne true si une proposition a été créée/annulée.
 Future<bool> showProposeInterviewDialog(
   BuildContext context,
@@ -226,9 +314,38 @@ Future<bool> showProposeInterviewDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Entretien confirmé'),
-        content: Text(d != null
-            ? 'Le candidat a confirmé le créneau :\n\n${formatSlot(d)}'
-            : 'Le candidat a confirmé un créneau.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(d != null
+                ? 'Le candidat a confirmé le créneau :\n\n${formatSlot(d)}'
+                : 'Le candidat a confirmé un créneau.'),
+            if (existing.meetingLink.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => _openLink(existing.meetingLink),
+                child: Row(
+                  children: [
+                    const Icon(Icons.video_call,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        existing.meetingLink,
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            decoration: TextDecoration.underline,
+                            fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -249,10 +366,13 @@ Future<bool> showProposeInterviewDialog(
     return false;
   }
 
-  final slots = <DateTime>[...?existing?.isPending == true
-      ? existing!.slotDates
-      : null];
+  // Pré-remplissage si re-proposition après refus ou mise à jour en attente
+  final canPrefill =
+      existing?.isPending == true || existing?.isDeclined == true;
+  final slots = <DateTime>[...?canPrefill ? existing!.slotDates : null];
   final msgCtrl = TextEditingController(text: existing?.message ?? '');
+  final linkCtrl =
+      TextEditingController(text: existing?.meetingLink ?? '');
 
   Future<DateTime?> pickSlot(BuildContext ctx) async {
     final now = DateTime.now();
@@ -276,77 +396,107 @@ Future<bool> showProposeInterviewDialog(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setD) => AlertDialog(
-        title: const Text('Proposer un entretien'),
+        title: Text(existing?.isDeclined == true
+            ? 'Proposer de nouveaux créneaux'
+            : 'Proposer un entretien'),
         content: SizedBox(
           width: 340,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Proposez un ou plusieurs créneaux. Le candidat en '
-                'choisira un.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 12),
-              ...slots.map((s) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_month,
-                            size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: Text(formatSlot(s),
-                                style: const TextStyle(fontSize: 13))),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => setD(() => slots.remove(s)),
-                        ),
-                      ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (existing?.isDeclined == true)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  )),
-              if (slots.length < 5)
-                TextButton.icon(
-                  onPressed: () async {
-                    final s = await pickSlot(ctx);
-                    if (s != null) setD(() => slots..add(s)..sort());
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Ajouter un créneau'),
+                    child: const Text(
+                      'Le candidat a refusé votre précédente proposition. '
+                      'Proposez de nouveaux créneaux.',
+                      style:
+                          TextStyle(fontSize: 12.5, color: AppColors.red),
+                    ),
+                  )
+                else
+                  const Text(
+                    'Proposez un ou plusieurs créneaux. Le candidat en '
+                    'choisira un.',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                const SizedBox(height: 12),
+                ...slots.map((s) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_month,
+                              size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(formatSlot(s),
+                                  style:
+                                      const TextStyle(fontSize: 13))),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () =>
+                                setD(() => slots.remove(s)),
+                          ),
+                        ],
+                      ),
+                    )),
+                if (slots.length < 5)
+                  TextButton.icon(
+                    onPressed: () async {
+                      final s = await pickSlot(ctx);
+                      if (s != null) setD(() => slots..add(s)..sort());
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Ajouter un créneau'),
+                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: msgCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    hintText: 'Message (lieu, consignes...)',
+                    isDense: true,
+                  ),
                 ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: msgCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Message (lieu, visio, consignes...)',
-                  isDense: true,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: linkCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Lien Teams / Meet / Zoom (optionnel)',
+                    prefixIcon:
+                        Icon(Icons.videocam_outlined, size: 18),
+                    isDense: true,
+                  ),
+                  keyboardType: TextInputType.url,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
-          if (existing != null && existing.isPending)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Fermer'),
-            )
-          else
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(existing?.isPending == true ? 'Fermer' : 'Annuler'),
+          ),
           ElevatedButton.icon(
             onPressed: slots.isEmpty ? null : () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: Text(existing?.isPending == true
                 ? 'Mettre à jour'
                 : 'Envoyer'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.green),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.green),
           ),
         ],
       ),
@@ -361,6 +511,7 @@ Future<bool> showProposeInterviewDialog(
           candidateUserId: candidateUserId,
           slots: slots,
           message: msgCtrl.text.trim(),
+          meetingLink: linkCtrl.text.trim(),
         );
   } catch (e) {
     if (context.mounted) {
@@ -391,9 +542,38 @@ Future<bool> showRespondInterviewDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Entretien confirmé'),
-        content: Text(d != null
-            ? 'Votre entretien est confirmé :\n\n${formatSlot(d)}'
-            : 'Votre entretien est confirmé.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(d != null
+                ? 'Votre entretien est confirmé :\n\n${formatSlot(d)}'
+                : 'Votre entretien est confirmé.'),
+            if (interview.meetingLink.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => _openLink(interview.meetingLink),
+                child: Row(
+                  children: [
+                    const Icon(Icons.video_call,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        interview.meetingLink,
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            decoration: TextDecoration.underline,
+                            fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
@@ -444,6 +624,24 @@ Future<bool> showRespondInterviewDialog(
                           fontSize: 12.5, color: AppColors.primary)),
                 ),
               ],
+              if (interview.meetingLink.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.videocam_outlined,
+                        size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Réunion en ligne prévue',
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -456,7 +654,8 @@ Future<bool> showRespondInterviewDialog(
           ElevatedButton(
             onPressed:
                 selected == null ? null : () => Navigator.pop(ctx, 'accept'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.green),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.green),
             child: const Text('Confirmer ce créneau'),
           ),
         ],

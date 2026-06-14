@@ -18,6 +18,10 @@ class Interview {
 
   /// Message libre du recruteur (lieu, visio, consignes...).
   final String message;
+
+  /// Lien de réunion optionnel (Teams, Meet, Zoom...).
+  final String meetingLink;
+
   final String createdAt;
 
   const Interview({
@@ -29,6 +33,7 @@ class Interview {
     this.acceptedSlot = '',
     this.status = 'pending',
     this.message = '',
+    this.meetingLink = '',
     this.createdAt = '',
   });
 
@@ -54,6 +59,7 @@ class Interview {
         'acceptedSlot': acceptedSlot,
         'status': status,
         'message': message,
+        'meetingLink': meetingLink,
         'createdAt': createdAt,
       };
 
@@ -66,6 +72,7 @@ class Interview {
         acceptedSlot: map['acceptedSlot'] as String? ?? '',
         status: map['status'] as String? ?? 'pending',
         message: map['message'] as String? ?? '',
+        meetingLink: map['meetingLink'] as String? ?? '',
         createdAt: map['createdAt'] as String? ?? '',
       );
 }

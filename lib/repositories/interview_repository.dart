@@ -44,6 +44,7 @@ class InterviewRepository {
     required String candidateUserId,
     required List<DateTime> slots,
     String message = '',
+    String meetingLink = '',
   }) async {
     // Filtre recruiterUserId requis pour que la requête soit prouvable
     // par les règles (cf. getForMatch).
@@ -63,6 +64,7 @@ class InterviewRepository {
       'acceptedSlot': '',
       'status': 'pending',
       'message': message,
+      'meetingLink': meetingLink,
       'createdAt': DateTime.now().toIso8601String(),
     });
     return ref.id;
