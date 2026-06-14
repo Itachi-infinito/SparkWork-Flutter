@@ -85,6 +85,22 @@ class SubscriptionService {
     }
   }
 
+  /// Résilie l'abonnement et repasse au plan Gratuit.
+  Future<void> cancelSubscription(String userId) async {
+    await _subs.doc(userId).set({
+      'userId': userId,
+      'plan': 'free',
+      'status': 'cancelled',
+    }, SetOptions(merge: false));
+    final profileDocs = await _db
+        .collection('recruiter_profiles')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (final d in profileDocs.docs) {
+      await d.reference.update({'isVerifiedEmployer': false});
+    }
+  }
+
   Future<void> _expireTrial(String userId) async {
     try {
       await _subs.doc(userId).update({'status': 'expired'});

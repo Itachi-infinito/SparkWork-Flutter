@@ -31,7 +31,10 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
   }
 
   Future<void> _selectPlan(SubscriptionPlan plan) async {
-    if (plan == SubscriptionPlan.free) return; // downgrade non disponible ici
+    if (plan == SubscriptionPlan.free) {
+      await _confirmCancel();
+      return;
+    }
     setState(() => _processingPlan = plan.name);
     try {
       final session = ref.read(sessionProvider);
@@ -42,6 +45,53 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Plan ${plan.displayName} activé !'),
         backgroundColor: AppColors.green,
+      ));
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erreur : $e'),
+          backgroundColor: AppColors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _processingPlan = null);
+    }
+  }
+
+  Future<void> _confirmCancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Résilier mon abonnement'),
+        content: const Text(
+          'Vous allez repasser au plan Gratuit.\n\n'
+          'Vos offres excédentaires et vos swipes ne seront plus '
+          'accessibles au-delà des limites du plan Gratuit.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Résilier',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _processingPlan = SubscriptionPlan.free.name);
+    try {
+      final session = ref.read(sessionProvider);
+      await ref.read(subscriptionServiceProvider).cancelSubscription(session.userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Abonnement résilié. Vous êtes sur le plan Gratuit.'),
+        backgroundColor: AppColors.red,
       ));
       await _load();
     } catch (e) {
@@ -370,14 +420,21 @@ class _PlanCard extends StatelessWidget {
                     )
                   : plan == SubscriptionPlan.free
                       ? OutlinedButton(
-                          onPressed: null,
+                          onPressed: isProcessing
+                              ? null
+                              : () => onSelect(plan),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300),
+                            side: BorderSide(color: AppColors.red.withOpacity(0.5)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Gratuit',
-                              style: TextStyle(color: AppColors.textSecondary)),
+                          child: isProcessing
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(
+                                      color: AppColors.red, strokeWidth: 2))
+                              : const Text('Résilier mon abonnement',
+                                  style: TextStyle(color: AppColors.red, fontSize: 13)),
                         )
                       : ElevatedButton(
                           onPressed: isProcessing ? null : () => onSelect(plan),

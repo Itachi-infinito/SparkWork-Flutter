@@ -2,15 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/subscription.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
 import '../../services/theme_service.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  RecruiterSubscription? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSub());
+  }
+
+  Future<void> _loadSub() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isRecruiter) return;
+    final sub = await ref
+        .read(subscriptionServiceProvider)
+        .getSubscription(session.userId);
+    if (mounted) setState(() => _sub = sub);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
     final isDark = ref.watch(themeProvider) == ThemeMode.dark;
@@ -86,6 +110,27 @@ class SettingsPage extends ConsumerWidget {
               _InfoRow(icon: Icons.badge_outlined, label: 'Rôle', value: roleLabel, textPrimary: textPrimary, textSecondary: textSecondary),
             ],
           ),
+          if (session.isRecruiter) ...[
+            const SizedBox(height: 24),
+            Text('Abonnement',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: textSecondary)),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              surface: surface,
+              border: borderColor,
+              children: [
+                _SubRow(
+                  sub: _sub,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  onManage: () => context.push('/recruiter/plans').then((_) => _loadSub()),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 24),
           Text('Sécurité',
               style: TextStyle(
@@ -363,6 +408,80 @@ class SettingsPage extends ConsumerWidget {
                   loading ? 'Suppression...' : 'Supprimer définitivement',
                   style: const TextStyle(color: Colors.white)),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubRow extends StatelessWidget {
+  final RecruiterSubscription? sub;
+  final Color textPrimary;
+  final Color textSecondary;
+  final VoidCallback onManage;
+
+  const _SubRow({
+    required this.sub,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.onManage,
+  });
+
+  String get _planLabel {
+    if (sub == null) return 'Chargement...';
+    if (sub!.isTrialActive) {
+      return 'Essai Pro — ${sub!.trialDaysRemaining} j restant${sub!.trialDaysRemaining > 1 ? 's' : ''}';
+    }
+    switch (sub!.effectivePlan) {
+      case SubscriptionPlan.free:
+        return 'Gratuit';
+      case SubscriptionPlan.starter:
+        return 'Starter — 49€/mois';
+      case SubscriptionPlan.pro:
+        return 'Pro — 129€/mois';
+    }
+  }
+
+  Color get _planColor {
+    if (sub == null) return AppColors.textSecondary;
+    if (sub!.isTrialActive) return const Color(0xFF8B5CF6);
+    switch (sub!.effectivePlan) {
+      case SubscriptionPlan.free:
+        return AppColors.textSecondary;
+      case SubscriptionPlan.starter:
+        return AppColors.primary;
+      case SubscriptionPlan.pro:
+        return const Color(0xFF8B5CF6);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onManage,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(Icons.workspace_premium_outlined, color: _planColor, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Mon abonnement',
+                      style: TextStyle(color: textPrimary, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(_planLabel,
+                      style: TextStyle(
+                          color: _planColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: textSecondary, size: 20),
           ],
         ),
       ),
