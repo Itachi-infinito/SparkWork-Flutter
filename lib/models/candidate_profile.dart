@@ -1,5 +1,7 @@
 ﻿import '../core/constants/app_skills.dart';
 
+enum VerificationStatus { unverified, pending, verified, rejected }
+
 class CandidateProfile {
   final String profileId;
   final String userId;
@@ -17,6 +19,20 @@ class CandidateProfile {
   final String? jobTitle;
   final String? photoUrl;
 
+  // Disponible Maintenant (Feature 2)
+  final bool isAvailableNow;
+  final String? availableNowUntil; // ISO8601
+  final String? availableNowUpdatedAt;
+
+  // Vérification d'identité (Feature 3)
+  final String verificationStatus; // unverified/pending/verified/rejected
+  final String? verificationDate;
+  final String? verificationMethod;
+  final String? verificationRejectionReason;
+
+  // Programme partenaires (Feature 9)
+  final String? partnerBadge; // ex: "École Paul Bocuse"
+
   const CandidateProfile({
     required this.profileId,
     required this.userId,
@@ -33,7 +49,42 @@ class CandidateProfile {
     this.longitude = 0.0,
     this.jobTitle,
     this.photoUrl,
+    this.isAvailableNow = false,
+    this.availableNowUntil,
+    this.availableNowUpdatedAt,
+    this.verificationStatus = 'unverified',
+    this.verificationDate,
+    this.verificationMethod,
+    this.verificationRejectionReason,
+    this.partnerBadge,
   });
+
+  bool get isAvailableNowActive {
+    if (!isAvailableNow || availableNowUntil == null) return false;
+    try {
+      return DateTime.parse(availableNowUntil!).isAfter(DateTime.now());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  int get availableNowDaysLeft {
+    if (!isAvailableNowActive) return 0;
+    try {
+      return DateTime.parse(availableNowUntil!).difference(DateTime.now()).inDays;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  VerificationStatus get verificationStatusEnum {
+    switch (verificationStatus) {
+      case 'pending': return VerificationStatus.pending;
+      case 'verified': return VerificationStatus.verified;
+      case 'rejected': return VerificationStatus.rejected;
+      default: return VerificationStatus.unverified;
+    }
+  }
 
   // Alias getters pour compatibilité avec les fichiers locaux
   List<String> get skillList => skills;
@@ -75,6 +126,14 @@ class CandidateProfile {
     'longitude': longitude,
     if (jobTitle != null) 'jobTitle': jobTitle,
     if (photoUrl != null) 'photoUrl': photoUrl,
+    'isAvailableNow': isAvailableNow,
+    if (availableNowUntil != null) 'availableNowUntil': availableNowUntil,
+    if (availableNowUpdatedAt != null) 'availableNowUpdatedAt': availableNowUpdatedAt,
+    'verificationStatus': verificationStatus,
+    if (verificationDate != null) 'verificationDate': verificationDate,
+    if (verificationMethod != null) 'verificationMethod': verificationMethod,
+    if (verificationRejectionReason != null) 'verificationRejectionReason': verificationRejectionReason,
+    if (partnerBadge != null) 'partnerBadge': partnerBadge,
   };
 
   factory CandidateProfile.fromMap(Map<String, dynamic> map) => CandidateProfile(
@@ -95,6 +154,14 @@ class CandidateProfile {
     longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
     jobTitle: map['jobTitle'] as String?,
     photoUrl: map['photoUrl'] as String?,
+    isAvailableNow: map['isAvailableNow'] as bool? ?? false,
+    availableNowUntil: map['availableNowUntil'] as String?,
+    availableNowUpdatedAt: map['availableNowUpdatedAt'] as String?,
+    verificationStatus: map['verificationStatus'] as String? ?? 'unverified',
+    verificationDate: map['verificationDate'] as String?,
+    verificationMethod: map['verificationMethod'] as String?,
+    verificationRejectionReason: map['verificationRejectionReason'] as String?,
+    partnerBadge: map['partnerBadge'] as String?,
   );
 
   CandidateProfile copyWith({
@@ -113,6 +180,14 @@ class CandidateProfile {
     double? longitude,
     String? jobTitle,
     String? photoUrl,
+    bool? isAvailableNow,
+    String? availableNowUntil,
+    String? availableNowUpdatedAt,
+    String? verificationStatus,
+    String? verificationDate,
+    String? verificationMethod,
+    String? verificationRejectionReason,
+    String? partnerBadge,
   }) => CandidateProfile(
     profileId: profileId ?? this.profileId,
     userId: userId ?? this.userId,
@@ -129,5 +204,13 @@ class CandidateProfile {
     longitude: longitude ?? this.longitude,
     jobTitle: jobTitle ?? this.jobTitle,
     photoUrl: photoUrl ?? this.photoUrl,
+    isAvailableNow: isAvailableNow ?? this.isAvailableNow,
+    availableNowUntil: availableNowUntil ?? this.availableNowUntil,
+    availableNowUpdatedAt: availableNowUpdatedAt ?? this.availableNowUpdatedAt,
+    verificationStatus: verificationStatus ?? this.verificationStatus,
+    verificationDate: verificationDate ?? this.verificationDate,
+    verificationMethod: verificationMethod ?? this.verificationMethod,
+    verificationRejectionReason: verificationRejectionReason ?? this.verificationRejectionReason,
+    partnerBadge: partnerBadge ?? this.partnerBadge,
   );
 }

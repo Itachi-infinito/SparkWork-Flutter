@@ -34,6 +34,15 @@ import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
 import '../../views/recruiter/plan_selection_page.dart';
+import '../../views/candidate/flash_offer_detail_screen.dart';
+import '../../views/candidate/verification_screen.dart';
+import '../../views/candidate/recommendations_page.dart';
+import '../../views/recruiter/team_management_page.dart';
+import '../../views/recruiter/insights_page.dart';
+import '../../views/shared/notification_settings_page.dart';
+import '../../views/shared/rating_screen.dart';
+import '../../views/shared/reviews_list_screen.dart';
+import '../../models/job_offer.dart';
 
 const _publicPaths = [
   '/splash',
@@ -145,6 +154,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/candidate/liked-offers',
         builder: (context, state) => const LikedOffersPage(),
       ),
+      GoRoute(
+        path: '/candidate/flash/:id',
+        builder: (context, state) {
+          final offer = state.extra as JobOffer;
+          return FlashOfferDetailScreen(offer: offer);
+        },
+      ),
+      GoRoute(
+        path: '/candidate/verification',
+        builder: (context, state) => const VerificationScreen(),
+      ),
+      GoRoute(
+        path: '/candidate/recommendations',
+        builder: (context, state) => const RecommendationsPage(),
+      ),
 
       // Recruiter routes
       GoRoute(
@@ -205,6 +229,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/recruiter/plans',
         builder: (context, state) => const PlanSelectionPage(),
       ),
+      GoRoute(
+        path: '/recruiter/team',
+        builder: (context, state) => const TeamManagementPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/insights',
+        builder: (context, state) => const InsightsPage(),
+      ),
 
       // Shared routes
       GoRoute(
@@ -232,6 +264,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/notifications/settings',
+        builder: (context, state) => const NotificationSettingsPage(),
+      ),
+      GoRoute(
+        path: '/rate/:matchId',
+        builder: (context, state) {
+          final matchId = state.pathParameters['matchId']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return RatingScreen(
+            matchId: matchId,
+            targetUserId: extra['targetUserId'] as String? ?? '',
+            targetName: extra['targetName'] as String? ?? '',
+            isRecruiter: extra['isRecruiter'] as bool? ?? false,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/reviews/:userId',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          final displayName = (state.extra as Map<String, dynamic>?)?['displayName'] as String? ?? '';
+          return ReviewsListScreen(userId: userId, displayName: displayName);
+        },
       ),
     ],
   );

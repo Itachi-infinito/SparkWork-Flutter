@@ -7,7 +7,9 @@ import '../../core/utils/profile_completion.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/profile_completion_card.dart';
 import '../../models/candidate_profile.dart';
+import '../../core/widgets/available_now_badge.dart';
 import '../../repositories/candidate_profile_repository.dart';
+import '../../services/availability_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 
@@ -174,6 +176,15 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                     const SizedBox(height: 20),
                   ],
 
+                  _AvailableNowCard(profile: p, onToggle: () => _load(forceServer: true)),
+                  const SizedBox(height: 16),
+
+                  _VerificationCard(
+                    status: p.verificationStatus,
+                    onTap: () => context.push('/candidate/verification'),
+                  ),
+                  const SizedBox(height: 20),
+
                   if (p.bio.isNotEmpty) ...[
                     _SectionTitle('À propos'),
                     const SizedBox(height: 8),
@@ -328,6 +339,170 @@ class _PrefTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvailableNowCard extends ConsumerWidget {
+  final CandidateProfile profile;
+  final VoidCallback onToggle;
+  const _AvailableNowCard({required this.profile, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isActive = profile.isAvailableNowActive;
+    final daysLeft = profile.availableNowDaysLeft;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.green.withOpacity(0.07) : context.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isActive ? AppColors.green.withOpacity(0.4) : context.borderColor,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AppColors.green.withOpacity(0.15)
+                  : AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.bolt,
+              color: isActive ? AppColors.green : AppColors.primary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Disponible maintenant',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isActive
+                      ? 'Expire dans $daysLeft jour${daysLeft > 1 ? 's' : ''}'
+                      : 'Signalez votre disponibilité immédiate',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isActive ? AppColors.green : context.textSecondaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isActive,
+            activeColor: AppColors.green,
+            onChanged: (v) async {
+              final svc = ref.read(availabilityServiceProvider);
+              final userId = ref.read(sessionProvider).userId;
+              if (v) {
+                await svc.enableAvailableNow(userId);
+              } else {
+                await svc.disableAvailableNow(userId);
+              }
+              onToggle();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerificationCard extends StatelessWidget {
+  final String status;
+  final VoidCallback onTap;
+  const _VerificationCard({required this.status, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color;
+    final IconData icon;
+    final String label;
+    final String sub;
+
+    switch (status) {
+      case 'verified':
+        color = const Color(0xFF3B82F6);
+        icon = Icons.verified_user;
+        label = 'Identité vérifiée';
+        sub = 'Badge de confiance actif';
+        break;
+      case 'pending':
+        color = AppColors.orange;
+        icon = Icons.hourglass_bottom_outlined;
+        label = 'Vérification en cours';
+        sub = 'Délai : 24 à 48h ouvrées';
+        break;
+      case 'rejected':
+        color = AppColors.red;
+        icon = Icons.gpp_bad_outlined;
+        label = 'Vérification rejetée';
+        sub = 'Appuyez pour re-soumettre';
+        break;
+      default:
+        color = AppColors.primary;
+        icon = Icons.shield_outlined;
+        label = 'Vérifier mon identité';
+        sub = 'Obtenez le badge de confiance';
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: context.textPrimaryColor)),
+                  const SizedBox(height: 2),
+                  Text(sub,
+                      style: TextStyle(fontSize: 12, color: color)),
+                ],
+              ),
+            ),
+            if (status != 'verified' && status != 'pending')
+              Icon(Icons.chevron_right, color: context.textSecondaryColor),
+          ],
+        ),
       ),
     );
   }

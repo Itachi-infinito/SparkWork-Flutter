@@ -316,14 +316,35 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
               ],
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: _QuickAction(
-                icon: Icons.bar_chart_outlined,
-                label: 'Statistiques',
-                color: AppColors.primary,
-                onTap: () => context.push('/recruiter/stats'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.bar_chart_outlined,
+                    label: 'Statistiques',
+                    color: AppColors.primary,
+                    onTap: () => context.push('/recruiter/stats'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.group_outlined,
+                    label: 'Mon équipe',
+                    color: const Color(0xFF8B5CF6),
+                    onTap: () => context.push('/recruiter/team'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.insights_outlined,
+                    label: 'Insights',
+                    color: AppColors.orange,
+                    onTap: () => context.push('/recruiter/insights'),
+                  ),
+                ),
+              ],
             ),
 
             // Recent matches

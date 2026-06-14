@@ -488,6 +488,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       body: Column(
         children: [
           if (_hasActiveFilters) _buildActiveFilterChips(),
+          if (!_loading && _error == null && _flashOffers.isNotEmpty)
+            _buildFlashSection(),
           Expanded(
             child: _loading
                 ? const Center(
@@ -573,6 +575,50 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
           ),
         ],
       ),
+    );
+  }
+
+  List<JobOffer> get _flashOffers =>
+      _allOffers.where((o) => o.isFlash && o.isFlashActive).toList();
+
+  Widget _buildFlashSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 18),
+              const SizedBox(width: 6),
+              const Text('Missions Flash',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFF59E0B))),
+              const Spacer(),
+              Text('${_flashOffers.length} disponible${_flashOffers.length > 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _flashOffers.length,
+            itemBuilder: (ctx, i) {
+              final o = _flashOffers[i];
+              return GestureDetector(
+                onTap: () => context.push('/candidate/flash/${o.jobOfferId}', extra: o),
+                child: _FlashMiniCard(offer: o),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
     );
   }
 
@@ -1179,6 +1225,63 @@ class _CardBadge extends StatelessWidget {
       child: Text(label,
           style: const TextStyle(
               color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+    );
+  }
+}
+
+class _FlashMiniCard extends StatelessWidget {
+  final JobOffer offer;
+  const _FlashMiniCard({required this.offer});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF92400E), Color(0xFFF59E0B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFFF59E0B).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(children: [
+            const Icon(Icons.bolt, color: Color(0xFFFBBF24), size: 14),
+            const SizedBox(width: 3),
+            Text(offer.flashRemainingDisplay,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          ]),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(offer.title,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(offer.companyName,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.75), fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

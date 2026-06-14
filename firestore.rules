@@ -180,5 +180,90 @@ service cloud.firestore {
     match /boost_credits/{userId} {
       allow read, write: if isAuth() && request.auth.uid == userId;
     }
+
+    // Moyennes de notes — lecture par tous, écriture serveur (Cloud Function)
+    match /average_ratings/{userId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Recommandations — gestion par le candidat concerné
+    match /recommendations/{recId} {
+      allow read: if isAuth() && (
+          resource.data.candidateId == request.auth.uid ||
+          resource.data.status == 'approved');
+      allow create: if isAuth()
+          && request.resource.data.candidateId == request.auth.uid;
+      allow update: if isAuth() && (
+          resource.data.candidateId == request.auth.uid ||
+          resource.data.status == 'pending');
+      allow delete: if isAuth()
+          && resource.data.candidateId == request.auth.uid;
+    }
+
+    // Équipes — membres lisent, propriétaire écrit
+    match /teams/{teamId} {
+      allow read: if isAuth() && (
+          resource.data.members[request.auth.uid] != null ||
+          resource.data.companyId == request.auth.uid);
+      allow create: if isAuth()
+          && request.resource.data.companyId == request.auth.uid;
+      allow update, delete: if isAuth()
+          && resource.data.companyId == request.auth.uid;
+    }
+
+    // Votes d'équipe sur les candidatures
+    match /swipe_votes/{voteId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth()
+          && request.resource.data.voterId == request.auth.uid;
+      allow delete: if isAuth()
+          && resource.data.voterId == request.auth.uid;
+    }
+
+    // Invitations d'équipe
+    match /team_invitations/{invId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (
+          resource.data.invitedByUserId == request.auth.uid ||
+          resource.data.email == request.auth.token.email);
+    }
+
+    // Rapports d'insights marché — lecture Pro uniquement (vérifié via abo)
+    match /insight_reports/{reportId} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    // Partenaires — lecture par tous (pour validation du code)
+    match /partners/{partnerId} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    // Filleuls — lecture par le partenaire et le filleul
+    match /referrals/{refId} {
+      allow read: if isAuth() && (
+          resource.data.partnerId == request.auth.uid ||
+          resource.data.referredUserId == request.auth.uid);
+      allow create: if isAuth()
+          && request.resource.data.referredUserId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Préférences de notifications — lecture/écriture par le propriétaire
+    match /notification_preferences/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Demandes de vérification d'identité — seul le propriétaire et l'admin
+    match /verification_requests/{reqId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth()
+          && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
   }
 }

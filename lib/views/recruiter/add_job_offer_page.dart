@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
@@ -35,7 +34,8 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
   bool _loading = false;
   String? _error;
   bool _isFlash = false;
-  DateTime? _flashEndDateTime;
+  int _flashDurationHours = 24;
+  String _urgencyLevel = 'normal';
 
   @override
   void dispose() {
@@ -77,11 +77,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         setState(() { _error = 'Le salaire minimum ne peut pas dépasser le maximum.'; });
         return;
       }
-      if (_isFlash && _flashEndDateTime == null) {
-        setState(() => _error = 'Choisissez une date d\'expiration pour l\'offre Flash.');
-        return;
-      }
-
+      final now = DateTime.now().toUtc();
       final offer = JobOffer(
         jobOfferId: '',
         recruiterUserId: session.userId,
@@ -97,9 +93,12 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         remoteMode: _remoteMode ?? '',
         level: _level ?? '',
         isFlash: _isFlash,
-        flashEndDate: _isFlash && _flashEndDateTime != null
-            ? _flashEndDateTime!.toUtc().toIso8601String()
+        flashStartDate: _isFlash ? now.toIso8601String() : '',
+        flashDurationHours: _isFlash ? _flashDurationHours : 0,
+        flashEndDate: _isFlash
+            ? now.add(Duration(hours: _flashDurationHours)).toIso8601String()
             : '',
+        urgencyLevel: _urgencyLevel,
       );
 
       await ref.read(jobOfferRepositoryProvider).insertOffer(offer);
@@ -342,12 +341,11 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               const SizedBox(height: 8),
               _FlashSection(
                 isFlash: _isFlash,
-                flashEndDateTime: _flashEndDateTime,
-                onToggle: (v) => setState(() {
-                  _isFlash = v;
-                  if (!v) _flashEndDateTime = null;
-                }),
-                onPickDate: _pickFlashDateTime,
+                durationHours: _flashDurationHours,
+                urgencyLevel: _urgencyLevel,
+                onToggle: (v) => setState(() => _isFlash = v),
+                onDurationChanged: (h) => setState(() => _flashDurationHours = h),
+                onUrgencyChanged: (u) => setState(() => _urgencyLevel = u),
               ),
               const SizedBox(height: 32),
 
@@ -370,28 +368,6 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _pickFlashDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(hours: 6)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: 'Date d\'expiration',
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(
-          DateTime.now().add(const Duration(hours: 6))),
-      helpText: 'Heure d\'expiration',
-    );
-    if (time == null || !mounted) return;
-    setState(() {
-      _flashEndDateTime =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
   }
 
   Widget _sectionLabel(String text) {
@@ -464,79 +440,123 @@ class _SkillPicker extends StatelessWidget {
 
 class _FlashSection extends StatelessWidget {
   final bool isFlash;
-  final DateTime? flashEndDateTime;
+  final int durationHours;
+  final String urgencyLevel;
   final ValueChanged<bool> onToggle;
-  final VoidCallback onPickDate;
+  final ValueChanged<int> onDurationChanged;
+  final ValueChanged<String> onUrgencyChanged;
 
   const _FlashSection({
     required this.isFlash,
-    required this.flashEndDateTime,
+    required this.durationHours,
+    required this.urgencyLevel,
     required this.onToggle,
-    required this.onPickDate,
+    required this.onDurationChanged,
+    required this.onUrgencyChanged,
   });
+
+  static const _amber = Color(0xFFFF9800);
+  static const _durations = [2, 4, 8, 12, 24, 48, 72];
 
   @override
   Widget build(BuildContext context) {
-    const amber = Color(0xFFFF9800);
     return Container(
       decoration: BoxDecoration(
         color: isFlash ? const Color(0xFFFFF8E1) : context.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: isFlash ? amber : context.borderColor),
+        border: Border.all(color: isFlash ? _amber : context.borderColor),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                const Icon(Icons.bolt, color: amber, size: 22),
+                const Icon(Icons.bolt, color: _amber, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Offre Flash',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14)),
-                      Text(
-                          'Expire automatiquement à la date choisie',
-                          style: TextStyle(
-                              fontSize: 11, color: context.textSecondaryColor)),
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text('Expire automatiquement après la durée choisie',
+                          style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
                     ],
                   ),
                 ),
-                Switch(
-                  value: isFlash,
-                  onChanged: onToggle,
-                  activeColor: amber,
-                ),
+                Switch(value: isFlash, onChanged: onToggle, activeColor: _amber),
               ],
             ),
           ),
           if (isFlash) ...[
             const Divider(height: 1),
-            ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              leading: const Icon(Icons.schedule, color: amber),
-              title: Text(
-                flashEndDateTime == null
-                    ? 'Choisir la date d\'expiration *'
-                    : DateFormat('dd/MM/yyyy HH:mm')
-                        .format(flashEndDateTime!),
-                style: TextStyle(
-                    fontSize: 13,
-                    color: flashEndDateTime == null
-                        ? context.textHintColor
-                        : context.textPrimaryColor),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Durée de la mission',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondaryColor)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    value: durationHours,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.schedule, color: _amber),
+                      isDense: true,
+                    ),
+                    items: _durations.map((h) => DropdownMenuItem(
+                      value: h,
+                      child: Text(h < 24 ? '$h heures' : '${h ~/ 24} jour${h >= 48 ? 's' : ''}'),
+                    )).toList(),
+                    onChanged: (v) { if (v != null) onDurationChanged(v); },
+                  ),
+                  const SizedBox(height: 16),
+                  Text("Niveau d'urgence",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondaryColor)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    _UrgencyChip(label: 'Normal', value: 'normal', current: urgencyLevel, color: AppColors.green, onTap: onUrgencyChanged),
+                    const SizedBox(width: 8),
+                    _UrgencyChip(label: 'Urgent', value: 'urgent', current: urgencyLevel, color: _amber, onTap: onUrgencyChanged),
+                    const SizedBox(width: 8),
+                    _UrgencyChip(label: 'Très urgent', value: 'very_urgent', current: urgencyLevel, color: AppColors.red, onTap: onUrgencyChanged),
+                  ]),
+                  const SizedBox(height: 12),
+                ],
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onPickDate,
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _UrgencyChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final String current;
+  final Color color;
+  final ValueChanged<String> onTap;
+  const _UrgencyChip({required this.label, required this.value, required this.current, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = current == value;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? color : context.borderColor),
+        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? color : context.textSecondaryColor)),
       ),
     );
   }

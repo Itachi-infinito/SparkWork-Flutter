@@ -15,6 +15,8 @@ import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/report_repository.dart';
 import 'package:flutter/services.dart';
+import '../../core/widgets/available_now_badge.dart';
+import '../../models/subscription.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
@@ -45,12 +47,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   String _filterLocation = '';
   String _filterSkill = '';
 
+  bool _filterAvailableNow = false;
+  SubscriptionPlan _userPlan = SubscriptionPlan.free;
+
   bool get _hasActiveFilters =>
       _filterContractType.isNotEmpty ||
       _filterLevel.isNotEmpty ||
       _filterRemoteMode.isNotEmpty ||
       _filterLocation.isNotEmpty ||
-      _filterSkill.isNotEmpty;
+      _filterSkill.isNotEmpty ||
+      _filterAvailableNow;
 
   DocumentSnapshot? _lastDoc;
   bool _hasMore = true;
@@ -127,11 +133,18 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         final score = _selectedOffer != null ? compat.calculateScore(p, _selectedOffer!) : 50;
         return _SwipeItem(profile: p, score: score);
       }).toList();
-      _items.sort((a, b) => b.score.compareTo(a.score));
+      // Priorité : disponibles maintenant en premier, puis par score
+      _items.sort((a, b) {
+        final aAvail = a.profile.isAvailableNowActive ? 1 : 0;
+        final bAvail = b.profile.isAvailableNowActive ? 1 : 0;
+        if (bAvail != aAvail) return bAvail.compareTo(aAvail);
+        return b.score.compareTo(a.score);
+      });
       _applyFilters();
 
       final remaining = await ref.read(subscriptionServiceProvider).getRemainingSwipes(session.userId);
-      if (mounted) setState(() => _remainingSwipes = remaining);
+      final plan = await ref.read(subscriptionServiceProvider).getCurrentPlan(session.userId);
+      if (mounted) setState(() { _remainingSwipes = remaining; _userPlan = plan; });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -159,6 +172,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           return false;
         }
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) {
+          return false;
+        }
+        if (_filterAvailableNow && !p.isAvailableNowActive) {
           return false;
         }
         return true;
@@ -202,6 +218,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         if (_filterRemoteMode.isNotEmpty &&
             !AppSkills.parseSkills(p.remotePreference).contains(_filterRemoteMode)) return false;
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) return false;
+        if (_filterAvailableNow && !p.isAvailableNowActive) return false;
         return true;
       }).toList();
 
@@ -319,6 +336,24 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                         .toList(),
                     onChanged: (v) => setSheet(() => tmpSkill = v ?? ''),
                   ),
+                  if (_userPlan != SubscriptionPlan.free) ...[
+                    const SizedBox(height: 20),
+                    const Text('Disponibilité', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    StatefulBuilder(
+                      builder: (_, setLocal) => CheckboxListTile(
+                        value: _filterAvailableNow,
+                        onChanged: (v) {
+                          setState(() => _filterAvailableNow = v ?? false);
+                          setLocal(() {});
+                        },
+                        title: const Text('Disponibles maintenant uniquement'),
+                        activeColor: AppColors.green,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 32),
 
                   Row(children: [
@@ -331,6 +366,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           tmpRemoteMode = '';
                           tmpSkill = '';
                           locationCtrl.clear();
+                          setState(() => _filterAvailableNow = false);
                         }),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: context.textSecondaryColor),
@@ -788,6 +824,13 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               ),
             ),
           ),
+
+          // Available Now badge — top left
+          if (p.isAvailableNowActive)
+            const Positioned(
+              top: 16, left: 16,
+              child: AvailableNowBadge(),
+            ),
 
           // Score badge — top right
           Positioned(
