@@ -10,20 +10,32 @@ class VerificationService {
   final _db = FirebaseFirestore.instance;
   final _storage = FirebaseStorage.instance;
 
+  Future<DocumentReference?> _profileRef(String userId) async {
+    final q = await _db
+        .collection('candidate_profiles')
+        .where('userId', isEqualTo: userId)
+        .limit(1)
+        .get();
+    if (q.docs.isEmpty) return null;
+    return q.docs.first.reference;
+  }
+
   /// Soumet un document d'identité pour vérification.
-  /// Retourne l'URL du document uploadé.
   // TODO: integrate Onfido ou Stripe Identity pour la vérification automatique
   Future<String> submitDocument(String userId, File document, String side) async {
-    final ref = _storage
+    final storageRef = _storage
         .ref('verification_docs/$userId/${side}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-    await ref.putFile(document);
-    final url = await ref.getDownloadURL();
+    await storageRef.putFile(document);
+    final url = await storageRef.getDownloadURL();
 
-    await _db.collection('candidate_profiles').doc(userId).update({
-      'verificationStatus': 'pending',
-      'verificationMethod': 'document',
-      'verificationRejectionReason': null,
-    });
+    final ref = await _profileRef(userId);
+    if (ref != null) {
+      await ref.update({
+        'verificationStatus': 'pending',
+        'verificationMethod': 'document',
+        'verificationRejectionReason': null,
+      });
+    }
 
     // Créer une entrée dans la collection verification_requests pour l'admin
     await _db.collection('verification_requests').add({
@@ -40,11 +52,14 @@ class VerificationService {
   /// [Admin] Approuve une vérification.
   Future<void> approveVerification(String userId) async {
     final now = DateTime.now().toIso8601String();
-    await _db.collection('candidate_profiles').doc(userId).update({
-      'verificationStatus': 'verified',
-      'verificationDate': now,
-      'verificationRejectionReason': null,
-    });
+    final ref = await _profileRef(userId);
+    if (ref != null) {
+      await ref.update({
+        'verificationStatus': 'verified',
+        'verificationDate': now,
+        'verificationRejectionReason': null,
+      });
+    }
     // Mettre à jour la requête admin
     final requests = await _db
         .collection('verification_requests')
@@ -59,11 +74,14 @@ class VerificationService {
   /// [Admin] Rejette une vérification avec raison.
   Future<void> rejectVerification(String userId, String reason) async {
     final now = DateTime.now().toIso8601String();
-    await _db.collection('candidate_profiles').doc(userId).update({
-      'verificationStatus': 'rejected',
-      'verificationRejectionReason': reason,
-      'verificationDate': now,
-    });
+    final ref = await _profileRef(userId);
+    if (ref != null) {
+      await ref.update({
+        'verificationStatus': 'rejected',
+        'verificationRejectionReason': reason,
+        'verificationDate': now,
+      });
+    }
     final requests = await _db
         .collection('verification_requests')
         .where('userId', isEqualTo: userId)

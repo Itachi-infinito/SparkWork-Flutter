@@ -49,9 +49,14 @@ class PartnerService {
 
     // Ajouter le badge sur le profil candidat si applicable
     if (referredUserType == 'candidate') {
-      await _db.collection('candidate_profiles').doc(candidateId).update({
-        'partnerBadge': partnerName,
-      });
+      final q = await _db
+          .collection('candidate_profiles')
+          .where('userId', isEqualTo: candidateId)
+          .limit(1)
+          .get();
+      if (q.docs.isNotEmpty) {
+        await q.docs.first.reference.update({'partnerBadge': partnerName});
+      }
     }
   }
 

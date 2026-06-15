@@ -7,11 +7,23 @@ final availabilityServiceProvider =
 class AvailabilityService {
   final _db = FirebaseFirestore.instance;
 
+  Future<DocumentReference?> _profileRef(String userId) async {
+    final q = await _db
+        .collection('candidate_profiles')
+        .where('userId', isEqualTo: userId)
+        .limit(1)
+        .get();
+    if (q.docs.isEmpty) return null;
+    return q.docs.first.reference;
+  }
+
   /// Active le mode "Disponible maintenant" pour 7 jours.
   Future<void> enableAvailableNow(String userId) async {
+    final ref = await _profileRef(userId);
+    if (ref == null) return;
     final now = DateTime.now();
     final until = now.add(const Duration(days: 7));
-    await _db.collection('candidate_profiles').doc(userId).update({
+    await ref.update({
       'isAvailableNow': true,
       'availableNowUntil': until.toIso8601String(),
       'availableNowUpdatedAt': now.toIso8601String(),
@@ -20,7 +32,9 @@ class AvailabilityService {
 
   /// Désactive le mode "Disponible maintenant".
   Future<void> disableAvailableNow(String userId) async {
-    await _db.collection('candidate_profiles').doc(userId).update({
+    final ref = await _profileRef(userId);
+    if (ref == null) return;
+    await ref.update({
       'isAvailableNow': false,
       'availableNowUntil': null,
     });
@@ -32,16 +46,18 @@ class AvailabilityService {
   /// Vérifie et expire automatiquement si dépassé.
   Future<bool> checkAndExpire(String userId) async {
     try {
-      final doc = await _db.collection('candidate_profiles').doc(userId).get();
-      if (!doc.exists) return false;
-      final data = doc.data()!;
+      final ref = await _profileRef(userId);
+      if (ref == null) return false;
+      final snap = await ref.get();
+      if (!snap.exists) return false;
+      final data = snap.data() as Map<String, dynamic>? ?? {};
       final isActive = data['isAvailableNow'] as bool? ?? false;
       if (!isActive) return false;
       final until = data['availableNowUntil'] as String?;
       if (until == null) return false;
       final expiry = DateTime.tryParse(until);
       if (expiry == null || expiry.isBefore(DateTime.now())) {
-        await disableAvailableNow(userId);
+        await ref.update({'isAvailableNow': false, 'availableNowUntil': null});
         return false;
       }
       return true;
