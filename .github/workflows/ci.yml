@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  flutter:
+    name: Flutter analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      # Le projet a ~280 lints info pré-existants (deprecated_member_use,
+      # withOpacity...) volontairement non corrigés — on ne fait échouer
+      # le build que sur de vraies erreurs, jamais sur ces infos.
+      - name: Flutter analyze (fail only on real errors)
+        run: |
+          set -o pipefail
+          flutter analyze > analyze_output.txt 2>&1 || true
+          cat analyze_output.txt
+          if grep -qE '^\s*error' analyze_output.txt; then
+            echo "::error::Real analyzer errors found."
+            exit 1
+          fi
+          echo "No real errors (info-level lints ignored)."
+
+      - run: flutter test
+
+  functions:
+    name: Cloud Functions build & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test

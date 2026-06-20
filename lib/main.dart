@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +31,16 @@ void main() async {
     runApp(_FirebaseErrorApp(error: e.toString()));
     return;
   }
+
+  // Crashlytics désactivé en debug (sinon chaque hot-reload/erreur de dev
+  // polluerait le dashboard) — actif uniquement sur les builds release/profile.
+  await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
   await NotificationService.initialize();
   await SubscriptionService().initialize();
   runApp(const ProviderScope(child: SparkWorkApp()));
@@ -137,6 +149,7 @@ class _SparkWorkAppState extends ConsumerState<SparkWorkApp> {
       } else {
         svc.logOut();
       }
+      FirebaseCrashlytics.instance.setUserIdentifier(currentUserId ?? '');
     }
 
     // Démarre/arrête la surveillance de session unique par appareil pour

@@ -33,7 +33,8 @@ class SwipeHistoryService {
   }
 
   /// Nombre de jours d'historique visibles selon le plan — 0 = pas d'historique.
-  int historyDaysForPlan(SubscriptionPlan plan) {
+  /// Static : logique pure, testable sans instancier Firebase.
+  static int historyDaysForPlan(SubscriptionPlan plan) {
     switch (plan) {
       case SubscriptionPlan.free: return 0;
       case SubscriptionPlan.starter: return 7;
