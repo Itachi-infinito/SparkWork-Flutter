@@ -3,12 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/app_user.dart';
+import 'session_security_service.dart';
 
 final profileVersionProvider = StateProvider<int>((ref) => 0);
 
 final sessionProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
-  return SessionNotifier();
+  return SessionNotifier(ref);
 });
 
 class SessionState {
@@ -24,6 +25,7 @@ class SessionState {
   String get fullName => user?.fullName ?? '';
   bool get isCandidate => role == 'candidate';
   bool get isRecruiter => role == 'recruiter';
+  bool get isAdmin => user?.isAdmin ?? false;
 
   // Backward-compat aliases
   String get userRole => role;
@@ -32,9 +34,10 @@ class SessionState {
 }
 
 class SessionNotifier extends StateNotifier<SessionState> {
+  final Ref _ref;
   StreamSubscription<User?>? _authSub;
 
-  SessionNotifier() : super(const SessionState(isLoading: true)) {
+  SessionNotifier(this._ref) : super(const SessionState(isLoading: true)) {
     _authSub =
         FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
   }
@@ -59,6 +62,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
         email: firebaseUser.email ?? '',
         fullName: data['fullName'] as String? ?? '',
         role: data['role'] as String? ?? '',
+        isAdmin: data['isAdmin'] as bool? ?? false,
       );
       state = SessionState(user: appUser, isLoading: false);
     } catch (_) {
@@ -72,6 +76,11 @@ class SessionNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> logout() async {
+    // Marquer la session inactive AVANT le signOut : une fois déconnecté,
+    // les Security Rules refuseraient l'écriture sur active_sessions.
+    try {
+      await _ref.read(sessionSecurityServiceProvider).markCurrentSessionLoggedOut();
+    } catch (_) {}
     await FirebaseAuth.instance.signOut();
     state = const SessionState(isLoading: false);
   }

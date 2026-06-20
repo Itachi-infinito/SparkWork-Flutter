@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../models/job_offer.dart';
+import '../../models/subscription.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../services/session_service.dart';
+import '../../services/spark_boost_service.dart';
+import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
+import '../shared/quota_reached_bottom_sheet.dart';
 
 class RecruiterJobOffersPage extends ConsumerStatefulWidget {
   const RecruiterJobOffersPage({super.key});
@@ -20,6 +24,8 @@ class _RecruiterJobOffersPageState
     extends ConsumerState<RecruiterJobOffersPage> {
   List<JobOffer> _offers = [];
   bool _loading = true;
+  SubscriptionPlan _userPlan = SubscriptionPlan.free;
+  bool _boosting = false;
 
   @override
   void initState() {
@@ -33,7 +39,61 @@ class _RecruiterJobOffersPageState
     final offers = await ref
         .read(jobOfferRepositoryProvider)
         .getOffersByRecruiter(session.userId);
-    if (mounted) setState(() { _offers = offers; _loading = false; });
+    final plan = await ref.read(subscriptionServiceProvider).getCurrentPlan(session.userId);
+    if (mounted) setState(() { _offers = offers; _userPlan = plan; _loading = false; });
+  }
+
+  Future<void> _boost(JobOffer offer) async {
+    final session = ref.read(sessionProvider);
+    final subSvc = ref.read(subscriptionServiceProvider);
+
+    if (_userPlan == SubscriptionPlan.free) {
+      final sub = await subSvc.getSubscription(session.userId);
+      if (mounted) {
+        await showQuotaReachedSheet(context, quotaType: QuotaType.boosts, currentPlan: sub.effectivePlan);
+      }
+      return;
+    }
+
+    final remaining = await subSvc.getRemainingBoosts(session.userId);
+    if (remaining <= 0) {
+      final sub = await subSvc.getSubscription(session.userId);
+      if (mounted) {
+        await showQuotaReachedSheet(context, quotaType: QuotaType.boosts, currentPlan: sub.effectivePlan);
+      }
+      return;
+    }
+
+    setState(() => _boosting = true);
+    try {
+      if (_userPlan == SubscriptionPlan.pro) {
+        final result = await ref.read(sparkBoostServiceProvider).activateSmartBoost(offer.jobOfferId);
+        await subSvc.useBoost(session.userId, offer.jobOfferId);
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('SparkBoost activé 🚀'),
+              content: Text(
+                  'Votre offre a été boostée auprès de ${result.targetCount} candidat${result.targetCount > 1 ? 's' : ''} '
+                  'qualifié${result.targetCount > 1 ? 's' : ''} dans un rayon de ${result.radiusKm} km.'),
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            ),
+          );
+        }
+      } else {
+        await subSvc.useBoost(session.userId, offer.jobOfferId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Offre boostée en tête de pile pour tous les candidats actifs.'),
+            backgroundColor: AppColors.green,
+          ));
+        }
+      }
+      _load();
+    } finally {
+      if (mounted) setState(() => _boosting = false);
+    }
   }
 
   Future<void> _delete(JobOffer offer) async {
@@ -195,6 +255,7 @@ class _RecruiterJobOffersPageState
                                   ),
                                 ),
                                 PopupMenuButton<String>(
+                                  enabled: !_boosting,
                                   onSelected: (v) {
                                     if (v == 'edit') {
                                       context
@@ -203,9 +264,10 @@ class _RecruiterJobOffersPageState
                                           .then((_) => _load());
                                     }
                                     if (v == 'delete') _delete(offer);
+                                    if (v == 'boost') _boost(offer);
                                   },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
                                         value: 'edit',
                                         child: ListTile(
                                             leading: Icon(Icons.edit_outlined),
@@ -213,6 +275,15 @@ class _RecruiterJobOffersPageState
                                             contentPadding: EdgeInsets.zero,
                                             dense: true)),
                                     PopupMenuItem(
+                                        value: 'boost',
+                                        child: ListTile(
+                                            leading: const Icon(Icons.rocket_launch_outlined,
+                                                color: AppColors.orange),
+                                            title: Text(offer.isBoosted ? 'Déjà boostée' : 'Booster',
+                                                style: const TextStyle(color: AppColors.orange)),
+                                            contentPadding: EdgeInsets.zero,
+                                            dense: true)),
+                                    const PopupMenuItem(
                                         value: 'delete',
                                         child: ListTile(
                                             leading: Icon(Icons.delete_outline,
@@ -244,6 +315,10 @@ class _RecruiterJobOffersPageState
                                   _Tag('⚡ Flash',
                                       const Color(0xFFFFF3CD),
                                       const Color(0xFFB45309)),
+                                if (offer.isBoosted)
+                                  _Tag('🚀 Boostée',
+                                      AppColors.primaryLight,
+                                      AppColors.primary),
                               ],
                             ),
                           ],

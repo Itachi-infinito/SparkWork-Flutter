@@ -1,4 +1,4 @@
-﻿class Match {
+class Match {
   final String matchId;
   final String candidateUserId;
   final String recruiterUserId;
@@ -26,6 +26,9 @@
   });
 
   bool get isHiredConfirmed => hiredByCandidate && hiredByRecruiter;
+
+  /// 'matched' tant que l'embauche n'est pas confirmée par les deux parties, sinon 'hired'.
+  String get status => isHiredConfirmed ? 'hired' : 'matched';
 
   Map<String, dynamic> toMap() => {
         'matchId': matchId,

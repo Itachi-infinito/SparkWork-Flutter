@@ -88,6 +88,22 @@ class TeamService {
     final updated = team.members.where((m) => m.userId != userId).toList();
     await _db.collection('teams').doc(teamId).update({
       'members': updated.map((m) => m.toMap()).toList(),
+      // memberIds doit rester synchronisé avec members — c'est lui que les
+      // Security Rules utilisent pour vérifier l'appartenance à l'équipe.
+      'memberIds': updated.map((m) => m.userId).toList(),
+    });
+  }
+
+  /// Ajoute un membre (acceptation d'invitation). Garde memberIds synchronisé.
+  Future<void> addMember(String teamId, TeamMember member) async {
+    final doc = await _db.collection('teams').doc(teamId).get();
+    if (!doc.exists) return;
+    final team = Team.fromMap(doc.data()!);
+    if (team.isMember(member.userId)) return;
+    final updated = [...team.members, member];
+    await _db.collection('teams').doc(teamId).update({
+      'members': updated.map((m) => m.toMap()).toList(),
+      'memberIds': updated.map((m) => m.userId).toList(),
     });
   }
 
@@ -172,5 +188,53 @@ class TeamService {
     } catch (_) {
       return null;
     }
+  }
+
+  // ─── Notes internes d'équipe ────────────────────────────────────────────────
+
+  Future<CandidateNote?> getCandidateNote(String teamId, String candidateId) async {
+    try {
+      final doc = await _db
+          .collection('teams')
+          .doc(teamId)
+          .collection('candidate_notes')
+          .doc(candidateId)
+          .get();
+      if (!doc.exists) return null;
+      return CandidateNote.fromMap(doc.data()!, doc.id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Stream<CandidateNote?> watchCandidateNote(String teamId, String candidateId) {
+    return _db
+        .collection('teams')
+        .doc(teamId)
+        .collection('candidate_notes')
+        .doc(candidateId)
+        .snapshots()
+        .map((snap) => snap.exists ? CandidateNote.fromMap(snap.data()!, snap.id) : null);
+  }
+
+  Future<void> saveCandidateNote({
+    required String teamId,
+    required String candidateId,
+    required String text,
+    required String authorId,
+    required String authorName,
+  }) async {
+    await _db
+        .collection('teams')
+        .doc(teamId)
+        .collection('candidate_notes')
+        .doc(candidateId)
+        .set(CandidateNote(
+          candidateId: candidateId,
+          text: text,
+          lastEditedBy: authorId,
+          lastEditedByName: authorName,
+          updatedAt: DateTime.now().toIso8601String(),
+        ).toMap());
   }
 }

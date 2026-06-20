@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/subscription.dart';
 import '../../services/auth_service.dart';
+import '../../services/partner_service.dart';
+import '../../services/session_security_service.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/theme_service.dart';
+import '../../services/recruiter_theme_service.dart';
+import '../../models/recruiter_theme.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -17,11 +21,15 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   RecruiterSubscription? _sub;
+  bool _isPartner = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSub());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSub();
+      _checkPartner();
+    });
   }
 
   Future<void> _loadSub() async {
@@ -33,11 +41,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (mounted) setState(() => _sub = sub);
   }
 
+  Future<void> _checkPartner() async {
+    final session = ref.read(sessionProvider);
+    final partner = await ref.read(partnerServiceProvider).getPartnerById(session.userId);
+    if (mounted) setState(() => _isPartner = partner != null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
-    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
+    // Brightness RÉELLEMENT affichée — pas la préférence brute du toggle :
+    // une ambiance colorée (Alpine, Terracotta...) peut forcer le clair ou
+    // le sombre indépendamment du toggle (cf. main.dart effectiveThemeMode).
+    // Se baser sur le toggle brut désynchronise les couleurs de texte du
+    // fond réellement affiché et les rend illisibles.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final recruiterAccent = ref.watch(recruiterThemeProvider);
+    final hasAccent = session.isRecruiter && recruiterAccent != null;
     final roleLabel = session.isCandidate ? 'Candidat' : 'Recruteur';
 
     final bg = Theme.of(context).scaffoldBackgroundColor;
@@ -110,6 +131,50 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               _InfoRow(icon: Icons.badge_outlined, label: 'Rôle', value: roleLabel, textPrimary: textPrimary, textSecondary: textSecondary),
             ],
           ),
+          if (_isPartner) ...[
+            const SizedBox(height: 24),
+            Text('Partenaire',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: textSecondary)),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              surface: surface,
+              border: borderColor,
+              children: [
+                _NavRow(
+                  icon: Icons.handshake_outlined,
+                  label: 'Espace Partenaire',
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  onTap: () => context.push('/partner/dashboard'),
+                ),
+              ],
+            ),
+          ],
+          if (session.isAdmin) ...[
+            const SizedBox(height: 24),
+            Text('Administration',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: textSecondary)),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              surface: surface,
+              border: borderColor,
+              children: [
+                _NavRow(
+                  icon: Icons.admin_panel_settings_outlined,
+                  label: 'Dashboard sécurité',
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  onTap: () => context.push('/admin/security'),
+                ),
+              ],
+            ),
+          ],
           if (session.isRecruiter) ...[
             const SizedBox(height: 24),
             Text('Abonnement',
@@ -151,6 +216,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               Divider(height: 1, color: borderColor),
               _NavRow(
+                icon: Icons.devices_outlined,
+                label: 'Gérer mes sessions actives',
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => context.push('/security/sessions'),
+              ),
+              Divider(height: 1, color: borderColor),
+              _NavRow(
+                icon: Icons.history_toggle_off_outlined,
+                label: 'Supprimer mes logs de sécurité',
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => _deleteSecurityLogs(context, ref),
+              ),
+              Divider(height: 1, color: borderColor),
+              _NavRow(
                 icon: Icons.delete_forever_outlined,
                 label: 'Supprimer mon compte',
                 labelColor: AppColors.red,
@@ -173,11 +254,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             children: [
               _ToggleRow(
                 icon: Icons.dark_mode_outlined,
-                label: 'Mode sombre',
+                label: hasAccent ? 'Mode sombre (déterminé par l\'ambiance)' : 'Mode sombre',
                 value: isDark,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
-                onChanged: (_) => themeNotifier.toggle(),
+                onChanged: hasAccent ? null : (_) => themeNotifier.toggle(),
               ),
               Divider(height: 1, color: borderColor),
               _NavRow(
@@ -189,6 +270,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ],
           ),
+          if (session.isRecruiter) ...[
+            const SizedBox(height: 24),
+            Text('Apparence',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: textSecondary)),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              surface: surface,
+              border: borderColor,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: _ThemeSelector(
+                    plan: _sub?.effectivePlan ?? SubscriptionPlan.free,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 24),
           Text('Légal',
               style: TextStyle(
@@ -241,6 +345,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteSecurityLogs(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer mes logs de sécurité'),
+        content: const Text(
+            'Vos historiques de connexions et d\'alertes de sécurité seront supprimés définitivement.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(sessionSecurityServiceProvider).deleteMySecurityLogs();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Logs de sécurité supprimés.'),
+        backgroundColor: AppColors.green,
+      ));
+    }
   }
 
   void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
@@ -594,13 +725,186 @@ class _NavRow extends StatelessWidget {
   }
 }
 
+/// Sélecteur d'ambiance (système de thèmes) — "Classique" (apparence par
+/// défaut, aucune ambiance) est toujours disponible. Les 5 préréglages
+/// colorés nécessitent Starter ou Pro ; la personnalisation custom est
+/// réservée au Pro. Le logo SparkWork ne change jamais quel que soit le
+/// thème choisi.
+class _ThemeSelector extends ConsumerWidget {
+  final SubscriptionPlan plan;
+  final Color textPrimary;
+  final Color textSecondary;
+  const _ThemeSelector({
+    required this.plan,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(recruiterThemeProvider);
+    final unlocked = plan == SubscriptionPlan.starter || plan == SubscriptionPlan.pro;
+    final canCustomize = plan == SubscriptionPlan.pro;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Ambiance de votre espace recruteur',
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+        const SizedBox(height: 4),
+        Text('Le logo SparkWork reste inchangé. Visible uniquement par vous.',
+            style: TextStyle(color: textSecondary, fontSize: 11)),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _ClassicSwatch(
+              selected: current == null,
+              onTap: () => ref.read(recruiterThemeProvider.notifier).resetToDefault(),
+            ),
+            ...RecruiterTheme.presets.map((t) {
+              final selected = current?.themeId == t.themeId;
+              final locked = !unlocked;
+              return _ThemeSwatch(
+                theme: t,
+                selected: selected,
+                locked: locked,
+                onTap: () async {
+                  if (locked) {
+                    context.push('/recruiter/plans');
+                    return;
+                  }
+                  await ref.read(recruiterThemeProvider.notifier).setTheme(t);
+                },
+              );
+            }),
+            GestureDetector(
+              onTap: () {
+                if (!canCustomize) {
+                  context.push('/recruiter/plans');
+                  return;
+                }
+                context.push('/recruiter/theme/custom');
+              },
+              child: Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: current?.themeId == 'custom' ? AppColors.primary : textSecondary.withOpacity(0.3),
+                      width: current?.themeId == 'custom' ? 2.5 : 1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  canCustomize ? Icons.add : Icons.lock_outline,
+                  color: textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ClassicSwatch extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onTap;
+  const _ClassicSwatch({required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: AppColors.surfaceVariant,
+          border: Border.all(
+              color: selected ? AppColors.primary : Colors.transparent, width: 2.5),
+          boxShadow: selected ? [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 8)] : null,
+        ),
+        child: Stack(children: [
+          const Positioned(
+            bottom: 4, left: 0, right: 0,
+            child: Text('Classique',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 9, fontWeight: FontWeight.bold)),
+          ),
+          if (selected)
+            const Positioned(
+              top: 4, right: 4,
+              child: Icon(Icons.check_circle, color: AppColors.primary, size: 14),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _ThemeSwatch extends StatelessWidget {
+  final RecruiterTheme theme;
+  final bool selected;
+  final bool locked;
+  final VoidCallback onTap;
+  const _ThemeSwatch({
+    required this.theme,
+    required this.selected,
+    required this.locked,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [theme.gradientStart, theme.gradientEnd],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+              color: selected ? Colors.white : Colors.transparent, width: 2.5),
+          boxShadow: selected ? [BoxShadow(color: theme.primaryColor.withOpacity(0.5), blurRadius: 8)] : null,
+        ),
+        child: Stack(children: [
+          if (locked)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.lock_outline, color: Colors.white, size: 18),
+              ),
+            ),
+          Positioned(
+            bottom: 4, left: 0, right: 0,
+            child: Text(theme.themeName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+          ),
+          if (selected && !locked)
+            const Positioned(
+              top: 4, right: 4,
+              child: Icon(Icons.check_circle, color: Colors.white, size: 14),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
 class _ToggleRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool value;
   final Color textPrimary;
   final Color textSecondary;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
   const _ToggleRow({
     required this.icon,
     required this.label,

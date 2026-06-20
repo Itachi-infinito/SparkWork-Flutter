@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/recommendation_count_badge.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
 
@@ -479,6 +480,8 @@ class _CandidateCard extends StatelessWidget {
                       )).toList(),
                     ),
                   ],
+                  const SizedBox(height: 6),
+                  RecommendationCountBadge(candidateId: profile.userId),
                 ],
               ),
             ),

@@ -5,8 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../models/interview.dart';
+import '../../models/subscription.dart';
 import '../../repositories/interview_repository.dart';
+import '../../services/daily_interview_service.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
 
 const _amber = Color(0xFFF59E0B);
 
@@ -373,6 +376,8 @@ Future<bool> showProposeInterviewDialog(
   final msgCtrl = TextEditingController(text: existing?.message ?? '');
   final linkCtrl =
       TextEditingController(text: existing?.meetingLink ?? '');
+  final plan = await ref.read(subscriptionServiceProvider).getCurrentPlan(recruiterUserId);
+  bool creatingRoom = false;
 
   Future<DateTime?> pickSlot(BuildContext ctx) async {
     final now = DateTime.now();
@@ -480,6 +485,35 @@ Future<bool> showProposeInterviewDialog(
                   ),
                   keyboardType: TextInputType.url,
                 ),
+                if (plan == SubscriptionPlan.pro) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: creatingRoom
+                        ? null
+                        : () async {
+                            setD(() => creatingRoom = true);
+                            try {
+                              final url = await ref
+                                  .read(dailyInterviewServiceProvider)
+                                  .createRoom(matchId: matchId);
+                              linkCtrl.text = url;
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                  content: Text('Salle vidéo indisponible : $e'),
+                                  backgroundColor: AppColors.red,
+                                ));
+                              }
+                            } finally {
+                              setD(() => creatingRoom = false);
+                            }
+                          },
+                    icon: creatingRoom
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.video_call, size: 16),
+                    label: const Text('Créer une salle vidéo intégrée (Daily.co)', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
               ],
             ),
           ),

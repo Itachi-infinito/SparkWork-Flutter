@@ -81,6 +81,10 @@ class RecruiterSubscription {
   final DateTime? trialStartDate;
   final DateTime? trialEndDate;
 
+  /// true si l'utilisateur a désactivé le renouvellement automatique côté
+  /// store — l'accès reste actif jusqu'à [endDate] mais ne se renouvellera pas.
+  final bool cancelAtPeriodEnd;
+
   const RecruiterSubscription({
     required this.userId,
     required this.plan,
@@ -89,6 +93,7 @@ class RecruiterSubscription {
     this.endDate,
     this.trialStartDate,
     this.trialEndDate,
+    this.cancelAtPeriodEnd = false,
   });
 
   bool get isTrialActive {
@@ -126,6 +131,7 @@ class RecruiterSubscription {
         endDate: _parseDate(map['endDate']),
         trialStartDate: _parseDate(map['trialStartDate']),
         trialEndDate: _parseDate(map['trialEndDate']),
+        cancelAtPeriodEnd: map['cancelAtPeriodEnd'] as bool? ?? false,
       );
 
   Map<String, dynamic> toMap() => {

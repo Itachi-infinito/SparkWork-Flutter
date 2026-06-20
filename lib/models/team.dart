@@ -79,6 +79,11 @@ class Team {
     required this.createdAt,
   });
 
+  /// Liste plate des userId membres — dénormalisée pour permettre aux
+  /// Security Rules de vérifier l'appartenance à l'équipe (un tableau de
+  /// maps comme [members] ne peut pas être indexé par clé dans les règles).
+  List<String> get memberIds => members.map((m) => m.userId).toList();
+
   bool isMember(String userId) => members.any((m) => m.userId == userId);
   bool isOwner(String userId) => members.any((m) => m.userId == userId && m.role == 'owner');
   bool isAdmin(String userId) => members.any((m) => m.userId == userId && (m.role == 'owner' || m.role == 'admin'));
@@ -87,6 +92,7 @@ class Team {
         'teamId': teamId,
         'companyId': companyId,
         'members': members.map((m) => m.toMap()).toList(),
+        'memberIds': memberIds,
         'createdAt': createdAt,
       };
 
@@ -177,5 +183,41 @@ class SwipeVote {
         createdAt: map['createdAt'] as String? ?? '',
         voterName: map['voterName'] as String?,
         voterPhotoUrl: map['voterPhotoUrl'] as String?,
+      );
+}
+
+/// Note interne d'équipe sur un candidat — un seul document partagé par
+/// équipe+candidat (pas par auteur), modifiable par tout membre. Jamais
+/// visible par le candidat (voir Security Rules teams/{id}/candidate_notes).
+class CandidateNote {
+  final String candidateId;
+  final String text;
+  final String lastEditedBy;
+  final String lastEditedByName;
+  final String updatedAt;
+
+  const CandidateNote({
+    required this.candidateId,
+    required this.text,
+    required this.lastEditedBy,
+    required this.lastEditedByName,
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'candidateId': candidateId,
+        'text': text,
+        'lastEditedBy': lastEditedBy,
+        'lastEditedByName': lastEditedByName,
+        'updatedAt': updatedAt,
+      };
+
+  factory CandidateNote.fromMap(Map<String, dynamic> map, String docId) =>
+      CandidateNote(
+        candidateId: docId,
+        text: map['text'] as String? ?? '',
+        lastEditedBy: map['lastEditedBy'] as String? ?? '',
+        lastEditedByName: map['lastEditedByName'] as String? ?? '',
+        updatedAt: map['updatedAt'] as String? ?? '',
       );
 }

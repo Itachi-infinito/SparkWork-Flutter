@@ -1,12 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/subscription.dart';
 
 final subscriptionServiceProvider =
     Provider<SubscriptionService>((ref) => SubscriptionService());
 
+/// Clés publiques RevenueCat — non sensibles, prévues pour être embarquées
+/// dans le binaire client. Fournies au build via :
+///   flutter run --dart-define=REVENUECAT_IOS_KEY=appl_xxx
+///   flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
+const _revenueCatIosKey = String.fromEnvironment('REVENUECAT_IOS_KEY');
+const _revenueCatAndroidKey = String.fromEnvironment('REVENUECAT_ANDROID_KEY');
+
+enum PurchaseOutcome { success, userCancelled, paymentError, networkError, notConfigured }
+
+class PurchaseResult {
+  final PurchaseOutcome outcome;
+  final String? message;
+  const PurchaseResult(this.outcome, {this.message});
+
+  bool get isSuccess => outcome == PurchaseOutcome.success;
+}
+
 class SubscriptionService {
   final _db = FirebaseFirestore.instance;
+
+  // Le SDK Purchases est un singleton global côté plateforme — l'état
+  // "initialisé" doit donc être partagé entre toutes les instances de
+  // SubscriptionService (créées librement partout dans l'app), pas
+  // réinitialisé à false à chaque `SubscriptionService()`.
+  static bool _initialized = false;
 
   CollectionReference<Map<String, dynamic>> get _subs =>
       _db.collection('recruiter_subscriptions');
@@ -15,18 +41,62 @@ class SubscriptionService {
   CollectionReference<Map<String, dynamic>> get _boosts =>
       _db.collection('boost_credits');
 
+  // ─── REVENUECAT — INITIALISATION & CYCLE DE VIE ────────────────────────────
+
+  bool get isRevenueCatConfigured =>
+      defaultTargetPlatform == TargetPlatform.iOS
+          ? _revenueCatIosKey.isNotEmpty
+          : _revenueCatAndroidKey.isNotEmpty;
+
+  /// À appeler une fois au démarrage de l'app (après Firebase.initializeApp).
+  Future<void> initialize() async {
+    if (_initialized || !isRevenueCatConfigured) return;
+    final apiKey = defaultTargetPlatform == TargetPlatform.iOS
+        ? _revenueCatIosKey
+        : _revenueCatAndroidKey;
+    await Purchases.setLogLevel(LogLevel.warn);
+    await Purchases.configure(PurchasesConfiguration(apiKey));
+    _initialized = true;
+  }
+
+  /// Associe les achats RevenueCat au compte Firebase de l'utilisateur connecté.
+  Future<void> logIn(String userId) async {
+    if (!_initialized) return;
+    try {
+      await Purchases.logIn(userId);
+    } catch (_) {}
+  }
+
+  Future<void> logOut() async {
+    if (!_initialized) return;
+    try {
+      await Purchases.logOut();
+    } catch (_) {}
+  }
+
   // ─── ABONNEMENT ────────────────────────────────────────────────────────────
 
   /// Retourne l'abonnement actuel. En cas d'erreur : fallback plan Gratuit.
+  ///
+  /// Mode restreint (anti-partage de compte, Sprint 5) : si
+  /// `users/{userId}.isRestricted` est vrai, le plan effectif retombe
+  /// systématiquement à Gratuit ici — donc dans TOUTE l'app, sans avoir à
+  /// dupliquer la vérification dans chaque écran/feature gating.
   Future<RecruiterSubscription> getSubscription(String userId) async {
     try {
+      final userDoc = await _db.collection('users').doc(userId).get();
+      if (userDoc.data()?['isRestricted'] as bool? ?? false) {
+        return RecruiterSubscription.free(userId);
+      }
+
       final doc = await _subs.doc(userId).get();
       if (!doc.exists) return RecruiterSubscription.free(userId);
       final sub = RecruiterSubscription.fromMap({
         ...doc.data()!,
         'userId': userId,
       });
-      // Expiration automatique du trial
+      // Expiration automatique du trial (autorisée par les Security Rules :
+      // transition trial -> expired uniquement, jamais vers un plan payant).
       if (sub.status == 'trial' && !sub.isTrialActive) {
         await _expireTrial(userId);
         return RecruiterSubscription.free(userId);
@@ -62,56 +132,69 @@ class SubscriptionService {
     });
   }
 
-  /// Bascule vers un plan payant (mode dev — brancher RevenueCat ici).
-  // TODO: connect RevenueCat — remplacer ce set() par la vérification du receipt
-  Future<void> upgradePlan(String userId, SubscriptionPlan plan) async {
-    final now = DateTime.now();
-    await _subs.doc(userId).set({
-      'userId': userId,
-      'plan': plan.name,
-      'status': 'active',
-      'startDate': now.toIso8601String(),
-      'endDate': now.add(const Duration(days: 30)).toIso8601String(),
-    }, SetOptions(merge: true));
-
-    // Mettre à jour le badge vérifié sur le profil recruteur
-    final profileDocs = await _db
-        .collection('recruiter_profiles')
-        .where('userId', isEqualTo: userId)
-        .get();
-    final isVerified = plan == SubscriptionPlan.pro;
-    for (final d in profileDocs.docs) {
-      await d.reference.update({'isVerifiedEmployer': isVerified});
+  /// Lance l'achat réel via RevenueCat. Le document Firestore
+  /// `recruiter_subscriptions/{userId}` n'est PAS mis à jour ici : c'est le
+  /// webhook RevenueCat (Cloud Function, Admin SDK) qui fait foi côté serveur.
+  /// Cette méthode ne fait que déclencher le paiement et interpréter le résultat
+  /// pour l'UX (toast, navigation) — jamais pour accorder le plan elle-même.
+  Future<PurchaseResult> purchasePlan(SubscriptionPlan plan) async {
+    if (!isRevenueCatConfigured) {
+      return const PurchaseResult(PurchaseOutcome.notConfigured,
+          message: 'Les paiements ne sont pas encore configurés sur cet appareil.');
+    }
+    try {
+      final offerings = await Purchases.getOfferings();
+      final package = offerings.current?.availablePackages.firstWhere(
+        (p) => p.storeProduct.identifier == plan.productId,
+        orElse: () => throw Exception('Produit ${plan.productId} introuvable dans RevenueCat.'),
+      );
+      if (package == null) {
+        return const PurchaseResult(PurchaseOutcome.paymentError,
+            message: 'Cette offre n\'est pas disponible pour le moment.');
+      }
+      await Purchases.purchasePackage(package);
+      return const PurchaseResult(PurchaseOutcome.success);
+    } on PurchasesErrorCode catch (e) {
+      if (e == PurchasesErrorCode.purchaseCancelledError) {
+        return const PurchaseResult(PurchaseOutcome.userCancelled);
+      }
+      if (e == PurchasesErrorCode.networkError) {
+        return const PurchaseResult(PurchaseOutcome.networkError,
+            message: 'Erreur réseau. Vérifiez votre connexion et réessayez.');
+      }
+      return PurchaseResult(PurchaseOutcome.paymentError, message: e.toString());
+    } catch (e) {
+      return PurchaseResult(PurchaseOutcome.paymentError, message: e.toString());
     }
   }
 
-  /// Résilie l'abonnement et repasse au plan Gratuit.
-  Future<void> cancelSubscription(String userId) async {
-    await _subs.doc(userId).set({
-      'userId': userId,
-      'plan': 'free',
-      'status': 'cancelled',
-    }, SetOptions(merge: false));
-    final profileDocs = await _db
-        .collection('recruiter_profiles')
-        .where('userId', isEqualTo: userId)
-        .get();
-    for (final d in profileDocs.docs) {
-      await d.reference.update({'isVerifiedEmployer': false});
+  /// Restaure les achats existants (réinstallation, changement d'appareil).
+  Future<bool> restorePurchases() async {
+    if (!isRevenueCatConfigured) return false;
+    try {
+      final info = await Purchases.restorePurchases();
+      return info.entitlements.active.isNotEmpty;
+    } catch (_) {
+      return false;
     }
+  }
+
+  /// Ouvre la page de gestion d'abonnement du store (App Store / Play
+  /// Store) via l'URL fournie par RevenueCat. La résiliation réelle se fait
+  /// toujours là — jamais via une simple écriture Firestore côté client.
+  Future<void> openManageSubscriptions() async {
+    if (!isRevenueCatConfigured) return;
+    try {
+      final info = await Purchases.getCustomerInfo();
+      final url = info.managementURL;
+      if (url == null) return;
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   Future<void> _expireTrial(String userId) async {
     try {
       await _subs.doc(userId).update({'status': 'expired'});
-      // Rétrograder le badge vérifié
-      final profileDocs = await _db
-          .collection('recruiter_profiles')
-          .where('userId', isEqualTo: userId)
-          .get();
-      for (final d in profileDocs.docs) {
-        await d.reference.update({'isVerifiedEmployer': false});
-      }
     } catch (_) {}
   }
 

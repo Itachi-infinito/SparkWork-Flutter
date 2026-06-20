@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/subscription.dart';
 import '../../services/session_service.dart';
@@ -16,6 +17,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
   RecruiterSubscription? _currentSub;
   bool _loading = true;
   String? _processingPlan;
+  bool _restoring = false;
 
   @override
   void initState() {
@@ -32,77 +34,154 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
 
   Future<void> _selectPlan(SubscriptionPlan plan) async {
     if (plan == SubscriptionPlan.free) {
-      await _confirmCancel();
+      // La résiliation se fait toujours via le store, jamais côté client.
+      await _openManageSubscription();
       return;
     }
+
+    final confirmed = await _showPurchaseConfirmationSheet(plan);
+    if (confirmed != true || !mounted) return;
+
     setState(() => _processingPlan = plan.name);
     try {
-      final session = ref.read(sessionProvider);
       final svc = ref.read(subscriptionServiceProvider);
-      // TODO: connect RevenueCat — appeler Purchases.purchasePackage(plan.productId)
-      await svc.upgradePlan(session.userId, plan);
+      final result = await svc.purchasePlan(plan);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Plan ${plan.displayName} activé !'),
-        backgroundColor: AppColors.green,
-      ));
-      await _load();
-    } catch (e) {
-      if (mounted) {
+
+      if (result.isSuccess) {
+        // Le document Firestore est mis à jour par le webhook RevenueCat
+        // (peut prendre quelques secondes) — on recharge pour refléter l'état.
+        await _load();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur : $e'),
-          backgroundColor: AppColors.red,
+          content: Text('Bienvenue sur le plan ${plan.displayName} !'),
+          backgroundColor: AppColors.green,
         ));
+        context.go(ref.read(sessionProvider).isCandidate
+            ? '/candidate/home'
+            : '/recruiter/home');
+      } else {
+        _showPurchaseError(result);
       }
     } finally {
       if (mounted) setState(() => _processingPlan = null);
     }
   }
 
-  Future<void> _confirmCancel() async {
-    final confirmed = await showDialog<bool>(
+  void _showPurchaseError(PurchaseResult result) {
+    String message;
+    switch (result.outcome) {
+      case PurchaseOutcome.userCancelled:
+        return; // L'utilisateur a annulé lui-même — pas besoin de l'avertir.
+      case PurchaseOutcome.networkError:
+        message = result.message ?? 'Erreur réseau. Réessayez.';
+        break;
+      case PurchaseOutcome.notConfigured:
+        message = result.message ?? 'Paiements indisponibles sur cet appareil.';
+        break;
+      case PurchaseOutcome.paymentError:
+      default:
+        message = 'Le paiement a échoué. Vérifiez vos informations bancaires et réessayez.';
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: AppColors.red,
+    ));
+  }
+
+  Future<bool?> _showPurchaseConfirmationSheet(SubscriptionPlan plan) {
+    return showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Résilier mon abonnement'),
-        content: const Text(
-          'Vous allez repasser au plan Gratuit.\n\n'
-          'Vos offres excédentaires et vos swipes ne seront plus '
-          'accessibles au-delà des limites du plan Gratuit.',
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text('Passer au plan ${plan.displayName}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                children: [
+                  TextSpan(text: '${plan.monthlyPrice.toInt()}€'),
+                  const TextSpan(text: '/mois', style: TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.normal)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Facturation mensuelle récurrente, résiliable à tout moment depuis '
+              'les paramètres de votre store (App Store ou Google Play). '
+              'Le paiement sera débité sur le compte associé à votre identifiant store.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 24),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Annuler'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ]),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Résilier',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    setState(() => _processingPlan = SubscriptionPlan.free.name);
-    try {
-      final session = ref.read(sessionProvider);
-      await ref.read(subscriptionServiceProvider).cancelSubscription(session.userId);
-      if (!mounted) return;
+  }
+
+  Future<void> _openManageSubscription() async {
+    final svc = ref.read(subscriptionServiceProvider);
+    if (!svc.isRevenueCatConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Abonnement résilié. Vous êtes sur le plan Gratuit.'),
-        backgroundColor: AppColors.red,
+        content: Text('Vous êtes déjà sur le plan Gratuit.'),
       ));
+      return;
+    }
+    await svc.openManageSubscriptions();
+  }
+
+  Future<void> _restorePurchases() async {
+    setState(() => _restoring = true);
+    try {
+      final svc = ref.read(subscriptionServiceProvider);
+      final restored = await svc.restorePurchases();
+      if (!mounted) return;
       await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur : $e'),
-          backgroundColor: AppColors.red,
-        ));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(restored
+            ? 'Achats restaurés avec succès.'
+            : 'Aucun achat actif trouvé pour ce compte.'),
+        backgroundColor: restored ? AppColors.green : AppColors.textSecondary,
+      ));
     } finally {
-      if (mounted) setState(() => _processingPlan = null);
+      if (mounted) setState(() => _restoring = false);
     }
   }
 
@@ -181,7 +260,19 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                     onSelect: _selectPlan,
                     highlighted: true,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _restoring ? null : _restorePurchases,
+                      icon: _restoring
+                          ? const SizedBox(
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.restore, size: 18),
+                      label: const Text('Restaurer mes achats'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const _LegalNote(),
                   const SizedBox(height: 32),
                 ]),
@@ -428,13 +519,8 @@ class _PlanCard extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: isProcessing
-                              ? const SizedBox(
-                                  width: 20, height: 20,
-                                  child: CircularProgressIndicator(
-                                      color: AppColors.red, strokeWidth: 2))
-                              : const Text('Résilier mon abonnement',
-                                  style: TextStyle(color: AppColors.red, fontSize: 13)),
+                          child: const Text('Gérer mon abonnement',
+                              style: TextStyle(color: AppColors.red, fontSize: 13)),
                         )
                       : ElevatedButton(
                           onPressed: isProcessing ? null : () => onSelect(plan),
@@ -533,7 +619,8 @@ class _LegalNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      'Les abonnements sont mensuels et résiliables à tout moment. '
+      'Les abonnements sont mensuels et résiliables à tout moment depuis '
+      'votre store (App Store ou Google Play). '
       'Le plan Pro inclut 14 jours d\'essai gratuit sans engagement '
       'pour les nouveaux comptes recruteurs.',
       style: TextStyle(

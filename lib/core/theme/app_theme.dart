@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../../models/recruiter_theme.dart';
 
 class AppTheme {
-  static ThemeData get theme {
+  /// [accent] est l'ambiance colorée choisie par un recruteur Starter/Pro
+  /// (cf. RecruiterTheme) — toujours `null` pour les candidats et pour un
+  /// recruteur resté sur Spark (= comportement par défaut inchangé).
+  static ThemeData theme({RecruiterTheme? accent}) {
+    final primary = accent?.primaryColor ?? AppColors.primary;
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
+        seedColor: primary,
         brightness: Brightness.light,
-        surface: AppColors.surface,
+        surface: accent?.cardColor ?? AppColors.surface,
       ),
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: accent?.backgroundColor ?? AppColors.background,
       textTheme: GoogleFonts.interTextTheme(),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surface,
+        backgroundColor: accent?.navigationBarColor ?? AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
@@ -26,7 +31,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
@@ -41,12 +46,12 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          side: BorderSide(color: primary, width: 1.5),
           textStyle: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -66,7 +71,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -86,31 +91,33 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
-        color: AppColors.surface,
+        color: accent?.cardColor ?? AppColors.surface,
       ),
     );
   }
 
-  static ThemeData get darkTheme {
-    const darkBg = Color(0xFF0F1117);
-    const darkSurface = Color(0xFF1A1D27);
+  static ThemeData darkTheme({RecruiterTheme? accent}) {
+    final darkBg = accent?.backgroundColor ?? const Color(0xFF0F1117);
+    final darkSurface = accent?.cardColor ?? const Color(0xFF1A1D27);
     const darkSurfaceVariant = Color(0xFF252836);
     const darkBorder = Color(0xFF2E3347);
-    const darkTextPrimary = Color(0xFFF1F2F6);
-    const darkTextSecondary = Color(0xFF9CA3AF);
+    final darkTextPrimary = accent?.textPrimaryColor ?? const Color(0xFFF1F2F6);
+    final darkTextSecondary = accent?.textSecondaryColor ?? const Color(0xFF9CA3AF);
     const darkTextHint = Color(0xFF6B7280);
+    final primary = accent?.primaryColor ?? AppColors.primary;
+    final navBg = accent?.navigationBarColor ?? darkSurface;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
+        seedColor: primary,
         brightness: Brightness.dark,
         surface: darkSurface,
       ),
       scaffoldBackgroundColor: darkBg,
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       appBarTheme: AppBarTheme(
-        backgroundColor: darkSurface,
+        backgroundColor: navBg,
         foregroundColor: darkTextPrimary,
         elevation: 0,
         centerTitle: true,
@@ -122,7 +129,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
@@ -137,12 +144,12 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          side: BorderSide(color: primary, width: 1.5),
           textStyle: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -162,7 +169,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -184,33 +191,33 @@ class AppTheme {
         color: darkSurface,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: darkSurface,
-        indicatorColor: AppColors.primaryLight.withOpacity(0.25),
+        backgroundColor: navBg,
+        indicatorColor: primary.withOpacity(0.25),
         labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(color: darkTextSecondary, fontSize: 11),
+          TextStyle(color: darkTextSecondary, fontSize: 11),
         ),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.primary);
+            return IconThemeData(color: primary);
           }
-          return const IconThemeData(color: darkTextSecondary);
+          return IconThemeData(color: darkTextSecondary);
         }),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: darkSurface,
       ),
-      dialogTheme: const DialogThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: darkSurface,
       ),
       dividerColor: darkBorder,
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          if (states.contains(WidgetState.selected)) return primary;
           return darkTextSecondary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.primary.withOpacity(0.4);
+            return primary.withOpacity(0.4);
           }
           return darkBorder;
         }),

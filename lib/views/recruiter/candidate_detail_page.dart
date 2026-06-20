@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
@@ -5,7 +7,11 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/recommendation_count_badge.dart';
 import '../../models/job_offer.dart';
+import '../../models/spark_score.dart';
+import '../../models/subscription.dart';
+import '../../models/team.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/recruiter_candidate_like_repository.dart';
@@ -13,6 +19,9 @@ import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
+import '../../services/spark_score_service.dart';
+import '../../services/subscription_service.dart';
+import '../../services/team_service.dart';
 
 class CandidateDetailPage extends ConsumerStatefulWidget {
   final String candidateUserId;
@@ -31,10 +40,24 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
   bool _liking = false;
   bool _alreadyLiked = false;
 
+  Team? _team;
+  SubscriptionPlan _userPlan = SubscriptionPlan.free;
+  final _noteCtrl = TextEditingController();
+  Timer? _noteDebounce;
+  String? _noteAuthorLabel;
+  bool _noteSaving = false;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _noteDebounce?.cancel();
+    _noteCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -56,6 +79,23 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
       if (profile != null && firstOffer != null) {
         score = ref.read(compatibilityServiceProvider).calculateScore(profile, firstOffer);
       }
+
+      // Notes d'équipe : uniquement pour les recruteurs Pro membres d'une équipe.
+      final plan = await ref.read(subscriptionServiceProvider).getCurrentPlan(session.userId);
+      Team? team;
+      if (plan == SubscriptionPlan.pro) {
+        final teamSvc = ref.read(teamServiceProvider);
+        team = await teamSvc.getTeamByOwner(session.userId) ??
+            await teamSvc.getTeamByMember(session.userId);
+        if (team != null) {
+          final note = await teamSvc.getCandidateNote(team.teamId, widget.candidateUserId);
+          if (note != null) {
+            _noteCtrl.text = note.text;
+            _noteAuthorLabel = _formatNoteAuthor(note);
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
           _profile = profile;
@@ -63,11 +103,45 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
           _selectedOffer = firstOffer;
           _score = score;
           _alreadyLiked = alreadyLiked;
+          _team = team;
+          _userPlan = plan;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _formatNoteAuthor(CandidateNote note) {
+    final date = DateTime.tryParse(note.updatedAt);
+    final dateLabel = date != null
+        ? '${date.day}/${date.month}/${date.year} à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
+        : '';
+    return 'Modifié par ${note.lastEditedByName} · $dateLabel';
+  }
+
+  void _onNoteChanged(String text) {
+    _noteDebounce?.cancel();
+    _noteDebounce = Timer(const Duration(seconds: 1), () => _saveNote(text));
+  }
+
+  Future<void> _saveNote(String text) async {
+    if (_team == null) return;
+    setState(() => _noteSaving = true);
+    final session = ref.read(sessionProvider);
+    await ref.read(teamServiceProvider).saveCandidateNote(
+          teamId: _team!.teamId,
+          candidateId: widget.candidateUserId,
+          text: text,
+          authorId: session.userId,
+          authorName: session.userName,
+        );
+    if (mounted) {
+      setState(() {
+        _noteSaving = false;
+        _noteAuthorLabel = 'Modifié par ${session.userName} · à l\'instant';
+      });
     }
   }
 
@@ -218,6 +292,153 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
     ]);
   }
 
+  Widget _buildSparkScoreDetail() {
+    return FutureBuilder<SparkScoreResult>(
+      future: ref.read(sparkScoreServiceProvider).getDetailedScore(
+            offerId: _selectedOffer!.jobOfferId,
+            candidateId: widget.candidateUserId,
+          ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(children: [
+              Icon(Icons.error_outline, size: 16, color: context.textSecondaryColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('SparkScore indisponible pour le moment.',
+                    style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
+              ),
+              TextButton(
+                onPressed: () => setState(() {}),
+                child: const Text('Réessayer', style: TextStyle(fontSize: 12)),
+              ),
+            ]),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+                child: SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+        final result = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.auto_awesome, color: Color(0xFF8B5CF6), size: 18),
+              const SizedBox(width: 8),
+              Text('SparkScore IA détaillé',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10)),
+                child: const Text('PRO',
+                    style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: context.surfaceColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final factor in result.factors) _SparkFactorBar(factor: factor),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCandidateAnalytics() {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance
+          .collection('candidate_analytics')
+          .doc(widget.candidateUserId)
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !(snapshot.data?.exists ?? false)) {
+          return const SizedBox();
+        }
+        final data = snapshot.data!.data()!;
+        final responseRate = data['responseRate'] as int? ?? 0;
+        final avgResponseTimeHours = data['avgResponseTimeHours'] as num?;
+        final recruitersThisMonth = data['recruitersThisMonth'] as int? ?? 0;
+        final isHighlyDemanded = data['isHighlyDemanded'] as bool? ?? false;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.insights_outlined, color: Color(0xFF8B5CF6), size: 18),
+                const SizedBox(width: 8),
+                Text('Analyse Pro',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
+                if (isHighlyDemanded) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: AppColors.orangeLight, borderRadius: BorderRadius.circular(10)),
+                    child: const Text('Très demandé 🔥',
+                        style: TextStyle(fontSize: 11, color: AppColors.orange, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ]),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.surfaceColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Column(children: [
+                  _AnalyticsRow(
+                      icon: Icons.reply_outlined,
+                      label: 'Taux de réponse aux messages',
+                      value: '$responseRate%'),
+                  const Divider(height: 20),
+                  _AnalyticsRow(
+                      icon: Icons.timer_outlined,
+                      label: 'Délai moyen de réponse',
+                      value: avgResponseTimeHours != null
+                          ? '${avgResponseTimeHours.toStringAsFixed(1)} h'
+                          : 'N/A'),
+                  const Divider(height: 20),
+                  _AnalyticsRow(
+                      icon: Icons.people_outline,
+                      label: 'Recruteurs intéressés ce mois',
+                      value: '$recruitersThisMonth'),
+                ]),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -274,6 +495,8 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                           style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
                     ]),
                   ],
+                  const SizedBox(height: 8),
+                  RecommendationCountBadge(candidateId: widget.candidateUserId, light: true),
                 ])),
               ),
             ),
@@ -310,6 +533,43 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   ],
                 ]),
                 const SizedBox(height: 16),
+                if (_team != null) ...[
+                  Row(children: [
+                    Text('Notes d\'équipe',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
+                    const SizedBox(width: 8),
+                    if (_noteSaving)
+                      const SizedBox(
+                          width: 12, height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5))
+                    else if (_noteAuthorLabel != null)
+                      Expanded(
+                        child: Text(_noteAuthorLabel!,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                      ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                        color: context.surfaceColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.borderColor)),
+                    child: TextField(
+                      controller: _noteCtrl,
+                      maxLines: 4,
+                      onChanged: _onNoteChanged,
+                      style: TextStyle(color: context.textPrimaryColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Notes visibles uniquement par votre équipe (jamais par le candidat)...',
+                        hintStyle: TextStyle(color: context.textHintColor, fontSize: 12),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 if (profile.skillList.isNotEmpty) ...[
                   Text('Compétences',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
@@ -385,7 +645,10 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                     ),
                   const SizedBox(height: 20),
                   _buildScoreCard(),
+                  if (_userPlan == SubscriptionPlan.pro && _selectedOffer != null)
+                    _buildSparkScoreDetail(),
                 ],
+                if (_userPlan == SubscriptionPlan.pro) _buildCandidateAnalytics(),
                 if (_recruiterOffers.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -426,6 +689,68 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
               ]),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnalyticsRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _AnalyticsRow({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Icon(icon, size: 16, color: context.textSecondaryColor),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label, style: TextStyle(fontSize: 12, color: context.textSecondaryColor))),
+      Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
+    ]);
+  }
+}
+
+class _SparkFactorBar extends StatelessWidget {
+  final SparkScoreFactor factor;
+  const _SparkFactorBar({required this.factor});
+
+  Color get _color {
+    if (factor.value >= 75) return AppColors.green;
+    if (factor.value >= 50) return AppColors.orange;
+    return AppColors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(
+              child: Text('${factor.label} (${(factor.weight * 100).round()}%)',
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: context.textPrimaryColor)),
+            ),
+            Text('${factor.value}%',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _color)),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: factor.value / 100,
+              minHeight: 6,
+              backgroundColor: context.borderColor,
+              valueColor: AlwaysStoppedAnimation(_color),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(factor.explanation,
+              style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
         ],
       ),
     );

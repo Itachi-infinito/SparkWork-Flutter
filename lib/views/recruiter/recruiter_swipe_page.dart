@@ -16,10 +16,15 @@ import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/report_repository.dart';
 import 'package:flutter/services.dart';
 import '../../core/widgets/available_now_badge.dart';
+import '../../core/widgets/recommendation_count_badge.dart';
 import '../../models/subscription.dart';
+import '../../models/team.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/spark_invite_service.dart';
+import '../../services/swipe_history_service.dart';
+import '../../services/team_service.dart';
 import '../shared/quota_reached_bottom_sheet.dart';
 import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
@@ -48,7 +53,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   String _filterSkill = '';
 
   bool _filterAvailableNow = false;
+  bool _filterVerifiedOnly = false;
   SubscriptionPlan _userPlan = SubscriptionPlan.free;
+  Team? _team;
 
   bool get _hasActiveFilters =>
       _filterContractType.isNotEmpty ||
@@ -56,7 +63,8 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
       _filterRemoteMode.isNotEmpty ||
       _filterLocation.isNotEmpty ||
       _filterSkill.isNotEmpty ||
-      _filterAvailableNow;
+      _filterAvailableNow ||
+      _filterVerifiedOnly;
 
   DocumentSnapshot? _lastDoc;
   bool _hasMore = true;
@@ -144,7 +152,16 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
       final remaining = await ref.read(subscriptionServiceProvider).getRemainingSwipes(session.userId);
       final plan = await ref.read(subscriptionServiceProvider).getCurrentPlan(session.userId);
-      if (mounted) setState(() { _remainingSwipes = remaining; _userPlan = plan; });
+
+      // Votes d'équipe : uniquement pour les recruteurs Pro membres d'une équipe.
+      Team? team;
+      if (plan == SubscriptionPlan.pro) {
+        final teamSvc = ref.read(teamServiceProvider);
+        team = await teamSvc.getTeamByOwner(session.userId) ??
+            await teamSvc.getTeamByMember(session.userId);
+      }
+
+      if (mounted) setState(() { _remainingSwipes = remaining; _userPlan = plan; _team = team; });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -175,6 +192,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           return false;
         }
         if (_filterAvailableNow && !p.isAvailableNowActive) {
+          return false;
+        }
+        if (_filterVerifiedOnly && p.verificationStatus != 'verified') {
           return false;
         }
         return true;
@@ -219,6 +239,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
             !AppSkills.parseSkills(p.remotePreference).contains(_filterRemoteMode)) return false;
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) return false;
         if (_filterAvailableNow && !p.isAvailableNowActive) return false;
+        if (_filterVerifiedOnly && p.verificationStatus != 'verified') return false;
         return true;
       }).toList();
 
@@ -353,6 +374,29 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    const Text('Vérification', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    StatefulBuilder(
+                      builder: (_, setLocal) => CheckboxListTile(
+                        value: _filterVerifiedOnly,
+                        onChanged: (v) {
+                          setState(() => _filterVerifiedOnly = v ?? false);
+                          setLocal(() {});
+                        },
+                        title: const Row(
+                          children: [
+                            Icon(Icons.verified_user,
+                                color: Color(0xFF3B82F6), size: 16),
+                            SizedBox(width: 6),
+                            Text('Profils vérifiés uniquement'),
+                          ],
+                        ),
+                        activeColor: const Color(0xFF3B82F6),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 32),
 
@@ -366,7 +410,10 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           tmpRemoteMode = '';
                           tmpSkill = '';
                           locationCtrl.clear();
-                          setState(() => _filterAvailableNow = false);
+                          setState(() {
+                            _filterAvailableNow = false;
+                            _filterVerifiedOnly = false;
+                          });
                         }),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: context.textSecondaryColor),
@@ -465,6 +512,27 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         session.userId, item.profile.userId, _selectedOffer!.jobOfferId,
         isSuperLike: isSuperLike);
 
+    ref.read(swipeHistoryServiceProvider).recordSwipe(
+          recruiterId: session.userId,
+          candidateId: item.profile.userId,
+          offerId: _selectedOffer!.jobOfferId,
+          action: isSuperLike ? 'superlike' : 'like',
+          score: item.score,
+        );
+
+    // Vote d'équipe automatique : un like d'un membre de l'équipe est visible
+    // par les autres comme un vote "retenir" (ou "favori" pour un super like).
+    if (_team != null) {
+      ref.read(teamServiceProvider).castVote(
+            teamId: _team!.teamId,
+            offerId: _selectedOffer!.jobOfferId,
+            candidateId: item.profile.userId,
+            voterId: session.userId,
+            vote: isSuperLike ? SwipeVoteType.favorite : SwipeVoteType.retain,
+            voterName: session.userName,
+          );
+    }
+
     final candidateAlsoLiked = await candidateLikeRepo.hasLiked(item.profile.userId, _selectedOffer!.jobOfferId);
     if (candidateAlsoLiked) {
       final alreadyMatched = await matchRepo.matchExists(item.profile.userId, session.userId, _selectedOffer!.jobOfferId);
@@ -500,6 +568,27 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           await _handleLike(_activeItems[prev], isSuperLike: true);
         } else if (activity.direction == AxisDirection.left) {
           HapticFeedback.lightImpact();
+          if (_selectedOffer != null) {
+            final session = ref.read(sessionProvider);
+            ref.read(swipeHistoryServiceProvider).recordSwipe(
+                  recruiterId: session.userId,
+                  candidateId: _activeItems[prev].profile.userId,
+                  offerId: _selectedOffer!.jobOfferId,
+                  action: 'pass',
+                  score: _activeItems[prev].score,
+                );
+          }
+          if (_team != null && _selectedOffer != null) {
+            final session = ref.read(sessionProvider);
+            ref.read(teamServiceProvider).castVote(
+                  teamId: _team!.teamId,
+                  offerId: _selectedOffer!.jobOfferId,
+                  candidateId: _activeItems[prev].profile.userId,
+                  voterId: session.userId,
+                  vote: SwipeVoteType.pass,
+                  voterName: session.userName,
+                );
+          }
         }
       }
     }
@@ -514,66 +603,105 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
   @override
   Widget build(BuildContext context) {
+    final appBarActions = [
+      Stack(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.tune),
+            onPressed: _showFilterSheet,
+          ),
+          if (_hasActiveFilters)
+            Positioned(
+              right: 8, top: 8,
+              child: Container(
+                width: 8, height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ];
+
+    // Radar de talents (Pro uniquement) : un 2e onglet apparaît au-dessus
+    // du swipe habituel, sans rien changer au comportement existant pour
+    // les autres plans.
+    if (_userPlan == SubscriptionPlan.pro) {
+      return DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: const Text('Explorer les candidats'),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            elevation: 0,
+            actions: appBarActions,
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'Swipe', icon: Icon(Icons.swipe, size: 18)),
+                Tab(text: 'Radar', icon: Icon(Icons.radar, size: 18)),
+              ],
+              labelColor: AppColors.primary,
+              indicatorColor: AppColors.primary,
+            ),
+          ),
+          body: TabBarView(children: [
+            _buildSwipeBody(),
+            _selectedOffer != null
+                ? _RadarTab(offer: _selectedOffer!)
+                : const Center(child: Text('Sélectionnez une offre pour utiliser le Radar.')),
+          ]),
+          bottomNavigationBar: const RecruiterNavBar(currentIndex: 1),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Explorer les candidats'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.tune),
-                onPressed: _showFilterSheet,
-              ),
-              if (_hasActiveFilters)
-                Positioned(
-                  right: 8, top: 8,
-                  child: Container(
-                    width: 8, height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
+        actions: appBarActions,
       ),
-      body: Column(
-        children: [
-          if (_myOffers.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: DropdownButtonFormField<JobOffer>(
-                value: _selectedOffer,
-                decoration: const InputDecoration(
-                  labelText: 'Offre associée',
-                  prefixIcon: Icon(Icons.work_outline),
-                ),
-                items: _myOffers.map((o) => DropdownMenuItem(
-                  value: o,
-                  child: Text(o.title, overflow: TextOverflow.ellipsis),
-                )).toList(),
-                onChanged: (o) {
-                  setState(() { _selectedOffer = o; _activeItems = []; });
-                  _load();
-                },
-              ),
-            ),
-          _buildActiveFilterChips(),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.green))
-                : _activeItems.isEmpty
-                    ? _buildEmpty()
-                    : _buildSwiper(),
-          ),
-        ],
-      ),
+      body: _buildSwipeBody(),
       bottomNavigationBar: const RecruiterNavBar(currentIndex: 1),
+    );
+  }
+
+  Widget _buildSwipeBody() {
+    return Column(
+      children: [
+        if (_myOffers.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: DropdownButtonFormField<JobOffer>(
+              value: _selectedOffer,
+              decoration: const InputDecoration(
+                labelText: 'Offre associée',
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              items: _myOffers.map((o) => DropdownMenuItem(
+                value: o,
+                child: Text(o.title, overflow: TextOverflow.ellipsis),
+              )).toList(),
+              onChanged: (o) {
+                setState(() { _selectedOffer = o; _activeItems = []; });
+                _load();
+              },
+            ),
+          ),
+        _buildActiveFilterChips(),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.green))
+              : _activeItems.isEmpty
+                  ? _buildEmpty()
+                  : _buildSwiper(),
+        ),
+      ],
     );
   }
 
@@ -832,25 +960,60 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
               child: AvailableNowBadge(),
             ),
 
-          // Score badge — top right
+          // ID Vérifié badge — below Available Now badge or top-left if not available
+          if (p.verificationStatus == 'verified')
+            Positioned(
+              top: p.isAvailableNowActive ? 56 : 16,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFF3B82F6).withOpacity(0.4),
+                        blurRadius: 8)
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_user, color: Colors.white, size: 12),
+                    SizedBox(width: 5),
+                    Text('ID Vérifié',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+
+          // Score badge — top right. Pour les recruteurs Pro : anneau de
+          // progression circulaire (vert > 75%, orange 50-75%, rouge < 50%)
+          // qui entoure exactement le badge, au lieu de la pastille plate.
           Positioned(
             top: 16, right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: scoreColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                      color: scoreColor.withOpacity(0.5), blurRadius: 10)
-                ],
-              ),
-              child: Text('${item.score}%',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13)),
-            ),
+            child: _userPlan == SubscriptionPlan.pro
+                ? _ProScoreRing(score: item.score)
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: scoreColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                            color: scoreColor.withOpacity(0.5), blurRadius: 10)
+                      ],
+                    ),
+                    child: Text('${item.score}%',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ),
           ),
 
           // Content overlay — bottom
@@ -909,9 +1072,172 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                     _CardBadge(p.remotePreference),
                   ...p.skillList.take(3).map(_CardBadge.new),
                 ]),
+                const SizedBox(height: 8),
+                RecommendationCountBadge(candidateId: p.userId, light: true),
+                if (_team != null && _selectedOffer != null) ...[
+                  const SizedBox(height: 10),
+                  _TeamVotesRow(
+                    teamId: _team!.teamId,
+                    offerId: _selectedOffer!.jobOfferId,
+                    candidateId: p.userId,
+                  ),
+                ],
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Avatars des membres de l'équipe ayant déjà voté sur ce candidat pour
+/// cette offre — ✓ vert (retenir), ✗ rouge (passer), ⭐ jaune (favori).
+/// N'affiche rien si personne n'a encore voté.
+class _TeamVotesRow extends ConsumerWidget {
+  final String teamId;
+  final String offerId;
+  final String candidateId;
+  const _TeamVotesRow({
+    required this.teamId,
+    required this.offerId,
+    required this.candidateId,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<List<SwipeVote>>(
+      future: ref.read(teamServiceProvider).getVotesForCandidate(
+            teamId: teamId,
+            offerId: offerId,
+            candidateId: candidateId,
+          ),
+      builder: (context, snapshot) {
+        final votes = snapshot.data ?? [];
+        if (votes.isEmpty) return const SizedBox();
+        final visible = votes.take(3).toList();
+        final extra = votes.length - visible.length;
+        return Row(
+          children: [
+            SizedBox(
+              height: 28,
+              width: 22.0 * visible.length + (extra > 0 ? 20 : 0),
+              child: Stack(
+                children: [
+                  for (var i = 0; i < visible.length; i++)
+                    Positioned(
+                      left: i * 18.0,
+                      child: _VoteAvatar(vote: visible[i]),
+                    ),
+                  if (extra > 0)
+                    Positioned(
+                      left: visible.length * 18.0,
+                      child: Container(
+                        width: 26, height: 26,
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('+$extra',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _VoteAvatar extends StatelessWidget {
+  final SwipeVote vote;
+  const _VoteAvatar({required this.vote});
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = (vote.voterName?.isNotEmpty == true)
+        ? vote.voterName![0].toUpperCase()
+        : '?';
+    final (icon, color) = switch (vote.voteEnum) {
+      SwipeVoteType.retain => (Icons.check, AppColors.green),
+      SwipeVoteType.favorite => (Icons.star, Colors.amber),
+      SwipeVoteType.pass => (Icons.close, AppColors.red),
+    };
+    return Stack(
+      children: [
+        Container(
+          width: 26, height: 26,
+          decoration: BoxDecoration(
+            gradient: AvatarColors.gradientForString(vote.voterName ?? vote.voterId),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+          ),
+          alignment: Alignment.center,
+          child: Text(initials,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        ),
+        Positioned(
+          right: -2, bottom: -2,
+          child: Container(
+            width: 14, height: 14,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1),
+            ),
+            child: Icon(icon, size: 9, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Badge de score circulaire pour les recruteurs Pro — l'anneau de
+/// progression entoure exactement le cercle contenant le pourcentage,
+/// au lieu de flotter autour d'une pastille rectangulaire.
+class _ProScoreRing extends StatelessWidget {
+  final int score;
+  const _ProScoreRing({required this.score});
+
+  Color get _color {
+    if (score > 75) return AppColors.green;
+    if (score >= 50) return AppColors.orange;
+    return AppColors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 54.0;
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withOpacity(0.45),
+        boxShadow: [BoxShadow(color: _color.withOpacity(0.5), blurRadius: 10)],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: size, height: size,
+            child: CircularProgressIndicator(
+              value: score / 100,
+              strokeWidth: 3.5,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              valueColor: AlwaysStoppedAnimation(_color),
+            ),
+          ),
+          Text('$score%',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
     );
@@ -962,6 +1288,174 @@ class _ActiveChip extends StatelessWidget {
         side: BorderSide.none,
       ),
     );
+  }
+}
+
+/// Radar de talents (Pro) — candidats correspondant à >= 60% des critères
+/// de l'offre mais SANS "Disponible maintenant" actif. Le candidat n'est
+/// jamais informé qu'il apparaît ici — un SparkInvite respectueux lui est
+/// envoyé s'il intéresse le recruteur, max 5 par jour.
+class _RadarTab extends ConsumerStatefulWidget {
+  final JobOffer offer;
+  const _RadarTab({required this.offer});
+
+  @override
+  ConsumerState<_RadarTab> createState() => _RadarTabState();
+}
+
+class _RadarTabState extends ConsumerState<_RadarTab> {
+  bool _loading = true;
+  List<_SwipeItem> _candidates = [];
+  Set<String> _invitedIds = {};
+  int _remainingInvites = sparkInviteDailyLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_RadarTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.offer.jobOfferId != widget.offer.jobOfferId) _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final session = ref.read(sessionProvider);
+    final profileRepo = ref.read(candidateProfileRepositoryProvider);
+    final compat = ref.read(compatibilityServiceProvider);
+    final inviteSvc = ref.read(sparkInviteServiceProvider);
+
+    final (profiles, _) = await profileRepo.getProfilesBatch(100);
+    final candidates = profiles
+        .where((p) => p.userId != session.userId && !p.isAvailableNowActive)
+        .map((p) => _SwipeItem(profile: p, score: compat.calculateScore(p, widget.offer)))
+        .where((item) => item.score >= 60)
+        .toList()
+      ..sort((a, b) => b.score.compareTo(a.score));
+
+    final todayCount = await inviteSvc.getTodayCount(session.userId);
+
+    if (mounted) {
+      setState(() {
+        _candidates = candidates;
+        _remainingInvites = (sparkInviteDailyLimit - todayCount).clamp(0, sparkInviteDailyLimit);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _sendInvite(_SwipeItem item) async {
+    if (_remainingInvites <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Limite de 5 SparkInvites par jour atteinte.'),
+        backgroundColor: AppColors.orange,
+      ));
+      return;
+    }
+    final session = ref.read(sessionProvider);
+    final ok = await ref.read(sparkInviteServiceProvider).sendInvite(
+          senderId: session.userId,
+          receiverId: item.profile.userId,
+          offerId: widget.offer.jobOfferId,
+        );
+    if (!mounted) return;
+    if (ok) {
+      setState(() {
+        _invitedIds.add(item.profile.userId);
+        _remainingInvites--;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SparkInvite envoyé !'),
+        backgroundColor: AppColors.green,
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Invitation déjà envoyée à ce candidat pour cette offre.'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+    return Column(children: [
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        color: AppColors.primaryLight,
+        child: Row(children: [
+          const Icon(Icons.radar, color: AppColors.primary, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$_remainingInvites SparkInvite${_remainingInvites != 1 ? 's' : ''} restant${_remainingInvites != 1 ? 's' : ''} aujourd\'hui',
+              style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ]),
+      ),
+      Expanded(
+        child: _candidates.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('Aucun candidat passif ne correspond à cette offre pour le moment.',
+                      textAlign: TextAlign.center),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _candidates.length,
+                itemBuilder: (context, i) {
+                  final item = _candidates[i];
+                  final invited = _invitedIds.contains(item.profile.userId);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AvatarColors.gradientForString(item.profile.fullName).colors.first,
+                        child: Text(item.profile.initials,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.profile.fullName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('${item.score}% de compatibilité',
+                                style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: invited ? null : () => _sendInvite(item),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: invited ? Colors.grey.shade300 : AppColors.primary,
+                          minimumSize: const Size(0, 36),
+                        ),
+                        child: Text(invited ? 'Envoyé ✓' : 'SparkInvite',
+                            style: TextStyle(color: invited ? Colors.grey.shade600 : Colors.white, fontSize: 12)),
+                      ),
+                    ]),
+                  );
+                },
+              ),
+      ),
+    ]);
   }
 }
 

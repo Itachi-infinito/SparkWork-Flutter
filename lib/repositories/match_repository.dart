@@ -40,6 +40,23 @@ class MatchRepository {
     return _fromDoc(doc);
   }
 
+  /// Flux temps réel d'un match (utilisé pour refléter la confirmation
+  /// d'embauche de l'autre partie sans recharger manuellement).
+  Stream<Match?> watchMatch(String matchId) {
+    return _col.doc(matchId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return _fromDoc(doc);
+    });
+  }
+
+  /// Confirme l'embauche pour une des deux parties. Quand les deux parties
+  /// ont confirmé, la Cloud Function `onHireConfirmed` enregistre `hiredAt`
+  /// et notifie les deux utilisateurs — ce n'est pas géré côté client.
+  Future<void> confirmHire(String matchId, {required bool isCandidate}) async {
+    final field = isCandidate ? 'hiredByCandidate' : 'hiredByRecruiter';
+    await _col.doc(matchId).update({field: true});
+  }
+
   Future<bool> matchExists(
     String candidateUserId,
     String recruiterUserId,

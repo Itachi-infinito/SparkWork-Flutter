@@ -49,24 +49,9 @@ class RatingService {
       targetType: targetType,
     ).toMap());
 
-    // Recalcule la moyenne
-    await _recalculateAverage(toUserId);
-  }
-
-  Future<void> _recalculateAverage(String userId) async {
-    final all = await _db
-        .collection('ratings')
-        .where('toUserId', isEqualTo: userId)
-        .where('isHidden', isEqualTo: false)
-        .get();
-    if (all.docs.isEmpty) return;
-    final scores = all.docs.map((d) => (d.data()['score'] as num).toInt()).toList();
-    final avg = scores.reduce((a, b) => a + b) / scores.length;
-    await _db.collection('average_ratings').doc(userId).set({
-      'userId': userId,
-      'averageScore': double.parse(avg.toStringAsFixed(1)),
-      'totalReviews': scores.length,
-    });
+    // average_ratings/{toUserId} est recalculé côté serveur par la Cloud
+    // Function onRatingCreated — les règles Firestore interdisent à
+    // l'auteur de la note d'écrire la moyenne d'un AUTRE utilisateur.
   }
 
   Future<AverageRating?> getAverageRating(String userId) async {
@@ -104,14 +89,5 @@ class RatingService {
     } catch (_) {
       return false;
     }
-  }
-
-  /// Confirme l'embauche pour un participant (candidat ou recruteur).
-  Future<void> confirmHired(String matchId, String userId, bool isRecruiter) async {
-    await _db.collection('matches').doc(matchId).update(
-      isRecruiter
-          ? {'hiredByRecruiter': true, 'hiredAt': DateTime.now().toIso8601String()}
-          : {'hiredByCandidate': true, 'hiredAt': DateTime.now().toIso8601String()},
-    );
   }
 }

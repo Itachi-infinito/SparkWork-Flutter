@@ -12,10 +12,65 @@ service cloud.firestore {
           || m.recruiterUserId == request.auth.uid;
     }
 
-    // User accounts — only owner writes
+    function isAdminUser() {
+      return isAuth()
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // User accounts — l'utilisateur gère son propre profil, mais ne peut
+    // jamais s'attribuer isAdmin ni lever lui-même le mode restreint
+    // (isRestricted) : ces deux champs sont exclusivement gérés par les
+    // Cloud Functions (Admin SDK, qui ignore ces règles).
     match /users/{userId} {
       allow read: if isAuth();
-      allow write: if isAuth() && request.auth.uid == userId;
+      allow create: if isAuth() && request.auth.uid == userId
+          && request.resource.data.isAdmin == false
+          && (!('isRestricted' in request.resource.data)
+              || request.resource.data.isRestricted == false);
+      allow update: if isAuth() && request.auth.uid == userId
+          && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
+          && request.resource.data.get('isRestricted', false) == resource.data.get('isRestricted', false);
+      allow delete: if isAuth() && request.auth.uid == userId;
+    }
+
+    // Sessions actives — une seule par appareil. La création (isActive:
+    // true) passe uniquement par la Cloud Function createActiveSession
+    // (Admin SDK) pour capturer l'IP côté serveur ; le client ne peut que
+    // désactiver ses PROPRES sessions (déconnexion manuelle ou "Déconnecter
+    // les autres appareils"), jamais en réactiver une.
+    match /active_sessions/{sessionId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdminUser());
+      allow update: if isAuth() && resource.data.userId == request.auth.uid
+          && (request.resource.data.isActive == resource.data.isActive
+              || request.resource.data.isActive == false);
+      allow create, delete: if false;
+    }
+
+    // Anomalies de sécurité — écriture uniquement par les Cloud Functions
+    // (détection + résolution via le Callable resolveSecurityFlag).
+    match /security_flags/{flagId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdminUser());
+      allow write: if false;
+    }
+
+    // Logs de sécurité (90 jours, RGPD) — jamais lus ni écrits par le
+    // client directement ; la suppression sur demande passe par un Callable.
+    match /security_logs/{userId}/events/{eventId} {
+      allow read: if isAdminUser();
+      allow write: if false;
+    }
+
+    // Codes de déblocage du mode restreint — jamais accessibles directement,
+    // uniquement via les Callables requestRestrictedUnlockOtp /
+    // verifyRestrictedUnlockOtp.
+    match /security_otps/{userId} {
+      allow read, write: if false;
+    }
+
+    // Dashboard sécurité admin — agrégé par Cloud Function quotidienne.
+    match /security_dashboard/{docId} {
+      allow read: if isAdminUser();
+      allow write: if false;
     }
 
     // Candidate profiles — anyone reads, only owner writes
@@ -34,6 +89,11 @@ service cloud.firestore {
           && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAuth()
           && resource.data.userId == request.auth.uid;
+    }
+
+    // Ambiance visuelle (système de thèmes) — uniquement le recruteur propriétaire.
+    match /recruiter_profiles/{profileId}/settings/{settingId} {
+      allow read, write: if isAuth() && request.auth.uid == profileId;
     }
 
     // Job offers — anyone reads, only owning recruiter writes
@@ -168,7 +228,23 @@ service cloud.firestore {
 
     // Abonnements recruteurs — lecture/écriture par le propriétaire
     match /recruiter_subscriptions/{userId} {
-      allow read, write: if isAuth() && request.auth.uid == userId;
+      allow read: if isAuth() && request.auth.uid == userId;
+
+      // Création initiale : uniquement l'essai gratuit (plan free + trial).
+      allow create: if isAuth() && request.auth.uid == userId
+          && request.resource.data.plan == 'free'
+          && request.resource.data.status == 'trial';
+
+      // Auto-expiration de son propre essai (trial -> expired) uniquement —
+      // empêche un client de s'attribuer Starter/Pro lui-même.
+      allow update: if isAuth() && request.auth.uid == userId
+          && resource.data.status == 'trial'
+          && request.resource.data.status == 'expired'
+          && request.resource.data.plan == resource.data.plan;
+
+      // Tout passage à un plan payant, renouvellement ou annulation réelle
+      // est écrit uniquement par la Cloud Function webhook RevenueCat
+      // (Admin SDK, qui ignore ces règles).
     }
 
     // Quotas de swipes — lecture/écriture par le propriétaire
@@ -201,10 +277,17 @@ service cloud.firestore {
           && resource.data.candidateId == request.auth.uid;
     }
 
-    // Équipes — membres lisent, propriétaire écrit
+    function isTeamMember(teamId) {
+      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
+      return team.companyId == request.auth.uid
+          || ('memberIds' in team && team.memberIds.hasAny([request.auth.uid]));
+    }
+
+    // Équipes — membres lisent (via memberIds, dénormalisé — members est un
+    // tableau de maps qu'on ne peut pas indexer par clé ici), propriétaire écrit.
     match /teams/{teamId} {
       allow read: if isAuth() && (
-          resource.data.members[request.auth.uid] != null ||
+          ('memberIds' in resource.data && resource.data.memberIds.hasAny([request.auth.uid])) ||
           resource.data.companyId == request.auth.uid);
       allow create: if isAuth()
           && request.resource.data.companyId == request.auth.uid;
@@ -221,6 +304,51 @@ service cloud.firestore {
           && resource.data.voterId == request.auth.uid;
     }
 
+    // Notes internes d'équipe sur un candidat — jamais visibles par le
+    // candidat lui-même, uniquement par les membres de l'équipe concernée.
+    match /teams/{teamId}/candidate_notes/{candidateId} {
+      allow read, write: if isTeamMember(teamId);
+    }
+
+    // Cache des SparkScores — calculé et écrit uniquement par la Cloud
+    // Function calculateSparkScore (Admin SDK), lecture libre aux recruteurs
+    // connectés (aucune donnée sensible, juste un score de compatibilité).
+    match /sparkscores/{scoreId} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    // Analyse candidat approfondie (Pro) — calculée par Cloud Function
+    // quotidienne. Le candidat ne doit JAMAIS voir ses propres métriques
+    // (taux de réponse, popularité...) — anonymisé à son égard.
+    match /candidate_analytics/{candidateId} {
+      allow read: if isAuth() && request.auth.uid != candidateId;
+      allow write: if false;
+    }
+
+    // Rapport de candidature automatique (Pro) — généré à la création du
+    // match, lisible par les deux parties concernées.
+    match /match_reports/{matchId} {
+      allow read: if isMatchParticipant(matchId);
+      allow write: if false;
+    }
+
+    // Pipeline de recrutement visuel (Pro) — uniquement le recruteur propriétaire.
+    match /recruiter_pipeline/{recruiterId}/cards/{cardId} {
+      allow read, write: if isAuth() && request.auth.uid == recruiterId;
+    }
+
+    // Radar de talents — SparkInvite. Le candidat ne doit jamais savoir
+    // qu'il a été repéré via le radar — il ne voit que l'invitation reçue.
+    match /sparkInvites/{inviteId} {
+      allow read: if isAuth() && (
+          resource.data.senderId == request.auth.uid ||
+          resource.data.receiverId == request.auth.uid);
+      allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuth() && resource.data.receiverId == request.auth.uid;
+      allow delete: if false;
+    }
+
     // Invitations d'équipe
     match /team_invitations/{invId} {
       allow read: if isAuth();
@@ -234,6 +362,27 @@ service cloud.firestore {
     match /insight_reports/{reportId} {
       allow read: if isAuth();
       allow write: if false;
+    }
+
+    // Historique des profils vus — uniquement par le recruteur concerné.
+    match /swipe_history/{entryId} {
+      allow read: if isAuth() && resource.data.recruiterId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.recruiterId == request.auth.uid;
+      allow update: if isAuth() && resource.data.recruiterId == request.auth.uid
+          && request.resource.data.recruiterId == resource.data.recruiterId;
+      allow delete: if false;
+    }
+
+    // Modèles de messages personnalisés (Pro) — uniquement le recruteur propriétaire.
+    match /message_templates/{recruiterId}/templates/{templateId} {
+      allow read, write: if isAuth() && request.auth.uid == recruiterId;
+    }
+
+    // Favoris candidats — uniquement par le recruteur concerné.
+    match /candidate_favorites/{favId} {
+      allow read, delete: if isAuth() && resource.data.recruiterId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.recruiterId == request.auth.uid;
+      allow update: if false;
     }
 
     // Partenaires — lecture par tous (pour validation du code)
@@ -264,6 +413,13 @@ service cloud.firestore {
       allow create: if isAuth()
           && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    // Vérification Veriff — doc ID = userId. Écriture uniquement via Cloud
+    // Functions (Admin SDK, qui ignore ces règles) ; le client ne fait que lire.
+    match /verifications/{userId} {
+      allow read: if isAuth() && request.auth.uid == userId;
+      allow write: if false;
     }
   }
 }

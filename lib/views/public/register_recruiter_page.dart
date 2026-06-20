@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/company_number.dart';
+import '../../core/widgets/partner_code_field.dart';
 import '../../core/widgets/terms_checkbox.dart';
+import '../../models/partner.dart';
 import '../../models/recruiter_profile.dart';
 import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/partner_service.dart';
 
 class RegisterRecruiterPage extends ConsumerStatefulWidget {
   const RegisterRecruiterPage({super.key});
@@ -28,6 +31,7 @@ class _RegisterRecruiterPageState
   String? _error;
   bool _obscure = true;
   bool _acceptedTerms = false;
+  Partner? _resolvedPartner;
 
   @override
   void dispose() {
@@ -83,6 +87,23 @@ class _RegisterRecruiterPageState
         companyName: company,
         companyNumber: companyNumber,
       ));
+
+      // Code partenaire — n'a jamais d'incidence sur le succès de l'inscription
+      final partner = _resolvedPartner;
+      if (partner != null) {
+        try {
+          await ref.read(partnerServiceProvider).registerReferral(
+                partnerId: partner.partnerId,
+                referredUserId: uid,
+                referredUserType: 'recruiter',
+                partnerName: partner.name,
+                candidateId: uid,
+              );
+        } catch (_) {
+          // Le parrainage est secondaire — on ne bloque jamais l'inscription
+        }
+      }
+
       if (mounted) context.go('/recruiter/home');
     } catch (e) {
       if (mounted) setState(() => _error = 'Erreur lors de l\'inscription.');
@@ -238,6 +259,10 @@ class _RegisterRecruiterPageState
                   if (v == null || v.length < 6) return 'Minimum 6 caractères';
                   return null;
                 },
+              ),
+              const SizedBox(height: 24),
+              PartnerCodeField(
+                onResolved: (p) => setState(() => _resolvedPartner = p),
               ),
               const SizedBox(height: 24),
               TermsCheckbox(

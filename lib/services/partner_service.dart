@@ -42,10 +42,9 @@ class PartnerService {
       createdAt: now,
     ).toMap());
 
-    // Incrémenter le compteur du partenaire
-    await _db.collection('partners').doc(partnerId).update({
-      'totalReferrals': FieldValue.increment(1),
-    });
+    // Le compteur partners/{partnerId}.totalReferrals est incrémenté
+    // côté serveur par la Cloud Function onReferralCreated — les règles
+    // Firestore interdisent toute écriture cliente sur `partners`.
 
     // Ajouter le badge sur le profil candidat si applicable
     if (referredUserType == 'candidate') {

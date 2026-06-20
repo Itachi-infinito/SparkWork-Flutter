@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_skills.dart';
+import '../../core/widgets/partner_code_field.dart';
 import '../../core/widgets/terms_checkbox.dart';
 import '../../models/candidate_profile.dart';
+import '../../models/partner.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/partner_service.dart';
 
 class RegisterCandidatePage extends ConsumerStatefulWidget {
   const RegisterCandidatePage({super.key});
@@ -34,6 +37,7 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
   String? _error;
   bool _obscure = true;
   bool _acceptedTerms = false;
+  Partner? _resolvedPartner;
 
   @override
   void dispose() {
@@ -96,6 +100,23 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
       );
       // Write profile even if widget was already unmounted by GoRouter redirect.
       await profileRepo.insertProfile(profile);
+
+      // Code partenaire — n'a jamais d'incidence sur le succès de l'inscription
+      final partner = _resolvedPartner;
+      if (partner != null) {
+        try {
+          await ref.read(partnerServiceProvider).registerReferral(
+                partnerId: partner.partnerId,
+                referredUserId: uid,
+                referredUserType: 'candidate',
+                partnerName: partner.name,
+                candidateId: uid,
+              );
+        } catch (_) {
+          // Le parrainage est secondaire — on ne bloque jamais l'inscription
+        }
+      }
+
       if (mounted) context.go('/candidate/home');
     } catch (e) {
       if (mounted) setState(() => _error = 'Erreur lors de l\'inscription.');
@@ -319,6 +340,10 @@ class _RegisterCandidatePageState extends ConsumerState<RegisterCandidatePage> {
                   labelText: 'Présentez-vous brièvement...',
                   alignLabelWithHint: true,
                 ),
+              ),
+              const SizedBox(height: 24),
+              PartnerCodeField(
+                onResolved: (p) => setState(() => _resolvedPartner = p),
               ),
               const SizedBox(height: 24),
               TermsCheckbox(

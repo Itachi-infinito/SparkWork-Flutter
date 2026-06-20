@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../models/recruiter_profile.dart';
+import '../../models/subscription.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
+import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
 
 class RecruiterProfilePage extends ConsumerStatefulWidget {
@@ -23,6 +25,7 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
   int _matchesCount = 0;
   bool _loading = true;
   RecruiterProfile? _profile;
+  SubscriptionPlan _currentPlan = SubscriptionPlan.free;
 
   @override
   void initState() {
@@ -37,12 +40,14 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
       ref.read(jobOfferRepositoryProvider).getOffersByRecruiter(session.userId),
       ref.read(matchRepositoryProvider).getMatchesByRecruiter(session.userId),
       ref.read(recruiterProfileRepositoryProvider).getProfile(session.userId),
+      ref.read(subscriptionServiceProvider).getCurrentPlan(session.userId),
     ]);
     if (mounted) {
       setState(() {
         _offersCount = (results[0] as List).length;
         _matchesCount = (results[1] as List).length;
         _profile = results[2] as RecruiterProfile?;
+        _currentPlan = results[3] as SubscriptionPlan;
         _loading = false;
       });
     }
@@ -114,6 +119,14 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                           const _SectionTitle('Actions'),
                           const SizedBox(height: 12),
                           _ActionTile(
+                              icon: Icons.workspace_premium_outlined,
+                              label: 'Mon forfait — ${_currentPlan.displayName}',
+                              color: AppColors.green,
+                              onTap: () async {
+                                await context.push('/recruiter/subscription');
+                                _load();
+                              }),
+                          _ActionTile(
                               icon: Icons.work_outline,
                               label: 'Gérer mes offres',
                               color: AppColors.primary,
@@ -135,6 +148,19 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                               color: AppColors.primaryDark,
                               onTap: () =>
                                   context.push('/recruiter/candidates')),
+                          _ActionTile(
+                              icon: Icons.history,
+                              label: 'Historique des profils vus',
+                              color: AppColors.textSecondary,
+                              onTap: () =>
+                                  context.push('/recruiter/history')),
+                          if (_currentPlan == SubscriptionPlan.pro)
+                            _ActionTile(
+                                icon: Icons.view_column_outlined,
+                                label: 'Pipeline de recrutement',
+                                color: const Color(0xFF8B5CF6),
+                                onTap: () =>
+                                    context.push('/recruiter/pipeline')),
                           const SizedBox(height: 32),
                         ],
                       ),

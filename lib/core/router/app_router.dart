@@ -34,6 +34,7 @@ import '../../views/shared/match_page.dart';
 import '../../views/shared/settings_page.dart';
 import '../../views/recruiter/recruiter_stats_page.dart';
 import '../../views/recruiter/plan_selection_page.dart';
+import '../../views/recruiter/subscription_management_page.dart';
 import '../../views/candidate/flash_offer_detail_screen.dart';
 import '../../views/candidate/verification_screen.dart';
 import '../../views/candidate/recommendations_page.dart';
@@ -42,6 +43,15 @@ import '../../views/recruiter/insights_page.dart';
 import '../../views/shared/notification_settings_page.dart';
 import '../../views/shared/rating_screen.dart';
 import '../../views/shared/reviews_list_screen.dart';
+import '../../views/shared/security_sessions_page.dart';
+import '../../views/shared/security_alert_screen.dart';
+import '../../views/shared/security_unlock_screen.dart';
+import '../../views/admin/security_dashboard_page.dart';
+import '../../views/partner/partner_dashboard_page.dart';
+import '../../views/recruiter/swipe_history_page.dart';
+import '../../views/recruiter/match_report_screen.dart';
+import '../../views/recruiter/pipeline_page.dart';
+import '../../views/recruiter/theme_customization_page.dart';
 import '../../models/job_offer.dart';
 
 const _publicPaths = [
@@ -230,6 +240,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PlanSelectionPage(),
       ),
       GoRoute(
+        path: '/recruiter/subscription',
+        builder: (context, state) => const SubscriptionManagementPage(),
+      ),
+      GoRoute(
         path: '/recruiter/team',
         builder: (context, state) => const TeamManagementPage(),
       ),
@@ -289,6 +303,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final displayName = (state.extra as Map<String, dynamic>?)?['displayName'] as String? ?? '';
           return ReviewsListScreen(userId: userId, displayName: displayName);
         },
+      ),
+      GoRoute(
+        path: '/security/sessions',
+        builder: (context, state) => const SecuritySessionsPage(),
+      ),
+      GoRoute(
+        path: '/security/alert',
+        builder: (context, state) => const SecurityAlertScreen(),
+      ),
+      GoRoute(
+        path: '/security/unlock',
+        builder: (context, state) => const SecurityUnlockScreen(),
+      ),
+      GoRoute(
+        path: '/admin/security',
+        builder: (context, state) => const SecurityDashboardPage(),
+      ),
+      GoRoute(
+        path: '/partner/dashboard',
+        builder: (context, state) => const PartnerDashboardPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/history',
+        builder: (context, state) => const SwipeHistoryPage(),
+      ),
+      GoRoute(
+        path: '/recruiter/match-report/:matchId',
+        builder: (context, state) =>
+            MatchReportScreen(matchId: state.pathParameters['matchId']!),
+      ),
+      GoRoute(
+        path: '/recruiter/pipeline',
+        builder: (context, state) => const PipelinePage(),
+      ),
+      GoRoute(
+        path: '/recruiter/theme/custom',
+        builder: (context, state) => const ThemeCustomizationPage(),
       ),
     ],
   );

@@ -23,6 +23,7 @@ class JobOffer {
   final String flashStartDate;
   final int flashDurationHours;
   final String urgencyLevel; // normal / urgent / very_urgent
+  final bool isBoosted;
 
   const JobOffer({
     required this.jobOfferId,
@@ -47,6 +48,7 @@ class JobOffer {
     this.flashStartDate = '',
     this.flashDurationHours = 0,
     this.urgencyLevel = 'normal',
+    this.isBoosted = false,
   });
 
   bool get isFlashActive {
@@ -122,6 +124,7 @@ class JobOffer {
         'flashStartDate': flashStartDate,
         'flashDurationHours': flashDurationHours,
         'urgencyLevel': urgencyLevel,
+        'isBoosted': isBoosted,
       };
 
   factory JobOffer.fromMap(Map<String, dynamic> map) => JobOffer(
@@ -147,6 +150,7 @@ class JobOffer {
         flashStartDate: map['flashStartDate'] as String? ?? '',
         flashDurationHours: (map['flashDurationHours'] as num?)?.toInt() ?? 0,
         urgencyLevel: map['urgencyLevel'] as String? ?? 'normal',
+        isBoosted: map['isBoosted'] as bool? ?? false,
       );
 
   JobOffer copyWith({
