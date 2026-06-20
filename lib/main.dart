@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -31,6 +32,16 @@ void main() async {
     runApp(_FirebaseErrorApp(error: e.toString()));
     return;
   }
+
+  // App Check : prouve aux Cloud Functions/Firestore que l'appel vient
+  // bien de l'app officielle (pas d'un script qui aurait trouvé les
+  // endpoints). En debug, Play Integrity/App Attest ne fonctionnent pas
+  // sur émulateur — on utilise le provider "debug", qui génère un jeton à
+  // enregistrer manuellement dans la console Firebase pour ce device.
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+  );
 
   // Crashlytics désactivé en debug (sinon chaque hot-reload/erreur de dev
   // polluerait le dashboard) — actif uniquement sur les builds release/profile.
