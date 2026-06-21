@@ -75,6 +75,14 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
               const SizedBox(height: 24),
               ElevatedButton(
                   onPressed: _load, child: const Text('Réessayer')),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () async {
+                  await context.push('/candidate/profile/edit');
+                  _load();
+                },
+                child: const Text('Créer mon profil'),
+              ),
             ],
           ),
         ),
