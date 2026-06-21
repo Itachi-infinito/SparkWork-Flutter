@@ -16,10 +16,9 @@ import '../../services/session_service.dart';
 /// Pipeline de recrutement visuel kanban (Pro). Drag & drop custom via
 /// Draggable/DragTarget (pas de dépendance externe flutter_kanban).
 ///
-/// TODO: les rappels (reminderAt) sont stockés mais ne déclenchent pas
-/// encore de notification locale réelle — nécessite le package
-/// flutter_local_notifications, non installé pour l'instant. L'app affiche
-/// uniquement un indicateur visuel (horloge rouge si échéance dépassée).
+/// Les rappels (reminderAt) déclenchent une vraie notification locale
+/// (cf. LocalNotificationService) en plus de l'indicateur visuel (horloge
+/// rouge si échéance dépassée).
 class PipelinePage extends ConsumerStatefulWidget {
   const PipelinePage({super.key});
 
@@ -153,7 +152,10 @@ class _PipelinePageState extends ConsumerState<PipelinePage> {
                     final session = ref.read(sessionProvider);
                     final svc = ref.read(pipelineServiceProvider);
                     await svc.saveNote(session.userId, card.cardId, noteCtrl.text);
-                    await svc.setReminder(session.userId, card.cardId, reminder);
+                    await svc.setReminder(
+                      session.userId, card.cardId, reminder,
+                      candidateName: _candidates[card.candidateId]?.fullName ?? 'ce candidat',
+                    );
                     if (ctx.mounted) Navigator.pop(ctx);
                     _load();
                   },

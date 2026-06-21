@@ -15,6 +15,7 @@ import 'core/widgets/restricted_mode_banner.dart';
 import 'core/widgets/team_upsell_sheet.dart';
 import 'firebase_options.dart';
 import 'models/security_flag.dart';
+import 'services/local_notification_service.dart';
 import 'services/notification_service.dart';
 import 'services/session_security_service.dart';
 import 'services/session_service.dart';
@@ -63,6 +64,8 @@ void main() async {
 
   await NotificationService.initialize();
   await SubscriptionService().initialize();
+  await LocalNotificationService.initialize();
+  await LocalNotificationService.requestPermission();
   runApp(const ProviderScope(child: SparkWorkApp()));
 }
 

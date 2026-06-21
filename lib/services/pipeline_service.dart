@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/pipeline_card.dart';
+import 'local_notification_service.dart';
 
 final pipelineServiceProvider = Provider<PipelineService>((ref) => PipelineService());
 
@@ -51,9 +52,24 @@ class PipelineService {
     });
   }
 
-  Future<void> setReminder(String recruiterId, String cardId, DateTime? reminderAt) async {
+  Future<void> setReminder(
+    String recruiterId,
+    String cardId,
+    DateTime? reminderAt, {
+    String candidateName = 'ce candidat',
+  }) async {
     await _cards(recruiterId).doc(cardId).update({
       'reminderAt': reminderAt?.toIso8601String(),
     });
+    if (reminderAt == null) {
+      await LocalNotificationService.cancelReminder(cardId);
+    } else {
+      await LocalNotificationService.scheduleReminder(
+        cardId: cardId,
+        title: 'Rappel pipeline',
+        body: 'Suivi à faire pour $candidateName.',
+        scheduledAt: reminderAt,
+      );
+    }
   }
 }
