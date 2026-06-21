@@ -13,6 +13,7 @@ class UserRepository {
       'email': user.email,
       'fullName': user.fullName,
       'role': user.role,
+      'isAdmin': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

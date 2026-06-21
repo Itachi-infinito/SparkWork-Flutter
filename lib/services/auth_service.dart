@@ -40,6 +40,10 @@ class AuthService {
         'fullName': fullName,
         'email': email,
         'role': role,
+        // Requis explicitement par les règles Firestore (allow create
+        // exige isAdmin == false) — sans ce champ, request.resource.data.isAdmin
+        // vaut null et la création est silencieusement refusée.
+        'isAdmin': false,
         'acceptedTermsAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
         ...?extraData,
