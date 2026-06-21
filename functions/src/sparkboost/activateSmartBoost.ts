@@ -25,7 +25,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
  * SubscriptionService.useBoost — celui-ci est réservé au plan Pro.
  */
 export const activateSmartBoost = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

@@ -16,7 +16,7 @@ import { checkAnomaliesAfterSession } from './analyzeSessionAnomaly';
  * appareil (session unique par appareil) et notifie son propriétaire.
  */
 export const createActiveSession = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

@@ -13,7 +13,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
  * génération de rapport de candidature.
  */
 export const calculateSparkScore = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

@@ -19,7 +19,7 @@ const DAILY_API_BASE = 'https://api.daily.co/v1';
  * tant que ce compte n'est pas créé, comme Veriff/Stripe/RevenueCat.
  */
 export const createDailyRoom = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

@@ -20,7 +20,7 @@ function hashCode(code: string): string {
  * son email.
  */
 export const requestRestrictedUnlockOtp = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -49,7 +49,7 @@ export const requestRestrictedUnlockOtp = onCall(
 );
 
 export const verifyRestrictedUnlockOtp = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -94,7 +94,7 @@ export const verifyRestrictedUnlockOtp = onCall(
  * recevoir, ou en cas de faux positif manifeste).
  */
 export const adminUnlockRestrictedAccount = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

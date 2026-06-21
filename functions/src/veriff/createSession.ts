@@ -9,7 +9,7 @@ const VERIFF_BASE_URL = 'https://stationapi.veriff.com';
 const MAX_ATTEMPTS = 3;
 
 export const createVeriffSession = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

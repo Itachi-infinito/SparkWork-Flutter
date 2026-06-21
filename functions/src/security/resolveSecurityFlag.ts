@@ -9,7 +9,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
  * d'afficher l'upsell "fort" vers la Gestion d'équipe (trigger 2).
  */
 export const resolveSecurityFlag = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

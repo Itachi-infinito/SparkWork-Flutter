@@ -20,7 +20,7 @@ const MAX_ATTEMPTS = 3;
  * non fonctionnel tant que ce compte n'est pas créé et configuré.
  */
 export const createStripeIdentitySession = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

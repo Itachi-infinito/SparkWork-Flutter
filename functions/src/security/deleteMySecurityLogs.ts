@@ -8,7 +8,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
  * security_logs n'est lisible/écrivable que par les Cloud Functions.
  */
 export const deleteMySecurityLogs = onCall(
-  { region: 'europe-west1' },
+  { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
