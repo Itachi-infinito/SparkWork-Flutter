@@ -23,6 +23,7 @@ export { onSwipeVoteWritten } from './competition/onSwipeVoteWritten';
 export { calculateCandidateAnalytics } from './analytics/calculateCandidateAnalytics';
 export { activateSmartBoost } from './sparkboost/activateSmartBoost';
 export { generateMatchReport } from './matchreport/generateMatchReport';
+export { regenerateMatchReport } from './matchreport/regenerateMatchReport';
 export { onSparkInviteCreated } from './sparkinvite/onSparkInviteCreated';
 export { createStripeIdentitySession } from './stripeidentity/createStripeIdentitySession';
 export { stripeIdentityWebhook } from './stripeidentity/stripeIdentityWebhook';

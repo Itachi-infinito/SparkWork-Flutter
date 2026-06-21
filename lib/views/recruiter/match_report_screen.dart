@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -20,6 +21,8 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
   Map<String, dynamic>? _report;
   bool _loading = true;
   bool _exporting = false;
+  bool _regenerating = false;
+  String? _regenerateError;
 
   @override
   void initState() {
@@ -33,6 +36,24 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
         .doc(widget.matchId)
         .get();
     if (mounted) setState(() { _report = doc.data(); _loading = false; });
+  }
+
+  /// Le rapport n'est généré qu'une fois, à la création du match — s'il
+  /// manque (recruteur passé Pro après coup, ou échec ponctuel), on
+  /// propose de le générer maintenant via la Cloud Function dédiée.
+  Future<void> _regenerate() async {
+    setState(() { _regenerating = true; _regenerateError = null; });
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      await functions.httpsCallable('regenerateMatchReport').call({'matchId': widget.matchId});
+      await _load();
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) setState(() => _regenerateError = e.message ?? 'Échec de la génération.');
+    } catch (e) {
+      if (mounted) setState(() => _regenerateError = 'Échec de la génération.');
+    } finally {
+      if (mounted) setState(() => _regenerating = false);
+    }
   }
 
   Future<void> _exportPdf() async {
@@ -160,12 +181,35 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _report == null
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text(
-                      'Rapport non disponible — cette fonctionnalité est réservée au plan Pro.',
-                      textAlign: TextAlign.center,
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Rapport non disponible — il n\'a pas pu être généré au moment du match '
+                          '(par exemple si vous n\'étiez pas encore Pro à ce moment-là).',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        if (_regenerateError != null) ...[
+                          Text(_regenerateError!,
+                              style: const TextStyle(color: AppColors.red, fontSize: 12),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                        ],
+                        ElevatedButton.icon(
+                          onPressed: _regenerating ? null : _regenerate,
+                          icon: _regenerating
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.refresh, size: 18),
+                          label: Text(_regenerating ? 'Génération...' : 'Générer maintenant'),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                        ),
+                      ],
                     ),
                   ),
                 )
