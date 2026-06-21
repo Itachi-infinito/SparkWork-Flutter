@@ -42,6 +42,15 @@ void main() async {
     androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
     appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
   );
+  // activate() configure le provider mais ne garantit pas qu'un jeton soit
+  // déjà en cache — le premier appel Firestore/Storage (ex: l'écriture du
+  // profil juste après l'inscription) peut sinon partir sans jeton valide
+  // et être rejeté. On force ici l'obtention d'un premier jeton avant que
+  // l'app ne devienne interactive. Si ça échoue (pas de réseau...), on ne
+  // bloque pas le démarrage — les appels suivants retenteront normalement.
+  try {
+    await FirebaseAppCheck.instance.getToken(true);
+  } catch (_) {}
 
   // Crashlytics désactivé en debug (sinon chaque hot-reload/erreur de dev
   // polluerait le dashboard) — actif uniquement sur les builds release/profile.
