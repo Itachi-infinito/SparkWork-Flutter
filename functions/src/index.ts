@@ -24,6 +24,7 @@ export { calculateCandidateAnalytics } from './analytics/calculateCandidateAnaly
 export { activateSmartBoost } from './sparkboost/activateSmartBoost';
 export { generateMatchReport } from './matchreport/generateMatchReport';
 export { regenerateMatchReport } from './matchreport/regenerateMatchReport';
+export { onInterviewWritten } from './interview/onInterviewWritten';
 export { onSparkInviteCreated } from './sparkinvite/onSparkInviteCreated';
 export { createStripeIdentitySession } from './stripeidentity/createStripeIdentitySession';
 export { stripeIdentityWebhook } from './stripeidentity/stripeIdentityWebhook';

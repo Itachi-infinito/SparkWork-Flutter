@@ -1337,10 +1337,12 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
       ..sort((a, b) => b.score.compareTo(a.score));
 
     final todayCount = await inviteSvc.getTodayCount(session.userId);
+    final invitedIds = await inviteSvc.getInvitedCandidateIds(session.userId, widget.offer.jobOfferId);
 
     if (mounted) {
       setState(() {
         _candidates = candidates;
+        _invitedIds = invitedIds;
         _remainingInvites = (sparkInviteDailyLimit - todayCount).clamp(0, sparkInviteDailyLimit);
         _loading = false;
       });

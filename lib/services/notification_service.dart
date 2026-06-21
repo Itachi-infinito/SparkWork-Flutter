@@ -56,6 +56,10 @@ class NotificationService {
 
     switch (type) {
       case 'hire_confirmed':
+      case 'hire_pending_confirmation':
+      case 'interview_proposed':
+      case 'interview_accepted':
+      case 'interview_declined':
         final matchId = data['matchId'];
         if (matchId != null) r.push('/messages/$matchId');
         break;

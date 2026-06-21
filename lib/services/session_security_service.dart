@@ -92,7 +92,15 @@ class SessionSecurityService {
     }
     yield* _sessions.doc(sessionId).snapshots().map((snap) {
       if (!snap.exists) return true;
-      return snap.data()?['isActive'] as bool? ?? false;
+      final data = snap.data();
+      final isActive = data?['isActive'] as bool? ?? false;
+      if (isActive) return true;
+      // Une déconnexion volontaire (logoutReason == 'manual', cf.
+      // markCurrentSessionLoggedOut) ne doit jamais déclencher le popup
+      // "vous avez été déconnecté à distance" — celui-ci est réservé aux
+      // vraies déconnexions forcées (nouvel appareil, action sécurité).
+      if (data?['logoutReason'] == 'manual') return true;
+      return false;
     });
   }
 
