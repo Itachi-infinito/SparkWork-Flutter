@@ -89,7 +89,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _isPublic(path) &&
           path != '/splash' &&
           !path.startsWith('/legal')) {
-        return session.isCandidate ? '/candidate/home' : '/recruiter/home';
+        // Le rôle peut être vide très brièvement après une inscription
+        // (cf. SessionNotifier._onAuthChanged) — ne jamais deviner
+        // "recruteur" par défaut dans ce cas, sinon un candidat dont le
+        // rôle n'est pas encore résolu se retrouve dans l'espace
+        // recruteur. On retombe vers /splash, qui réaffiche le routeur
+        // une fois le rôle effectivement connu.
+        if (session.isCandidate) return '/candidate/home';
+        if (session.isRecruiter) return '/recruiter/home';
+        return '/splash';
       }
 
       return null;

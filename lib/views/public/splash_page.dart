@@ -36,18 +36,31 @@ class _SplashPageState extends ConsumerState<SplashPage>
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
 
-    // Wait for Firebase Auth session to resolve
-    while (ref.read(sessionProvider).isLoading && mounted) {
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-    if (!mounted) return;
+    // Connecté mais rôle pas encore résolu (cf. SessionNotifier) — on
+    // retente sous peu plutôt que de deviner un espace au hasard.
+    for (var attempt = 0; attempt < 6; attempt++) {
+      while (ref.read(sessionProvider).isLoading && mounted) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      if (!mounted) return;
 
-    final session = ref.read(sessionProvider);
-    if (session.isLoggedIn) {
-      context.go(session.isRecruiter ? '/recruiter/home' : '/candidate/home');
-    } else {
-      context.go('/welcome');
+      final session = ref.read(sessionProvider);
+      if (session.isCandidate) {
+        context.go('/candidate/home');
+        return;
+      }
+      if (session.isRecruiter) {
+        context.go('/recruiter/home');
+        return;
+      }
+      if (!session.isLoggedIn) {
+        context.go('/welcome');
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+      await ref.read(sessionProvider.notifier).reload();
     }
+    if (mounted) context.go('/welcome');
   }
 
   @override

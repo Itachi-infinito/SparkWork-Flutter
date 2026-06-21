@@ -48,10 +48,23 @@ class SessionNotifier extends StateNotifier<SessionState> {
       return;
     }
     try {
-      final doc = await FirebaseFirestore.instance
+      // Juste après une inscription, le compte Auth existe avant que le
+      // document users/{uid} (écrit séparément par AuthService.register)
+      // n'apparaisse — sans cette tentative répétée, ce changement d'état
+      // d'auth peut être traité dans cette fenêtre et abandonner
+      // définitivement, sans jamais relire le document une fois écrit.
+      DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+          .instance
           .collection('users')
           .doc(firebaseUser.uid)
           .get();
+      for (var attempt = 0; !doc.exists && attempt < 5; attempt++) {
+        await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+        doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get();
+      }
       if (!doc.exists) {
         state = const SessionState(isLoading: false);
         return;
