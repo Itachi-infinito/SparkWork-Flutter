@@ -1186,18 +1186,23 @@ class _JobOfferCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 10),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Wrap(spacing: 6, runSpacing: 6, children: [
-                      if (offer.contractType.isNotEmpty)
-                        _CardBadge(offer.contractType),
-                      if (offer.level.isNotEmpty) _CardBadge(offer.level),
-                      if (offer.remoteMode.isNotEmpty)
-                        _CardBadge(offer.remoteMode),
-                      ...shownSkills.map((s) => _CardBadge(s)),
-                      if (extra > 0) _CardBadge('+$extra'),
-                    ]),
-                    const Spacer(),
-                    if (isFlash) _FlashCountdown(offer: offer),
+                    Expanded(
+                      child: Wrap(spacing: 6, runSpacing: 6, children: [
+                        if (offer.contractType.isNotEmpty)
+                          _CardBadge(offer.contractType),
+                        if (offer.level.isNotEmpty) _CardBadge(offer.level),
+                        if (offer.remoteMode.isNotEmpty)
+                          _CardBadge(offer.remoteMode),
+                        ...shownSkills.map((s) => _CardBadge(s)),
+                        if (extra > 0) _CardBadge('+$extra'),
+                      ]),
+                    ),
+                    if (isFlash) ...[
+                      const SizedBox(width: 8),
+                      _FlashCountdown(offer: offer),
+                    ],
                   ],
                 ),
               ],

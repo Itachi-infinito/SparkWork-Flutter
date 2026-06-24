@@ -83,6 +83,7 @@ class NotificationService {
         if (candidateId != null) r.push('/recruiter/candidates/$candidateId');
         break;
 
+      case 'flash_offer':
       case 'boosted_offer':
         final offerId = data['offerId'];
         if (offerId != null) r.push('/candidate/offers/$offerId');
