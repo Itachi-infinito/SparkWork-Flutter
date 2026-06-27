@@ -178,10 +178,10 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _QuickAction(
-                    icon: Icons.work_outline,
-                    label: 'Offres',
+                    icon: Icons.swipe_rounded,
+                    label: 'Découvrir',
                     color: AppColors.green,
-                    onTap: () => context.go('/candidate/offers'),
+                    onTap: () => context.go('/candidate/swipe'),
                   ),
                 ),
               ],

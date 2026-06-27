@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
 
 /// Pages légales statiques : CGU et politique de confidentialité.
 /// ⚠️ Contenu de base à faire valider par un juriste avant publication.
@@ -27,16 +26,16 @@ class LegalPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(s.$1,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary)),
+                                color: Theme.of(context).colorScheme.onSurface)),
                         const SizedBox(height: 8),
                         Text(s.$2,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13,
                                 height: 1.6,
-                                color: AppColors.textSecondary)),
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
                       ],
                     ),
                   ))

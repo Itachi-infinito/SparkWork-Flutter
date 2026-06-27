@@ -156,11 +156,21 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => context.go('/candidate/swipe'),
-            icon: const Icon(Icons.swipe, color: Colors.white),
-            label: const Text('Découvrir des offres', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/candidate/swipe'),
+                icon: const Icon(Icons.swipe, color: Colors.white),
+                label: const Text('Découvrir des offres', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
           ),
         ],
       ),

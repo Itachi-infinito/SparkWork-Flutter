@@ -280,11 +280,11 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Filtres',
+                    Text('Filtres',
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
+                            color: Theme.of(ctx).colorScheme.onSurface)),
                     TextButton(
                       onPressed: () {
                         setSheet(() {
@@ -791,19 +791,19 @@ class _ChipGroup extends StatelessWidget {
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.primary
-                  : AppColors.surfaceVariant,
+                  : Theme.of(context).colorScheme.surfaceVariant,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                   color: isSelected
                       ? AppColors.primary
-                      : AppColors.border),
+                      : Theme.of(context).colorScheme.outline.withOpacity(0.4)),
             ),
             child: Text(o,
                 style: TextStyle(
                     fontSize: 12,
                     color: isSelected
                         ? Colors.white
-                        : AppColors.textSecondary,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: isSelected
                         ? FontWeight.w600
                         : FontWeight.normal)),
@@ -855,10 +855,10 @@ class _FilterLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(text,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary));
+            color: Theme.of(context).colorScheme.onSurface));
   }
 }
 
