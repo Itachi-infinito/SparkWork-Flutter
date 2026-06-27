@@ -34,8 +34,11 @@ class CandidateNavBar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         child: NavigationBar(
           selectedIndex: currentIndex,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1A1D27)
+              : AppColors.surface,
           surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
           indicatorColor: AppColors.primaryLight,
           height: 64,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -111,8 +114,11 @@ class RecruiterNavBar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         child: NavigationBar(
           selectedIndex: currentIndex,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1A1D27)
+              : AppColors.surface,
           surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
           indicatorColor: AppColors.greenLight,
           height: 64,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
