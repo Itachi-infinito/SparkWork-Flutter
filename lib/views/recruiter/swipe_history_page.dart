@@ -10,6 +10,7 @@ import '../../repositories/candidate_profile_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/swipe_history_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SwipeHistoryPage extends ConsumerStatefulWidget {
   const SwipeHistoryPage({super.key});
@@ -57,10 +58,11 @@ class _SwipeHistoryPageState extends ConsumerState<SwipeHistoryPage> {
   }
 
   Future<void> _recover(SwipeHistoryEntry entry) async {
+    final loc = AppLocalizations.of(context)!;
     await ref.read(swipeHistoryServiceProvider).markRecovered(entry.entryId);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Ce profil réapparaîtra en priorité lors de votre prochaine session de swipe.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.swipeHistRecoveredMsg),
         backgroundColor: AppColors.green,
       ));
     }
@@ -80,8 +82,9 @@ class _SwipeHistoryPageState extends ConsumerState<SwipeHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Historique des profils')),
+      appBar: AppBar(title: Text(loc.swipeHistTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _plan == SubscriptionPlan.free
@@ -89,10 +92,10 @@ class _SwipeHistoryPageState extends ConsumerState<SwipeHistoryPage> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: _entries.isEmpty
-                      ? ListView(children: const [
+                      ? ListView(children: [
                           Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(child: Text('Aucun profil dans votre historique.')),
+                            padding: const EdgeInsets.all(40),
+                            child: Center(child: Text(loc.swipeHistEmpty)),
                           ),
                         ])
                       : ListView.builder(
@@ -111,6 +114,7 @@ class _SwipeHistoryPageState extends ConsumerState<SwipeHistoryPage> {
   }
 
   Widget _buildUpsell() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -119,13 +123,13 @@ class _SwipeHistoryPageState extends ConsumerState<SwipeHistoryPage> {
           children: [
             const Icon(Icons.history, size: 56, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-            const Text('Historique non disponible',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(loc.swipeHistUpsellTitle,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'Disponible dès le plan Starter (7 jours) et Pro (30 jours).',
+            Text(
+              loc.swipeHistUpsellBody,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -149,19 +153,20 @@ class _HistoryTile extends StatelessWidget {
     required this.onToggleFavorite,
   });
 
-  (IconData, Color, String) get _actionInfo {
+  (IconData, Color, String) _actionInfo(AppLocalizations loc) {
     switch (entry.action) {
-      case 'like': return (Icons.favorite, AppColors.red, 'Liké');
-      case 'superlike': return (Icons.bolt, AppColors.orange, 'Super liké');
-      default: return (Icons.close, Colors.grey, 'Passé');
+      case 'like': return (Icons.favorite, AppColors.red, loc.swipeHistLiked);
+      case 'superlike': return (Icons.bolt, AppColors.orange, loc.swipeHistSuperLiked);
+      default: return (Icons.close, Colors.grey, loc.swipeHistPassed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final date = DateTime.tryParse(entry.swipedAt);
     final dateLabel = date != null ? DateFormat('d MMM, HH:mm', 'fr_FR').format(date) : '';
-    final (icon, color, label) = _actionInfo;
+    final (icon, color, label) = _actionInfo(loc);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -179,7 +184,7 @@ class _HistoryTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(profile?.fullName ?? 'Profil supprimé',
+              Text(profile?.fullName ?? loc.swipeHistDeletedProfile,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               if (profile?.jobTitle?.isNotEmpty == true)
                 Text(profile!.jobTitle!,

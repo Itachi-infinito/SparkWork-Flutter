@@ -8,6 +8,7 @@ import '../../repositories/job_offer_repository.dart';
 import '../../repositories/match_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateHomePage extends ConsumerStatefulWidget {
   const CandidateHomePage({super.key});
@@ -46,6 +47,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -89,13 +91,13 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text('Bonjour, ${session.userName.split(' ').first} 👋',
+                  Text(loc.candHomeGreeting(session.userName.split(' ').first),
                       style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Prêt à trouver votre prochain poste ?',
+                  Text(loc.candHomeSubtitle,
                       style: TextStyle(
                           color: Colors.white.withOpacity(0.75),
                           fontSize: 14)),
@@ -135,17 +137,17 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                       child: const Icon(Icons.swipe, color: Colors.white, size: 28),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Découvrir des offres',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(loc.candHomeDiscoverTitle,
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    Text('Swipez pour trouver votre prochain emploi',
+                    Text(loc.candHomeDiscoverSubtitle,
                         style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                      child: const Text('Commencer',
-                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      child: Text(loc.candHomeStart,
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -153,7 +155,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
             ),
             const SizedBox(height: 24),
 
-            Text('Accès rapide',
+            Text(loc.candHomeQuickAccess,
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.textPrimaryColor)),
             const SizedBox(height: 12),
             Row(
@@ -161,7 +163,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.favorite_outline,
-                    label: 'Mes Matches',
+                    label: loc.candHomeMyMatches,
                     color: AppColors.red,
                     onTap: () => context.go('/candidate/matches'),
                   ),
@@ -170,7 +172,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.chat_bubble_outline,
-                    label: 'Messages',
+                    label: loc.candHomeMessages,
                     color: AppColors.primary,
                     onTap: () => context.go('/messages'),
                   ),
@@ -179,7 +181,7 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.swipe_rounded,
-                    label: 'Découvrir',
+                    label: loc.candHomeDiscover,
                     color: AppColors.green,
                     onTap: () => context.go('/candidate/swipe'),
                   ),
@@ -220,10 +222,10 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Mes offres likées',
+                          Text(loc.candHomeLikedOffersTitle,
                               style: TextStyle(fontWeight: FontWeight.w600, color: context.textPrimaryColor)),
                           const SizedBox(height: 2),
-                          Text('Retrouvez les offres que vous avez aimées',
+                          Text(loc.candHomeLikedOffersSubtitle,
                               style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
                         ],
                       ),
@@ -241,14 +243,14 @@ class _CandidateHomePageState extends ConsumerState<CandidateHomePage> {
                 color: AppColors.orangeLight,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.lightbulb_outline, color: AppColors.orange),
-                  SizedBox(width: 12),
+                  const Icon(Icons.lightbulb_outline, color: AppColors.orange),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Astuce : Complétez votre profil pour augmenter vos chances de match !',
-                      style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      loc.candHomeTip,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                     ),
                   ),
                 ],

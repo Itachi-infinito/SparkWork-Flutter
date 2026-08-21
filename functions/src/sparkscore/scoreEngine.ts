@@ -22,6 +22,11 @@ export interface SparkScoreFactors {
   stability: ScoreFactor;
 }
 
+function parseYearMonth(ym: string): Date {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, 1);
+}
+
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -131,13 +136,55 @@ export function computeSparkScoreFactors(
   };
 
   // 6. Stabilité professionnelle (10%)
-  // TODO: nécessite un historique d'expériences structuré (durées) qui
-  // n'existe pas encore dans candidate_profiles — valeur neutre pour
-  // l'instant, à affiner quand ce champ sera modélisé.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const workHistory: any[] = Array.isArray(candidate.workHistory) ? candidate.workHistory : [];
+  let stabilityValue = 70;
+  let stabilityExplanation = 'Historique d\'emploi non renseigné — estimation neutre.';
+
+  if (workHistory.length === 1) {
+    const exp = workHistory[0];
+    if (exp.startDate) {
+      const now = new Date();
+      const start = parseYearMonth(String(exp.startDate));
+      const end = exp.isCurrent || !exp.endDate ? now : parseYearMonth(String(exp.endDate));
+      const months = Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      stabilityValue = Math.min(75, 45 + months); // plafond 75 : données insuffisantes
+      stabilityExplanation = `Une expérience renseignée (${months} mois) — données insuffisantes pour évaluer pleinement.`;
+    }
+  } else if (workHistory.length >= 2) {
+    const now = new Date();
+    const tenures = workHistory
+      .filter((exp) => exp.startDate)
+      .map((exp) => {
+        const start = parseYearMonth(String(exp.startDate));
+        const end = exp.isCurrent || !exp.endDate ? now : parseYearMonth(String(exp.endDate));
+        return Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      });
+    if (tenures.length >= 2) {
+      const avgTenure = tenures.reduce((a, b) => a + b, 0) / tenures.length;
+      if (avgTenure >= 24) {
+        stabilityValue = 100;
+        stabilityExplanation = `Excellente stabilité (durée moyenne : ${Math.round(avgTenure)} mois par poste).`;
+      } else if (avgTenure >= 18) {
+        stabilityValue = 85;
+        stabilityExplanation = `Bonne stabilité (durée moyenne : ${Math.round(avgTenure)} mois par poste).`;
+      } else if (avgTenure >= 12) {
+        stabilityValue = 70;
+        stabilityExplanation = `Stabilité correcte (durée moyenne : ${Math.round(avgTenure)} mois par poste).`;
+      } else if (avgTenure >= 6) {
+        stabilityValue = 50;
+        stabilityExplanation = `Stabilité faible (durée moyenne : ${Math.round(avgTenure)} mois par poste).`;
+      } else {
+        stabilityValue = 25;
+        stabilityExplanation = `Turnover fréquent (durée moyenne : ${Math.round(avgTenure)} mois par poste).`;
+      }
+    }
+  }
+
   const stabilityFactor: ScoreFactor = {
-    value: 70,
+    value: stabilityValue,
     weight: SPARK_SCORE_WEIGHTS.stability,
-    explanation: 'Donnée non disponible — estimation neutre.',
+    explanation: stabilityExplanation,
   };
 
   const factors: SparkScoreFactors = {

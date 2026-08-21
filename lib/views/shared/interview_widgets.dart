@@ -10,6 +10,7 @@ import '../../repositories/interview_repository.dart';
 import '../../services/daily_interview_service.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 const _amber = Color(0xFFF59E0B);
 
@@ -93,6 +94,7 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const SizedBox(width: 34, height: 34);
+    final loc = AppLocalizations.of(context)!;
     final session = ref.watch(sessionProvider);
     final i = _interview;
 
@@ -104,17 +106,17 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
       // Pas d'entretien actif
       if (!session.isRecruiter) return const SizedBox.shrink();
       icon = Icons.calendar_month_outlined;
-      label = 'Entretien';
+      label = loc.interviewLabelSchedule;
       color = context.textSecondaryColor;
     } else if (i.isDeclined) {
       // Candidat a refusé
       if (!session.isRecruiter) return const SizedBox.shrink();
       icon = Icons.event_busy;
-      label = 'Refusé — reproposer';
+      label = loc.interviewLabelDeclinedRepropose;
       color = AppColors.red;
     } else if (i.isPending) {
       icon = Icons.schedule;
-      label = session.isRecruiter ? 'En attente' : 'Répondre';
+      label = session.isRecruiter ? loc.interviewLabelPending : loc.interviewLabelRespond;
       color = _amber;
     } else {
       // Accepté
@@ -122,8 +124,8 @@ class _InterviewButtonState extends ConsumerState<InterviewButton> {
       icon = hasLink ? Icons.video_call : Icons.event_available;
       final d = i.acceptedDate;
       label = hasLink
-          ? 'Rejoindre l\'appel'
-          : (d != null ? DateFormat('d MMM HH:mm', 'fr_FR').format(d) : 'Confirmé');
+          ? loc.interviewLabelJoinCall
+          : (d != null ? DateFormat('d MMM HH:mm', 'fr_FR').format(d) : loc.interviewLabelConfirmed);
       color = AppColors.green;
     }
 
@@ -180,6 +182,7 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
     final i = _interview;
     if (i == null || i.isCancelled) return const SizedBox.shrink();
 
+    final loc = AppLocalizations.of(context)!;
     final session = ref.watch(sessionProvider);
     final isRecruiter = session.isRecruiter;
 
@@ -201,21 +204,21 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           color: AppColors.red.withOpacity(0.1),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.event_busy, size: 18, color: AppColors.red),
-              SizedBox(width: 8),
+              const Icon(Icons.event_busy, size: 18, color: AppColors.red),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Le candidat a refusé — proposer de nouveaux créneaux',
-                  style: TextStyle(
+                  loc.interviewBannerDeclinedRecruiter,
+                  style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.red,
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right, size: 18, color: AppColors.red),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.red),
             ],
           ),
         ),
@@ -226,11 +229,13 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
     String text;
     if (i.isAccepted) {
       final d = i.acceptedDate;
-      text = 'Entretien confirmé${d != null ? ' — ${formatSlot(d)}' : ''}';
+      text = d != null
+          ? loc.interviewBannerConfirmedWithDate(formatSlot(d))
+          : loc.interviewBannerConfirmed;
     } else {
       text = !isRecruiter
-          ? 'Entretien proposé — choisissez un créneau'
-          : 'Proposition d\'entretien envoyée — en attente';
+          ? loc.interviewBannerProposedCandidate
+          : loc.interviewBannerProposedRecruiter;
     }
 
     final hasLink = i.isAccepted && i.meetingLink.isNotEmpty;
@@ -277,13 +282,13 @@ class _InterviewBannerState extends ConsumerState<InterviewBanner> {
                     color: AppColors.green,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.video_call, size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text('Rejoindre',
-                          style: TextStyle(
+                      const Icon(Icons.video_call, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(loc.interviewJoin,
+                          style: const TextStyle(
                               fontSize: 12,
                               color: Colors.white,
                               fontWeight: FontWeight.w600)),
@@ -310,20 +315,22 @@ Future<bool> showProposeInterviewDialog(
   required String candidateUserId,
   Interview? existing,
 }) async {
+  final loc = AppLocalizations.of(context)!;
+
   // Entretien déjà confirmé : afficher le récap (+ annulation)
   if (existing != null && existing.isAccepted) {
     final d = existing.acceptedDate;
     final cancel = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Entretien confirmé'),
+        title: Text(loc.interviewConfirmedTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(d != null
-                ? 'Le candidat a confirmé le créneau :\n\n${formatSlot(d)}'
-                : 'Le candidat a confirmé un créneau.'),
+                ? loc.interviewRecruiterConfirmedBody(formatSlot(d))
+                : loc.interviewRecruiterConfirmedBodyNoDate),
             if (existing.meetingLink.isNotEmpty) ...[
               const SizedBox(height: 12),
               GestureDetector(
@@ -352,12 +359,12 @@ Future<bool> showProposeInterviewDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Annuler l\'entretien',
-                style: TextStyle(color: AppColors.red)),
+            child: Text(loc.interviewCancelInterview,
+                style: const TextStyle(color: AppColors.red)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Fermer'),
+            child: Text(loc.interviewClose),
           ),
         ],
       ),
@@ -402,8 +409,8 @@ Future<bool> showProposeInterviewDialog(
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setD) => AlertDialog(
         title: Text(existing?.isDeclined == true
-            ? 'Proposer de nouveaux créneaux'
-            : 'Proposer un entretien'),
+            ? loc.interviewProposeNewSlotsTitle
+            : loc.interviewProposeTitle),
         content: SizedBox(
           width: 340,
           child: SingleChildScrollView(
@@ -420,18 +427,16 @@ Future<bool> showProposeInterviewDialog(
                       color: AppColors.red.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'Le candidat a refusé votre précédente proposition. '
-                      'Proposez de nouveaux créneaux.',
+                    child: Text(
+                      loc.interviewDeclinedNotice,
                       style:
-                          TextStyle(fontSize: 12.5, color: AppColors.red),
+                          const TextStyle(fontSize: 12.5, color: AppColors.red),
                     ),
                   )
                 else
-                  const Text(
-                    'Proposez un ou plusieurs créneaux. Le candidat en '
-                    'choisira un.',
-                    style: TextStyle(
+                  Text(
+                    loc.interviewProposeHint,
+                    style: const TextStyle(
                         fontSize: 13, color: AppColors.textSecondary),
                   ),
                 const SizedBox(height: 12),
@@ -463,24 +468,24 @@ Future<bool> showProposeInterviewDialog(
                       if (s != null) setD(() => slots..add(s)..sort());
                     },
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Ajouter un créneau'),
+                    label: Text(loc.interviewAddSlot),
                   ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: msgCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    hintText: 'Message (lieu, consignes...)',
+                  decoration: InputDecoration(
+                    hintText: loc.interviewMessageHint,
                     isDense: true,
                   ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: linkCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Lien Teams / Meet / Zoom (optionnel)',
+                  decoration: InputDecoration(
+                    hintText: loc.interviewLinkHint,
                     prefixIcon:
-                        Icon(Icons.videocam_outlined, size: 18),
+                        const Icon(Icons.videocam_outlined, size: 18),
                     isDense: true,
                   ),
                   keyboardType: TextInputType.url,
@@ -500,7 +505,7 @@ Future<bool> showProposeInterviewDialog(
                             } catch (e) {
                               if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                  content: Text('Salle vidéo indisponible : $e'),
+                                  content: Text(loc.interviewVideoRoomError(e.toString())),
                                   backgroundColor: AppColors.red,
                                 ));
                               }
@@ -511,7 +516,7 @@ Future<bool> showProposeInterviewDialog(
                     icon: creatingRoom
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.video_call, size: 16),
-                    label: const Text('Créer une salle vidéo intégrée (Daily.co)', style: TextStyle(fontSize: 12)),
+                    label: Text(loc.interviewCreateVideoRoom, style: const TextStyle(fontSize: 12)),
                   ),
                 ],
               ],
@@ -521,14 +526,14 @@ Future<bool> showProposeInterviewDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(existing?.isPending == true ? 'Fermer' : 'Annuler'),
+            child: Text(existing?.isPending == true ? loc.interviewClose : loc.interviewCancel),
           ),
           ElevatedButton.icon(
             onPressed: slots.isEmpty ? null : () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: Text(existing?.isPending == true
-                ? 'Mettre à jour'
-                : 'Envoyer'),
+                ? loc.interviewUpdate
+                : loc.interviewSend),
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppColors.green),
           ),
@@ -550,7 +555,7 @@ Future<bool> showProposeInterviewDialog(
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Envoi impossible : $e'),
+        content: Text(loc.interviewSendError(e.toString())),
         backgroundColor: AppColors.red,
         duration: const Duration(seconds: 5),
       ));
@@ -558,8 +563,8 @@ Future<bool> showProposeInterviewDialog(
     return false;
   }
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Proposition d\'entretien envoyée !'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(loc.interviewSentSuccess),
       backgroundColor: AppColors.green,
     ));
   }
@@ -570,19 +575,20 @@ Future<bool> showProposeInterviewDialog(
 /// Retourne true si une réponse a été enregistrée.
 Future<bool> showRespondInterviewDialog(
     BuildContext context, WidgetRef ref, Interview interview) async {
+  final loc = AppLocalizations.of(context)!;
   if (interview.isAccepted) {
     final d = interview.acceptedDate;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Entretien confirmé'),
+        title: Text(loc.interviewConfirmedTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(d != null
-                ? 'Votre entretien est confirmé :\n\n${formatSlot(d)}'
-                : 'Votre entretien est confirmé.'),
+                ? loc.interviewCandidateConfirmedBody(formatSlot(d))
+                : loc.interviewCandidateConfirmedBodyNoDate),
             if (interview.meetingLink.isNotEmpty) ...[
               const SizedBox(height: 12),
               GestureDetector(
@@ -611,7 +617,7 @@ Future<bool> showRespondInterviewDialog(
         actions: [
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Fermer')),
+              child: Text(loc.interviewClose)),
         ],
       ),
     );
@@ -623,15 +629,15 @@ Future<bool> showRespondInterviewDialog(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setD) => AlertDialog(
-        title: const Text('Proposition d\'entretien'),
+        title: Text(loc.interviewProposalTitle),
         content: SizedBox(
           width: 340,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Le recruteur vous propose ces créneaux :',
-                  style: TextStyle(
+              Text(loc.interviewRecruiterProposesSlots,
+                  style: const TextStyle(
                       fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 10),
               ...interview.slotDates.map((s) => RadioListTile<DateTime>(
@@ -660,15 +666,15 @@ Future<bool> showRespondInterviewDialog(
               ],
               if (interview.meetingLink.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.videocam_outlined,
+                    const Icon(Icons.videocam_outlined,
                         size: 14, color: AppColors.textSecondary),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Réunion en ligne prévue',
-                        style: TextStyle(
+                        loc.interviewOnlineMeetingPlanned,
+                        style: const TextStyle(
                             fontSize: 12.5,
                             color: AppColors.textSecondary),
                       ),
@@ -682,15 +688,15 @@ Future<bool> showRespondInterviewDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'decline'),
-            child: const Text('Refuser',
-                style: TextStyle(color: AppColors.red)),
+            child: Text(loc.interviewDecline,
+                style: const TextStyle(color: AppColors.red)),
           ),
           ElevatedButton(
             onPressed:
                 selected == null ? null : () => Navigator.pop(ctx, 'accept'),
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppColors.green),
-            child: const Text('Confirmer ce créneau'),
+            child: Text(loc.interviewConfirmSlot),
           ),
         ],
       ),
@@ -704,7 +710,7 @@ Future<bool> showRespondInterviewDialog(
           .accept(interview.interviewId, selected!);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Entretien confirmé — ${formatSlot(selected!)}'),
+          content: Text(loc.interviewConfirmedSnackbar(formatSlot(selected!))),
           backgroundColor: AppColors.green,
         ));
       }
@@ -719,7 +725,7 @@ Future<bool> showRespondInterviewDialog(
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Réponse impossible : $e'),
+        content: Text(loc.interviewRespondError(e.toString())),
         backgroundColor: AppColors.red,
         duration: const Duration(seconds: 5),
       ));

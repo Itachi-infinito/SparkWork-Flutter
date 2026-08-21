@@ -1,10 +1,12 @@
 import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
+import '../../core/constants/app_sectors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
@@ -30,6 +32,8 @@ import '../shared/nav_bar.dart';
 import '../../core/utils/avatar_colors.dart';
 import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
+import '../../core/widgets/social_proof_badge.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecruiterSwipePage extends ConsumerStatefulWidget {
   const RecruiterSwipePage({super.key});
@@ -51,6 +55,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   String _filterRemoteMode = '';
   String _filterLocation = '';
   String _filterSkill = '';
+  String _filterSector = '';
 
   bool _filterAvailableNow = false;
   bool _filterVerifiedOnly = false;
@@ -63,6 +68,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
       _filterRemoteMode.isNotEmpty ||
       _filterLocation.isNotEmpty ||
       _filterSkill.isNotEmpty ||
+      _filterSector.isNotEmpty ||
       _filterAvailableNow ||
       _filterVerifiedOnly;
 
@@ -197,6 +203,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         if (_filterVerifiedOnly && p.verificationStatus != 'verified') {
           return false;
         }
+        if (_filterSector.isNotEmpty && !p.sectors.contains(_filterSector)) {
+          return false;
+        }
         return true;
       }).toList();
     });
@@ -240,6 +249,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) return false;
         if (_filterAvailableNow && !p.isAvailableNowActive) return false;
         if (_filterVerifiedOnly && p.verificationStatus != 'verified') return false;
+        if (_filterSector.isNotEmpty && !p.sectors.contains(_filterSector)) return false;
         return true;
       }).toList();
 
@@ -253,11 +263,13 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   void _showFilterSheet() {
+    final loc = AppLocalizations.of(context)!;
     String tmpLocation = _filterLocation;
     String tmpContractType = _filterContractType;
     String tmpLevel = _filterLevel;
     String tmpRemoteMode = _filterRemoteMode;
     String tmpSkill = _filterSkill;
+    String tmpSector = _filterSector;
     final locationCtrl = TextEditingController(text: tmpLocation);
 
     showModalBottomSheet(
@@ -288,22 +300,36 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Filtres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(loc.recSwipeFiltersTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
 
-                  const Text('Ville', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(loc.recSwipeCity, style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: locationCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'ex: Paris, Lyon...',
-                      prefixIcon: Icon(Icons.location_on_outlined),
+                    decoration: InputDecoration(
+                      hintText: loc.recSwipeCityHint,
+                      prefixIcon: const Icon(Icons.location_on_outlined),
                     ),
                     onChanged: (v) => tmpLocation = v,
                   ),
                   const SizedBox(height: 20),
 
-                  const Text('Type de contrat', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(loc.recSwipeSector, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8, runSpacing: 6,
+                    children: AppSectors.all.map((s) => FilterChip(
+                      label: Text(s.label),
+                      selected: tmpSector == s.id,
+                      onSelected: (v) => setSheet(() => tmpSector = v ? s.id : ''),
+                      selectedColor: AppColors.primaryLight,
+                      checkmarkColor: AppColors.primary,
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Text(loc.recSwipeContractType, style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8, runSpacing: 6,
@@ -317,7 +343,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   ),
                   const SizedBox(height: 20),
 
-                  const Text("Niveau d'expérience", style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(loc.recSwipeLevel, style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8, runSpacing: 6,
@@ -331,7 +357,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   ),
                   const SizedBox(height: 20),
 
-                  const Text('Mode de travail', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(loc.recSwipeWorkMode, style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8, runSpacing: 6,
@@ -345,11 +371,11 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   ),
                   const SizedBox(height: 20),
 
-                  const Text('Compétence', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(loc.recSwipeSkill, style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: tmpSkill.isEmpty ? null : tmpSkill,
-                    hint: const Text('Toutes les compétences'),
+                    hint: Text(loc.recSwipeAllSkills),
                     decoration: const InputDecoration(prefixIcon: Icon(Icons.star_outline)),
                     isExpanded: true,
                     items: AppSkills.horecaSkills
@@ -359,7 +385,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   ),
                   if (_userPlan != SubscriptionPlan.free) ...[
                     const SizedBox(height: 20),
-                    const Text('Disponibilité', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(loc.recSwipeAvailability, style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     StatefulBuilder(
                       builder: (_, setLocal) => CheckboxListTile(
@@ -368,14 +394,14 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           setState(() => _filterAvailableNow = v ?? false);
                           setLocal(() {});
                         },
-                        title: const Text('Disponibles maintenant uniquement'),
+                        title: Text(loc.recSwipeAvailableNowOnly),
                         activeColor: AppColors.green,
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text('Vérification', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(loc.recSwipeVerification, style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     StatefulBuilder(
                       builder: (_, setLocal) => CheckboxListTile(
@@ -384,12 +410,12 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           setState(() => _filterVerifiedOnly = v ?? false);
                           setLocal(() {});
                         },
-                        title: const Row(
+                        title: Row(
                           children: [
-                            Icon(Icons.verified_user,
+                            const Icon(Icons.verified_user,
                                 color: Color(0xFF3B82F6), size: 16),
-                            SizedBox(width: 6),
-                            Text('Profils vérifiés uniquement'),
+                            const SizedBox(width: 6),
+                            Text(loc.recSwipeVerifiedOnly),
                           ],
                         ),
                         activeColor: const Color(0xFF3B82F6),
@@ -409,6 +435,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                           tmpLevel = '';
                           tmpRemoteMode = '';
                           tmpSkill = '';
+                          tmpSector = '';
                           locationCtrl.clear();
                           setState(() {
                             _filterAvailableNow = false;
@@ -418,7 +445,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: context.textSecondaryColor),
                         ),
-                        child: Text('Réinitialiser',
+                        child: Text(loc.recSwipeReset,
                             style: TextStyle(color: context.textSecondaryColor)),
                       ),
                     ),
@@ -432,6 +459,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                             _filterLevel = tmpLevel;
                             _filterRemoteMode = tmpRemoteMode;
                             _filterSkill = tmpSkill;
+                            _filterSector = tmpSector;
                           });
                           _applyFilters();
                           Navigator.pop(ctx);
@@ -439,8 +467,8 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                         ),
-                        child: const Text('Appliquer',
-                            style: TextStyle(color: Colors.white)),
+                        child: Text(loc.recSwipeApply,
+                            style: const TextStyle(color: Colors.white)),
                       ),
                     ),
                   ]),
@@ -459,6 +487,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     void removeFilter(VoidCallback fn) { fn(); _applyFilters(); }
     if (_filterLocation.isNotEmpty) {
       chips.add(_ActiveChip(_filterLocation, () => removeFilter(() => setState(() => _filterLocation = ''))));
+    }
+    if (_filterSector.isNotEmpty) {
+      chips.add(_ActiveChip(AppSectors.labelFor(_filterSector), () => removeFilter(() => setState(() => _filterSector = ''))));
     }
     if (_filterContractType.isNotEmpty) {
       chips.add(_ActiveChip(_filterContractType, () => removeFilter(() => setState(() => _filterContractType = ''))));
@@ -603,6 +634,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final appBarActions = [
       Stack(
         children: [
@@ -634,14 +666,14 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         child: Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: const Text('Explorer les candidats'),
+            title: Text(loc.recSwipeTitle),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             elevation: 0,
             actions: appBarActions,
-            bottom: const TabBar(
+            bottom: TabBar(
               tabs: [
-                Tab(text: 'Swipe', icon: Icon(Icons.swipe, size: 18)),
-                Tab(text: 'Radar', icon: Icon(Icons.radar, size: 18)),
+                Tab(text: loc.recSwipeTabSwipe, icon: const Icon(Icons.swipe, size: 18)),
+                Tab(text: loc.recSwipeTabRadar, icon: const Icon(Icons.radar, size: 18)),
               ],
               labelColor: AppColors.primary,
               indicatorColor: AppColors.primary,
@@ -651,7 +683,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
             _buildSwipeBody(),
             _selectedOffer != null
                 ? _RadarTab(offer: _selectedOffer!)
-                : const Center(child: Text('Sélectionnez une offre pour utiliser le Radar.')),
+                : Center(child: Text(loc.recSwipeSelectOfferForRadar)),
           ]),
           bottomNavigationBar: const RecruiterNavBar(currentIndex: 1),
         ),
@@ -661,7 +693,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Explorer les candidats'),
+        title: Text(loc.recSwipeTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: appBarActions,
@@ -672,6 +704,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   Widget _buildSwipeBody() {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       children: [
         if (_myOffers.isNotEmpty)
@@ -679,9 +712,9 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: DropdownButtonFormField<JobOffer>(
               value: _selectedOffer,
-              decoration: const InputDecoration(
-                labelText: 'Offre associée',
-                prefixIcon: Icon(Icons.work_outline),
+              decoration: InputDecoration(
+                labelText: loc.recSwipeAssociatedOffer,
+                prefixIcon: const Icon(Icons.work_outline),
               ),
               items: _myOffers.map((o) => DropdownMenuItem(
                 value: o,
@@ -706,6 +739,7 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
   }
 
   Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -720,14 +754,14 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
           ),
           const SizedBox(height: 20),
           Text(
-            'Aucun candidat disponible',
+            loc.recSwipeNoCandidates,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
           ),
           const SizedBox(height: 8),
           Text(
             _hasActiveFilters
-                ? 'Essayez de modifier vos filtres'
-                : 'Revenez plus tard !',
+                ? loc.recSwipeTryOtherFilters
+                : loc.recSwipeComeBackLater,
             style: TextStyle(color: context.textSecondaryColor),
           ),
           const SizedBox(height: 24),
@@ -740,17 +774,18 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   _filterLevel = '';
                   _filterRemoteMode = '';
                   _filterSkill = '';
+                  _filterSector = '';
                 });
                 _applyFilters();
               },
               icon: const Icon(Icons.filter_alt_off, color: AppColors.primary),
-              label: const Text('Effacer les filtres', style: TextStyle(color: AppColors.primary)),
+              label: Text(loc.recSwipeClearFilters, style: const TextStyle(color: AppColors.primary)),
             )
           else
             OutlinedButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh, color: AppColors.green),
-              label: const Text('Actualiser', style: TextStyle(color: AppColors.green)),
+              label: Text(loc.recSwipeRefresh, style: const TextStyle(color: AppColors.green)),
               style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.green)),
             ),
         ],
@@ -900,10 +935,13 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
         children: [
           // Photo or gradient background
           if (p.photoUrl != null && p.photoUrl!.isNotEmpty)
-            Image.network(
-              p.photoUrl!,
+            CachedNetworkImage(
+              imageUrl: p.photoUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              placeholder: (_, __) => Container(
+                decoration: BoxDecoration(gradient: gradient),
+              ),
+              errorWidget: (_, __, ___) => Container(
                 decoration: BoxDecoration(gradient: gradient),
               ),
             )
@@ -976,13 +1014,13 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                         blurRadius: 8)
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_user, color: Colors.white, size: 12),
-                    SizedBox(width: 5),
-                    Text('ID Vérifié',
-                        style: TextStyle(
+                    const Icon(Icons.verified_user, color: Colors.white, size: 12),
+                    const SizedBox(width: 5),
+                    Text(AppLocalizations.of(context)!.recSwipeIdVerified,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold)),
@@ -1073,7 +1111,10 @@ class _RecruiterSwipePageState extends ConsumerState<RecruiterSwipePage> {
                   ...p.skillList.take(3).map(_CardBadge.new),
                 ]),
                 const SizedBox(height: 8),
-                RecommendationCountBadge(candidateId: p.userId, light: true),
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  RecommendationCountBadge(candidateId: p.userId, light: true),
+                  SocialProofBadge(candidateId: p.userId, light: true),
+                ]),
                 if (_team != null && _selectedOffer != null) ...[
                   const SizedBox(height: 10),
                   _TeamVotesRow(
@@ -1350,9 +1391,10 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
   }
 
   Future<void> _sendInvite(_SwipeItem item) async {
+    final loc = AppLocalizations.of(context)!;
     if (_remainingInvites <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Limite de 5 SparkInvites par jour atteinte.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.recSwipeInviteLimitReached),
         backgroundColor: AppColors.orange,
       ));
       return;
@@ -1369,13 +1411,13 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
         _invitedIds.add(item.profile.userId);
         _remainingInvites--;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('SparkInvite envoyé !'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.recSwipeInviteSent),
         backgroundColor: AppColors.green,
       ));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Invitation déjà envoyée à ce candidat pour cette offre.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.recSwipeInviteAlreadySent),
       ));
     }
   }
@@ -1385,6 +1427,7 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
+    final loc = AppLocalizations.of(context)!;
     return Column(children: [
       Container(
         width: double.infinity,
@@ -1395,7 +1438,7 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$_remainingInvites SparkInvite${_remainingInvites != 1 ? 's' : ''} restant${_remainingInvites != 1 ? 's' : ''} aujourd\'hui',
+              loc.recSwipeInvitesRemaining(_remainingInvites),
               style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
@@ -1403,10 +1446,10 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
       ),
       Expanded(
         child: _candidates.isEmpty
-            ? const Center(
+            ? Center(
                 child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text('Aucun candidat passif ne correspond à cette offre pour le moment.',
+                  padding: const EdgeInsets.all(32),
+                  child: Text(loc.recSwipeNoPassiveCandidates,
                       textAlign: TextAlign.center),
                 ),
               )
@@ -1438,7 +1481,7 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
                           children: [
                             Text(item.profile.fullName,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text('${item.score}% de compatibilité',
+                            Text(loc.recSwipeCompatibility(item.score),
                                 style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
                           ],
                         ),
@@ -1449,7 +1492,7 @@ class _RadarTabState extends ConsumerState<_RadarTab> {
                           backgroundColor: invited ? Colors.grey.shade300 : AppColors.primary,
                           minimumSize: const Size(0, 36),
                         ),
-                        child: Text(invited ? 'Envoyé ✓' : 'SparkInvite',
+                        child: Text(invited ? loc.recSwipeInviteSentButton : loc.recSwipeInviteButton,
                             style: TextStyle(color: invited ? Colors.grey.shade600 : Colors.white, fontSize: 12)),
                       ),
                     ]),

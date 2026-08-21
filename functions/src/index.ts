@@ -8,6 +8,9 @@ export { ratingReminder } from './scheduled/ratingReminder';
 export { onReferralCreated } from './partner/onReferralCreated';
 export { onRatingCreated } from './rating/onRatingCreated';
 export { receiveRevenueCatWebhook } from './revenuecat/webhook';
+export { syncSubscriptionStatus } from './revenuecat/syncSubscription';
+export { resetTestSubscription } from './revenuecat/resetTestSubscription';
+export { consumeSwipe, useBoost } from './subscription/quotas';
 export { createActiveSession } from './security/createActiveSession';
 export { resolveSecurityFlag } from './security/resolveSecurityFlag';
 export {
@@ -34,4 +37,7 @@ export { resetDailySwipes } from './scheduled/resetDailySwipes';
 export { expireAvailableNow } from './scheduled/expireAvailableNow';
 export { expireFlashOffers } from './scheduled/expireFlashOffers';
 export { generateInsightReport } from './scheduled/generateInsightReport';
+export { weeklyDigest } from './scheduled/weeklyDigest';
+export { candidateSpotlight } from './scheduled/candidateSpotlight';
+export { flashReengagement } from './scheduled/flashReengagement';
 export { onFlashOfferCreated } from './flashoffer/onFlashOfferCreated';

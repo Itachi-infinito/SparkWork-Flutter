@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,10 +12,27 @@ final subscriptionServiceProvider =
 
 /// Clés publiques RevenueCat — non sensibles, prévues pour être embarquées
 /// dans le binaire client. Fournies au build via :
-///   flutter run --dart-define=REVENUECAT_IOS_KEY=appl_xxx
-///   flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
-const _revenueCatIosKey = String.fromEnvironment('REVENUECAT_IOS_KEY');
-const _revenueCatAndroidKey = String.fromEnvironment('REVENUECAT_ANDROID_KEY');
+///   flutter run --dart-define-from-file=dart_defines.json
+/// (ou --dart-define=REVENUECAT_IOS_KEY=appl_xxx individuellement).
+const _revenueCatIosKeyDefine = String.fromEnvironment('REVENUECAT_IOS_KEY');
+const _revenueCatAndroidKeyDefine = String.fromEnvironment('REVENUECAT_ANDROID_KEY');
+
+/// Clé RevenueCat « Test Store » — publique et sans risque (conçue pour le
+/// client). Elle sert de REPLI automatique en développement : si l'app est
+/// lancée sans `--dart-define-from-file` (ex : `flutter run` nu, ou un IDE
+/// mal configuré), le tunnel d'achat reste testable au lieu de tomber en
+/// erreur « paiements non configurés ». En build release ce repli n'est
+/// JAMAIS utilisé : il faut fournir une vraie clé goog_/appl_ via dart-define,
+/// sinon les paiements restent désactivés (on évite d'expédier la Test Store
+/// en production par accident).
+const _revenueCatTestStoreKey = 'test_QFiJECNKLAzrRldipVMhDeoHgpZ';
+
+/// Résout la clé effective pour la plateforme courante : dart-define en
+/// priorité, puis repli Test Store hors release.
+String _resolveApiKey(String define) {
+  if (define.isNotEmpty) return define;
+  return kReleaseMode ? '' : _revenueCatTestStoreKey;
+}
 
 enum PurchaseOutcome { success, userCancelled, paymentError, networkError, notConfigured }
 
@@ -43,25 +62,53 @@ class SubscriptionService {
 
   // ─── REVENUECAT — INITIALISATION & CYCLE DE VIE ────────────────────────────
 
-  bool get isRevenueCatConfigured =>
-      defaultTargetPlatform == TargetPlatform.iOS
-          ? _revenueCatIosKey.isNotEmpty
-          : _revenueCatAndroidKey.isNotEmpty;
+  /// Clé API active pour la plateforme courante (vide = paiements indispo.).
+  String get _apiKey => defaultTargetPlatform == TargetPlatform.iOS
+      ? _resolveApiKey(_revenueCatIosKeyDefine)
+      : _resolveApiKey(_revenueCatAndroidKeyDefine);
+
+  bool get isRevenueCatConfigured => _apiKey.isNotEmpty;
+
+  /// Vrai si l'app tourne sur la « Test Store » RevenueCat (dev) plutôt qu'un
+  /// vrai store. Sert à adapter la résiliation : le Test Store n'a pas de page
+  /// de gestion, on réinitialise donc côté serveur au lieu de rediriger.
+  bool get isTestStore => _apiKey.startsWith('test_');
+
+  /// Vrai une fois `configure()` réellement effectué — les appels d'achat ne
+  /// peuvent réussir qu'à partir de ce moment.
+  bool get isReady => _initialized;
 
   /// À appeler une fois au démarrage de l'app (après Firebase.initializeApp).
   Future<void> initialize() async {
-    if (_initialized || !isRevenueCatConfigured) return;
-    final apiKey = defaultTargetPlatform == TargetPlatform.iOS
-        ? _revenueCatIosKey
-        : _revenueCatAndroidKey;
-    await Purchases.setLogLevel(LogLevel.warn);
-    await Purchases.configure(PurchasesConfiguration(apiKey));
-    _initialized = true;
+    if (_initialized) return;
+    final apiKey = _apiKey;
+    if (apiKey.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[SparkWork] RevenueCat non configuré '
+            '(aucune clé pour ${defaultTargetPlatform.name}) — paiements désactivés.');
+      }
+      return;
+    }
+    try {
+      await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.warn);
+      await Purchases.configure(PurchasesConfiguration(apiKey));
+      _initialized = true;
+      if (kDebugMode) {
+        debugPrint('[SparkWork] RevenueCat initialisé '
+            '(${apiKey.startsWith('test_') ? 'Test Store' : 'production'}).');
+      }
+    } catch (e) {
+      // Ne bloque jamais le démarrage : les paiements resteront simplement
+      // indisponibles et l'UI le signalera proprement.
+      if (kDebugMode) debugPrint('[SparkWork] Échec init RevenueCat : $e');
+    }
   }
 
   /// Associe les achats RevenueCat au compte Firebase de l'utilisateur connecté.
+  /// Essentiel : sans ça, le webhook RevenueCat reçoit l'ID anonyme du SDK et
+  /// ne peut pas rattacher l'abonnement au bon document Firestore.
   Future<void> logIn(String userId) async {
-    if (!_initialized) return;
+    if (!await _ensureReady()) return;
     try {
       await Purchases.logIn(userId);
     } catch (_) {}
@@ -138,39 +185,111 @@ class SubscriptionService {
   /// Cette méthode ne fait que déclencher le paiement et interpréter le résultat
   /// pour l'UX (toast, navigation) — jamais pour accorder le plan elle-même.
   Future<PurchaseResult> purchasePlan(SubscriptionPlan plan) async {
-    if (!isRevenueCatConfigured) {
+    if (!await _ensureReady()) {
       return const PurchaseResult(PurchaseOutcome.notConfigured,
           message: 'Les paiements ne sont pas encore configurés sur cet appareil.');
     }
     try {
       final offerings = await Purchases.getOfferings();
-      final package = offerings.current?.availablePackages.firstWhere(
-        (p) => p.storeProduct.identifier == plan.productId,
-        orElse: () => throw Exception('Produit ${plan.productId} introuvable dans RevenueCat.'),
-      );
+      // On cherche le package par identifiant de produit dans TOUTES les
+      // offerings (pas seulement `current`) : un mauvais réglage de l'offering
+      // par défaut côté RevenueCat ne doit pas casser l'achat.
+      final package = _findPackage(offerings, plan.productId);
       if (package == null) {
-        return const PurchaseResult(PurchaseOutcome.paymentError,
-            message: 'Cette offre n\'est pas disponible pour le moment.');
+        return PurchaseResult(PurchaseOutcome.paymentError,
+            message: 'Cette offre (${plan.displayName}) n\'est pas disponible '
+                'pour le moment. Réessayez plus tard.');
       }
       await Purchases.purchasePackage(package);
       return const PurchaseResult(PurchaseOutcome.success);
-    } on PurchasesErrorCode catch (e) {
-      if (e == PurchasesErrorCode.purchaseCancelledError) {
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code == PurchasesErrorCode.purchaseCancelledError) {
         return const PurchaseResult(PurchaseOutcome.userCancelled);
       }
-      if (e == PurchasesErrorCode.networkError) {
+      if (code == PurchasesErrorCode.networkError) {
         return const PurchaseResult(PurchaseOutcome.networkError,
             message: 'Erreur réseau. Vérifiez votre connexion et réessayez.');
       }
-      return PurchaseResult(PurchaseOutcome.paymentError, message: e.toString());
+      if (code == PurchasesErrorCode.paymentPendingError) {
+        return const PurchaseResult(PurchaseOutcome.success,
+            message: 'Paiement en attente de validation par votre banque/store.');
+      }
+      if (code == PurchasesErrorCode.productAlreadyPurchasedError) {
+        // Déjà abonné à ce produit — on restaure pour resynchroniser l'état.
+        await restorePurchases();
+        return const PurchaseResult(PurchaseOutcome.success);
+      }
+      return PurchaseResult(PurchaseOutcome.paymentError, message: e.message);
     } catch (e) {
       return PurchaseResult(PurchaseOutcome.paymentError, message: e.toString());
     }
   }
 
+  /// Recherche un package par identifiant de produit dans toutes les offerings.
+  Package? _findPackage(Offerings offerings, String productId) {
+    for (final offering in [
+      if (offerings.current != null) offerings.current!,
+      ...offerings.all.values,
+    ]) {
+      for (final pkg in offering.availablePackages) {
+        // Les identifiants store peuvent être suffixés (ex: "id:base-plan"),
+        // on tolère donc un préfixe plutôt qu'une égalité stricte.
+        final id = pkg.storeProduct.identifier;
+        if (id == productId || id.startsWith('$productId:')) return pkg;
+      }
+    }
+    return null;
+  }
+
+  /// Garantit que le SDK est configuré et prêt. Tente une init paresseuse si
+  /// `initialize()` n'a pas encore réussi (ex: appelé avant la fin du démarrage
+  /// ou après un échec réseau transitoire). Retourne false si aucune clé.
+  Future<bool> _ensureReady() async {
+    if (_initialized) return true;
+    if (!isRevenueCatConfigured) return false;
+    await initialize();
+    return _initialized;
+  }
+
+  /// Réconcilie l'abonnement Firestore depuis RevenueCat (source de vérité),
+  /// sans attendre le webhook. À appeler après un achat / restore / annulation
+  /// et à l'ouverture des écrans d'abonnement pour un état toujours à jour.
+  /// Retourne le plan résolu ('free' | 'starter' | 'pro'), ou null si échec.
+  Future<String?> syncSubscriptionStatus() async {
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final res = await functions.httpsCallable('syncSubscriptionStatus').call();
+      final data = res.data as Map?;
+      return data?['plan'] as String?;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[SparkWork] syncSubscriptionStatus échec : $e');
+      return null;
+    }
+  }
+
+  /// Résiliation en environnement de test (Test Store, sans page de gestion
+  /// store) : réinitialise le client RevenueCat de test et repasse au plan
+  /// Gratuit. En production, la résiliation passe par [openManageSubscriptions].
+  /// Retourne true si la réinitialisation a réussi.
+  Future<bool> resetTestSubscription() async {
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      await functions.httpsCallable('resetTestSubscription').call();
+      // Resynchronise le SDK local pour purger le cache d'entitlements.
+      if (_initialized) {
+        try { await Purchases.invalidateCustomerInfoCache(); } catch (_) {}
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[SparkWork] resetTestSubscription échec : $e');
+      return false;
+    }
+  }
+
   /// Restaure les achats existants (réinstallation, changement d'appareil).
   Future<bool> restorePurchases() async {
-    if (!isRevenueCatConfigured) return false;
+    if (!await _ensureReady()) return false;
     try {
       final info = await Purchases.restorePurchases();
       return info.entitlements.active.isNotEmpty;
@@ -182,14 +301,18 @@ class SubscriptionService {
   /// Ouvre la page de gestion d'abonnement du store (App Store / Play
   /// Store) via l'URL fournie par RevenueCat. La résiliation réelle se fait
   /// toujours là — jamais via une simple écriture Firestore côté client.
-  Future<void> openManageSubscriptions() async {
-    if (!isRevenueCatConfigured) return;
+  /// Retourne false si aucune URL de gestion n'est disponible (ex: aucun
+  /// abonnement store actif), pour que l'UI puisse en informer l'utilisateur.
+  Future<bool> openManageSubscriptions() async {
+    if (!await _ensureReady()) return false;
     try {
       final info = await Purchases.getCustomerInfo();
       final url = info.managementURL;
-      if (url == null) return;
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+      if (url == null) return false;
+      return await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _expireTrial(String userId) async {
@@ -213,39 +336,16 @@ class SubscriptionService {
   }
 
   /// Décrémente le quota. Retourne false si quota épuisé → bloquer l'action.
+  ///
+  /// L'écriture se fait côté serveur (Callable transactionnel) : les Security
+  /// Rules interdisent au client de modifier `swipe_quotas`, sinon n'importe
+  /// qui pourrait remettre son compteur à zéro.
   Future<bool> consumeSwipe(String userId) async {
     try {
-      final plan = await getCurrentPlan(userId);
-      if (plan.unlimitedSwipes) return true;
-
-      final quotaDoc = _quotas.doc(userId);
-      final doc = await quotaDoc.get();
-      final now = DateTime.now();
-      int used;
-      DateTime resetAt;
-
-      if (!doc.exists) {
-        used = 0;
-        resetAt = now;
-      } else {
-        final data = doc.data()!;
-        resetAt = DateTime.tryParse(data['resetAt'] as String? ?? '') ?? now;
-        used = data['used'] as int? ?? 0;
-        if (now.difference(resetAt).inHours >= 24) {
-          used = 0;
-          resetAt = now;
-        }
-      }
-
-      if (used >= plan.dailySwipes) return false;
-
-      await quotaDoc.set({
-        'userId': userId,
-        'used': used + 1,
-        'resetAt': resetAt.toIso8601String(),
-        'max': plan.dailySwipes,
-      });
-      return true;
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final res = await functions.httpsCallable('consumeSwipe').call();
+      final data = res.data as Map?;
+      return data?['allowed'] as bool? ?? true;
     } catch (_) {
       return true; // erreur → autoriser (ne jamais bloquer)
     }
@@ -323,24 +423,16 @@ class SubscriptionService {
   }
 
   /// Consomme un boost. Retourne false si aucun boost disponible.
+  ///
+  /// Écriture serveur uniquement (Callable transactionnel) : un crédit de
+  /// boost a une valeur monétaire, le client ne doit jamais pouvoir se
+  /// créditer ou marquer une offre boostée lui-même.
   Future<bool> useBoost(String userId, String offerId) async {
     try {
-      final remaining = await getRemainingBoosts(userId);
-      if (remaining <= 0) return false;
-
-      final now = DateTime.now();
-      await _boosts.doc(userId).set({
-        'userId': userId,
-        'available': remaining - 1,
-        'resetAt': now.toIso8601String(),
-        'lastBoostedOfferId': offerId,
-      }, SetOptions(merge: true));
-
-      await _db.collection('job_offers').doc(offerId).update({
-        'isBoosted': true,
-        'boostedAt': now.toIso8601String(),
-      });
-      return true;
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final res = await functions.httpsCallable('useBoost').call({'offerId': offerId});
+      final data = res.data as Map?;
+      return data?['allowed'] as bool? ?? false;
     } catch (_) {
       return false;
     }
@@ -375,15 +467,25 @@ class SubscriptionService {
 
       List<String> unmatchedLikerIds = [];
       if (plan.hasAdvancedStats) {
-        // Candidats qui ont liké une offre mais sans match
-        final candidateLikeDocs = await _db
-            .collection('candidate_job_likes')
-            .where('recruiterUserId', isEqualTo: userId)
-            .get();
-        unmatchedLikerIds = candidateLikeDocs.docs
-            .map((d) => d.data()['candidateUserId'] as String? ?? '')
+        // Candidats qui ont liké une offre mais sans match. Les documents
+        // candidate_job_likes n'ont pas de champ recruiterUserId (ni les
+        // règles Firestore, qui vérifient via une jointure sur job_offers) —
+        // il faut donc filtrer par jobOfferId parmi les offres du recruteur.
+        final offerIds = offerDocs.docs.map((d) => d.id).toList();
+        final matchedIdsFromLikes = <String>{};
+        const chunkSize = 10; // limite Firestore whereIn
+        for (var i = 0; i < offerIds.length; i += chunkSize) {
+          final chunk = offerIds.skip(i).take(chunkSize).toList();
+          if (chunk.isEmpty) continue;
+          final candidateLikeDocs = await _db
+              .collection('candidate_job_likes')
+              .where('jobOfferId', whereIn: chunk)
+              .get();
+          matchedIdsFromLikes.addAll(candidateLikeDocs.docs
+              .map((d) => d.data()['candidateUserId'] as String? ?? ''));
+        }
+        unmatchedLikerIds = matchedIdsFromLikes
             .where((id) => !matchedCandidateIds.contains(id))
-            .toSet()
             .toList();
       }
 

@@ -22,6 +22,7 @@ import '../../services/session_service.dart';
 import '../../services/spark_score_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/team_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateDetailPage extends ConsumerStatefulWidget {
   final String candidateUserId;
@@ -156,6 +157,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
 
   Future<void> _likeCandidate() async {
     if (_selectedOffer == null || _liking) return;
+    final loc = AppLocalizations.of(context)!;
     setState(() => _liking = true);
     try {
       final session = ref.read(sessionProvider);
@@ -175,20 +177,20 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
             jobOfferId: _selectedOffer!.jobOfferId,
           );
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Match créé avec ${_profile?.fullName ?? 'ce candidat'} !'),
+            content: Text(loc.candDetailMatchCreated(_profile?.fullName ?? loc.candDetailFallbackCandidate)),
             backgroundColor: AppColors.green,
           ));
         }
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${_profile?.fullName ?? 'Candidat'} liké !'),
+          content: Text(loc.candDetailLiked(_profile?.fullName ?? loc.candDetailFallbackCandidateShort)),
           backgroundColor: AppColors.primary,
         ));
       }
       if (mounted) setState(() => _alreadyLiked = true);
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erreur lors du like.'),
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.candDetailLikeError),
         backgroundColor: AppColors.red,
       ));
     } finally {
@@ -200,10 +202,11 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
     if (_score == null || _selectedOffer == null || _profile == null) {
       return const SizedBox();
     }
+    final loc = AppLocalizations.of(context)!;
     final score = _score!;
     final color = score >= 70 ? AppColors.green : score >= 40 ? AppColors.orange : AppColors.red;
     final bgColor = score >= 70 ? AppColors.greenLight : score >= 40 ? AppColors.orangeLight : const Color(0xFFFFE4E4);
-    final label = score >= 70 ? 'Excellent match' : score >= 40 ? 'Match partiel' : 'Match faible';
+    final label = score >= 70 ? loc.candDetailExcellentMatch : score >= 40 ? loc.candDetailPartialMatch : loc.candDetailWeakMatch;
 
     final offer = _selectedOffer!;
     final profile = _profile!;
@@ -221,7 +224,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
         profile.desiredLevel.toLowerCase() == offer.level.toLowerCase();
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Compatibilité avec l\'offre',
+      Text(loc.candDetailCompatWithOffer,
           style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
       const SizedBox(height: 10),
       Container(
@@ -248,7 +251,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
-                Text('avec "${offer.title}"',
+                Text(loc.candDetailWithOfferTitle(offer.title),
                     style: TextStyle(color: context.textSecondaryColor, fontSize: 12),
                     overflow: TextOverflow.ellipsis),
               ]),
@@ -260,28 +263,28 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
           if (skillsMatch != null)
             _ScoreRow(
               icon: Icons.code_outlined,
-              label: 'Compétences requises',
+              label: loc.candDetailRequiredSkills,
               ok: skillsMatch == skillsTotal,
-              detail: '$skillsMatch / $skillsTotal correspondantes',
+              detail: loc.candDetailSkillsMatching(skillsMatch, skillsTotal),
             ),
           _ScoreRow(
             icon: Icons.description_outlined,
-            label: 'Type de contrat',
+            label: loc.candDetailContractType,
             ok: contractMatch,
             detail: profile.desiredContractType.isNotEmpty
                 ? candidateContractTypes.join(', ')
-                : 'Non renseigné',
+                : loc.candDetailNotSet,
           ),
           _ScoreRow(
             icon: Icons.bar_chart_outlined,
-            label: 'Niveau',
+            label: loc.candDetailLevel,
             ok: levelMatch,
-            detail: profile.desiredLevel.isNotEmpty ? profile.desiredLevel : 'Non renseigné',
+            detail: profile.desiredLevel.isNotEmpty ? profile.desiredLevel : loc.candDetailNotSet,
           ),
           if (offer.hasSalary && profile.hasSalary)
             _ScoreRow(
               icon: Icons.euro_outlined,
-              label: 'Salaire',
+              label: loc.candDetailSalary,
               ok: (((profile.desiredSalaryMin + profile.desiredSalaryMax) / 2) -
                       ((offer.salaryMin + offer.salaryMax) / 2)).abs() <= 500,
               detail: profile.salaryDisplay,
@@ -293,6 +296,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
   }
 
   Widget _buildSparkScoreDetail() {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder<SparkScoreResult>(
       future: ref.read(sparkScoreServiceProvider).getDetailedScore(
             offerId: _selectedOffer!.jobOfferId,
@@ -306,12 +310,12 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
               Icon(Icons.error_outline, size: 16, color: context.textSecondaryColor),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('SparkScore indisponible pour le moment.',
+                child: Text(loc.candDetailScoreUnavailable,
                     style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
               ),
               TextButton(
                 onPressed: () => setState(() {}),
-                child: const Text('Réessayer', style: TextStyle(fontSize: 12)),
+                child: Text(loc.candDetailRetry, style: const TextStyle(fontSize: 12)),
               ),
             ]),
           );
@@ -332,7 +336,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
             Row(children: [
               const Icon(Icons.auto_awesome, color: Color(0xFF8B5CF6), size: 18),
               const SizedBox(width: 8),
-              Text('SparkScore IA détaillé',
+              Text(loc.candDetailSparkScoreDetailed,
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
               const Spacer(),
               Container(
@@ -340,7 +344,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                 decoration: BoxDecoration(
                     color: const Color(0xFF8B5CF6).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10)),
-                child: const Text('PRO',
+                child: Text(loc.candDetailProBadge,
                     style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ]),
@@ -368,6 +372,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
   }
 
   Widget _buildCandidateAnalytics() {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future: FirebaseFirestore.instance
           .collection('candidate_analytics')
@@ -391,7 +396,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
               Row(children: [
                 const Icon(Icons.insights_outlined, color: Color(0xFF8B5CF6), size: 18),
                 const SizedBox(width: 8),
-                Text('Analyse Pro',
+                Text(loc.candDetailProAnalysis,
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                 if (isHighlyDemanded) ...[
                   const SizedBox(width: 8),
@@ -399,7 +404,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                         color: AppColors.orangeLight, borderRadius: BorderRadius.circular(10)),
-                    child: const Text('Très demandé 🔥',
+                    child: Text(loc.candDetailHighlyDemanded,
                         style: TextStyle(fontSize: 11, color: AppColors.orange, fontWeight: FontWeight.bold)),
                   ),
                 ],
@@ -416,19 +421,19 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                 child: Column(children: [
                   _AnalyticsRow(
                       icon: Icons.reply_outlined,
-                      label: 'Taux de réponse aux messages',
+                      label: loc.candDetailResponseRate,
                       value: '$responseRate%'),
                   const Divider(height: 20),
                   _AnalyticsRow(
                       icon: Icons.timer_outlined,
-                      label: 'Délai moyen de réponse',
+                      label: loc.candDetailAvgResponseTime,
                       value: avgResponseTimeHours != null
                           ? '${avgResponseTimeHours.toStringAsFixed(1)} h'
-                          : 'N/A'),
+                          : loc.candDetailNotAvailable),
                   const Divider(height: 20),
                   _AnalyticsRow(
                       icon: Icons.people_outline,
-                      label: 'Recruteurs intéressés ce mois',
+                      label: loc.candDetailInterestedRecruiters,
                       value: '$recruitersThisMonth'),
                 ]),
               ),
@@ -441,6 +446,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -451,8 +457,8 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
     if (_profile == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(title: const Text('Profil candidat'), backgroundColor: Theme.of(context).scaffoldBackgroundColor, elevation: 0),
-        body: Center(child: Text('Profil introuvable.', style: TextStyle(color: context.textSecondaryColor))),
+        appBar: AppBar(title: Text(loc.candDetailTitle), backgroundColor: Theme.of(context).scaffoldBackgroundColor, elevation: 0),
+        body: Center(child: Text(loc.candDetailNotFound, style: TextStyle(color: context.textSecondaryColor))),
       );
     }
 
@@ -466,7 +472,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
             expandedHeight: 220, pinned: true,
             backgroundColor: AppColors.primary,
             iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text('Profil candidat', style: TextStyle(color: Colors.white)),
+            title: Text(loc.candDetailTitle, style: const TextStyle(color: Colors.white)),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -505,29 +511,29 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _SectionCard(title: 'Préférences', children: [
+                _SectionCard(title: loc.candDetailPreferences, children: [
                   _DetailRow(
                     icon: Icons.description_outlined,
-                    label: 'Contrat',
-                    value: profile.desiredContractType.isNotEmpty ? profile.desiredContractType : 'Non renseigné',
+                    label: loc.candDetailContractType,
+                    value: profile.desiredContractType.isNotEmpty ? profile.desiredContractType : loc.candDetailNotSet,
                   ),
                   Divider(height: 1, color: context.borderColor),
                   _DetailRow(
                     icon: Icons.bar_chart_outlined,
-                    label: 'Niveau',
-                    value: profile.desiredLevel.isNotEmpty ? profile.desiredLevel : 'Non renseigné',
+                    label: loc.candDetailLevel,
+                    value: profile.desiredLevel.isNotEmpty ? profile.desiredLevel : loc.candDetailNotSet,
                   ),
                   Divider(height: 1, color: context.borderColor),
                   _DetailRow(
                     icon: Icons.home_work_outlined,
-                    label: 'Télétravail',
-                    value: profile.remotePreference.isNotEmpty ? profile.remotePreference : 'Non renseigné',
+                    label: loc.candDetailRemote,
+                    value: profile.remotePreference.isNotEmpty ? profile.remotePreference : loc.candDetailNotSet,
                   ),
                   if (profile.hasSalary) ...[
                     Divider(height: 1, color: context.borderColor),
                     _DetailRow(
                       icon: Icons.euro_outlined,
-                      label: 'Salaire souhaité',
+                      label: loc.candDetailDesiredSalary,
                       value: profile.salaryDisplay,
                     ),
                   ],
@@ -535,7 +541,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                 const SizedBox(height: 16),
                 if (_team != null) ...[
                   Row(children: [
-                    Text('Notes d\'équipe',
+                    Text(loc.candDetailTeamNotes,
                         style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                     const SizedBox(width: 8),
                     if (_noteSaving)
@@ -561,7 +567,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                       onChanged: _onNoteChanged,
                       style: TextStyle(color: context.textPrimaryColor, fontSize: 13),
                       decoration: InputDecoration(
-                        hintText: 'Notes visibles uniquement par votre équipe (jamais par le candidat)...',
+                        hintText: loc.candDetailNotesHint,
                         hintStyle: TextStyle(color: context.textHintColor, fontSize: 12),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.all(14),
@@ -571,7 +577,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   const SizedBox(height: 24),
                 ],
                 if (profile.skillList.isNotEmpty) ...[
-                  Text('Compétences',
+                  Text(loc.candDetailSkills,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   Container(
@@ -596,7 +602,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   const SizedBox(height: 16),
                 ],
                 if (profile.bio.isNotEmpty) ...[
-                  Text('À propos',
+                  Text(loc.candDetailAbout,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   Container(
@@ -612,7 +618,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   const SizedBox(height: 24),
                 ],
                 if (_recruiterOffers.isNotEmpty) ...[
-                  Text('Associer à une offre',
+                  Text(loc.candDetailLinkToOffer,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: context.textPrimaryColor)),
                   const SizedBox(height: 10),
                   if (_recruiterOffers.length == 1)
@@ -633,9 +639,9 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                   else
                     DropdownButtonFormField<JobOffer>(
                       value: _selectedOffer,
-                      decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.work_outline),
-                          labelText: 'Sélectionner une offre'),
+                      decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.work_outline),
+                          labelText: loc.candDetailSelectOffer),
                       items: _recruiterOffers
                           .map((o) => DropdownMenuItem(
                               value: o,
@@ -658,7 +664,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                       Icon(Icons.info_outline, color: AppColors.orange, size: 18),
                       SizedBox(width: 10),
                       Expanded(child: Text(
-                        'Publiez une offre avant de pouvoir liker un candidat.',
+                        loc.candDetailPublishOfferFirst,
                         style: TextStyle(fontSize: 13, color: context.textPrimaryColor),
                       )),
                     ]),
@@ -676,7 +682,7 @@ class _CandidateDetailPageState extends ConsumerState<CandidateDetailPage> {
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Icon(_alreadyLiked ? Icons.favorite : Icons.favorite_border, size: 20),
                     label: Text(
-                        _alreadyLiked ? 'Déjà liké' : 'Liker ce candidat',
+                        _alreadyLiked ? loc.candDetailAlreadyLiked : loc.candDetailLikeCandidate,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _alreadyLiked ? context.textSecondaryColor : AppColors.red,

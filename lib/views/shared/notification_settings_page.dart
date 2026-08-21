@@ -6,6 +6,7 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../models/notification_preferences.dart';
 import '../../services/notification_preferences_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class NotificationSettingsPage extends ConsumerStatefulWidget {
   const NotificationSettingsPage({super.key});
@@ -34,13 +35,14 @@ class _NotificationSettingsPageState extends ConsumerState<NotificationSettingsP
 
   Future<void> _save() async {
     if (_prefs == null) return;
+    final loc = AppLocalizations.of(context)!;
     setState(() => _saving = true);
     try {
       final svc = ref.read(notificationPreferencesServiceProvider);
       await svc.savePreferences(_prefs!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Préférences enregistrées'), backgroundColor: AppColors.green),
+          SnackBar(content: Text(loc.notifSettingsSaved), backgroundColor: AppColors.green),
         );
       }
     } finally {
@@ -68,9 +70,10 @@ class _NotificationSettingsPageState extends ConsumerState<NotificationSettingsP
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(loc.notifSettingsTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -81,103 +84,104 @@ class _NotificationSettingsPageState extends ConsumerState<NotificationSettingsP
             child: _saving
                 ? const SizedBox(width: 18, height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Enregistrer',
-                    style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                : Text(loc.notifSettingsSave,
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _prefs == null
-              ? const Center(child: Text('Erreur de chargement'))
+              ? Center(child: Text(loc.notifSettingsLoadError))
               : _buildBody(),
     );
   }
 
   Widget _buildBody() {
+    final loc = AppLocalizations.of(context)!;
     final p = _prefs!;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _SectionHeader('Activité & Matches'),
+        _SectionHeader(loc.notifSettingsSectionActivity),
         _ToggleTile(
           icon: Icons.favorite_border,
-          title: 'Nouveaux matches',
-          subtitle: 'Rappel quand un match attend votre réponse',
+          title: loc.notifSettingsMatchTitle,
+          subtitle: loc.notifSettingsMatchSubtitle,
           value: p.matchReminder,
           onChanged: (v) => _toggle('matchReminder', v),
         ),
         _ToggleTile(
           icon: Icons.person_search_outlined,
-          title: 'Nouveaux profils',
-          subtitle: 'Profils qui correspondent à votre offre (recruteurs)',
+          title: loc.notifSettingsNewProfilesTitle,
+          subtitle: loc.notifSettingsNewProfilesSubtitle,
           value: p.newProfilesForRecruiter,
           onChanged: (v) => _toggle('newProfilesForRecruiter', v),
         ),
         _ToggleTile(
           icon: Icons.swipe_outlined,
-          title: 'Rappel de swipe',
-          subtitle: 'Vous n\'avez pas swiped depuis un moment',
+          title: loc.notifSettingsSwipeReminderTitle,
+          subtitle: loc.notifSettingsSwipeReminderSubtitle,
           value: p.noSwipeReminderCandidate,
           onChanged: (v) => _toggle('noSwipeReminderCandidate', v),
         ),
         _ToggleTile(
           icon: Icons.refresh,
-          title: 'Rechargement des swipes',
-          subtitle: 'Quand votre quota de swipes est rechargé',
+          title: loc.notifSettingsSwipeRechargeTitle,
+          subtitle: loc.notifSettingsSwipeRechargeSubtitle,
           value: p.swipeRechargeAlert,
           onChanged: (v) => _toggle('swipeRechargeAlert', v),
         ),
         const SizedBox(height: 20),
-        _SectionHeader('Abonnement & Compte'),
+        _SectionHeader(loc.notifSettingsSectionAccount),
         _ToggleTile(
           icon: Icons.access_time_outlined,
-          title: 'Expiration essai',
-          subtitle: 'Rappel 3 jours avant la fin de l\'essai gratuit',
+          title: loc.notifSettingsTrialExpiryTitle,
+          subtitle: loc.notifSettingsTrialExpirySubtitle,
           value: p.trialExpiryReminder,
           onChanged: (v) => _toggle('trialExpiryReminder', v),
         ),
         _ToggleTile(
           icon: Icons.verified_outlined,
-          title: 'Mise à jour vérification',
-          subtitle: 'Statut de votre vérification d\'identité',
+          title: loc.notifSettingsVerificationTitle,
+          subtitle: loc.notifSettingsVerificationSubtitle,
           value: p.verificationUpdate,
           onChanged: (v) => _toggle('verificationUpdate', v),
         ),
         const SizedBox(height: 20),
-        _SectionHeader('Offres & Missions'),
+        _SectionHeader(loc.notifSettingsSectionOffers),
         _ToggleTile(
           icon: Icons.bolt,
-          title: 'Missions Flash à proximité',
-          subtitle: 'Nouvelles missions flash dans votre zone',
+          title: loc.notifSettingsFlashTitle,
+          subtitle: loc.notifSettingsFlashSubtitle,
           value: p.flashOfferNearby,
           onChanged: (v) => _toggle('flashOfferNearby', v),
         ),
         _ToggleTile(
           icon: Icons.work_off_outlined,
-          title: 'Suggestions d\'offres',
-          subtitle: 'Nouvelles offres si aucun match depuis 7 jours',
+          title: loc.notifSettingsSuggestionsTitle,
+          subtitle: loc.notifSettingsSuggestionsSubtitle,
           value: p.noMatchOfferSuggestion,
           onChanged: (v) => _toggle('noMatchOfferSuggestion', v),
         ),
         const SizedBox(height: 20),
-        _SectionHeader('Disponibilité & Évaluations'),
+        _SectionHeader(loc.notifSettingsSectionAvailability),
         _ToggleTile(
           icon: Icons.schedule_outlined,
-          title: 'Expiration "Disponible maintenant"',
-          subtitle: 'Rappel avant l\'expiration de votre disponibilité',
+          title: loc.notifSettingsAvailNowTitle,
+          subtitle: loc.notifSettingsAvailNowSubtitle,
           value: p.availableNowExpiry,
           onChanged: (v) => _toggle('availableNowExpiry', v),
         ),
         _ToggleTile(
           icon: Icons.star_outline,
-          title: 'Rappel d\'évaluation',
-          subtitle: 'Après une embauche confirmée',
+          title: loc.notifSettingsRatingReminderTitle,
+          subtitle: loc.notifSettingsRatingReminderSubtitle,
           value: p.ratingReminder,
           onChanged: (v) => _toggle('ratingReminder', v),
         ),
         const SizedBox(height: 20),
-        _SectionHeader('Heures de silence'),
+        _SectionHeader(loc.notifSettingsSectionQuietHours),
         _QuietHoursRow(
           start: p.quietHourStart,
           end: p.quietHourEnd,
@@ -273,6 +277,7 @@ class _QuietHoursRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -286,7 +291,7 @@ class _QuietHoursRow extends StatelessWidget {
           Row(children: [
             const Icon(Icons.bedtime_outlined, size: 16, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text('Pas de notifications de ${_fmt(start)} à ${_fmt(end)}',
+            Text(loc.notifSettingsQuietHoursSummary(_fmt(start), _fmt(end)),
                 style: TextStyle(fontSize: 13, color: context.textPrimaryColor)),
           ]),
           const SizedBox(height: 12),
@@ -295,7 +300,7 @@ class _QuietHoursRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Début', style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                  Text(loc.notifSettingsQuietStart, style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<int>(
                     value: start,
@@ -312,7 +317,7 @@ class _QuietHoursRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Fin', style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
+                  Text(loc.notifSettingsQuietEnd, style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<int>(
                     value: end,

@@ -20,6 +20,7 @@ import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/unread_service.dart';
 import 'interview_widgets.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ConversationDetailPage extends ConsumerStatefulWidget {
   final String matchId;
@@ -36,7 +37,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   List<Message> _messages = [];
   bool _loading = true;
   String? _error;
-  String _title = 'Conversation';
+  String _title = '';
   bool _sending = false;
   String _otherUserId = '';
   String _otherUserName = '';
@@ -147,8 +148,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
     } catch (_) {
       if (mounted) {
         _msgCtrl.text = content;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Message non envoyé. Réessayez.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.convMessageNotSent),
             backgroundColor: AppColors.red));
       }
     } finally {
@@ -157,16 +158,17 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   }
 
   String _fillTemplateVariables(String body) {
+    final loc = AppLocalizations.of(context)!;
     final firstName = _otherUserName.trim().isNotEmpty
         ? _otherUserName.trim().split(' ').first
-        : 'candidat';
+        : loc.convTemplateDefaultCandidate;
     final dateLabel = DateFormat('d MMMM yyyy', 'fr_FR').format(DateTime.now());
     return body
         .replaceAll('{prénom_candidat}', firstName)
         .replaceAll('{poste}', _title)
-        .replaceAll('{nom_entreprise}', _myCompanyName.isNotEmpty ? _myCompanyName : 'notre entreprise')
+        .replaceAll('{nom_entreprise}', _myCompanyName.isNotEmpty ? _myCompanyName : loc.convTemplateDefaultCompany)
         .replaceAll('{date}', dateLabel)
-        .replaceAll('{lieu}', _offerLocation.isNotEmpty ? _offerLocation : 'notre établissement');
+        .replaceAll('{lieu}', _offerLocation.isNotEmpty ? _offerLocation : loc.convTemplateDefaultLocation);
   }
 
   Future<void> _showTemplatesSheet() async {
@@ -174,6 +176,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
     final templateSvc = ref.read(messageTemplateServiceProvider);
     final templates = await templateSvc.ensureDefaultTemplates(session.userId);
     if (!mounted) return;
+    final loc = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -197,8 +200,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                     color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            const Text('Modèles de messages',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(loc.convTemplatesTitle,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             ...templates.map((t) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -228,6 +231,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   Widget _buildHireBanner() {
     final match = _match;
     if (match == null) return const SizedBox();
+    final loc = AppLocalizations.of(context)!;
 
     if (match.status == 'hired') {
       return Container(
@@ -241,9 +245,9 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
         child: Row(children: [
           const Icon(Icons.celebration_outlined, color: AppColors.green, size: 18),
           const SizedBox(width: 10),
-          const Expanded(
-            child: Text('Embauche confirmée !',
-                style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w600, fontSize: 13)),
+          Expanded(
+            child: Text(loc.convHireConfirmedTitle,
+                style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w600, fontSize: 13)),
           ),
           TextButton(
             onPressed: () => context.push('/rate/${widget.matchId}', extra: {
@@ -251,8 +255,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
               'targetName': _otherUserName,
               'isRecruiter': !_isCandidate,
             }),
-            child: const Text('Laisser un avis',
-                style: TextStyle(color: AppColors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+            child: Text(loc.convLeaveReview,
+                style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ]),
       );
@@ -283,7 +287,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${_otherUserName.isNotEmpty ? _otherUserName : 'Le recruteur'} confirme votre embauche !',
+                    loc.convOtherConfirmsHire(_otherUserName.isNotEmpty ? _otherUserName : loc.convFallbackRecruiter),
                     style: const TextStyle(
                         color: AppColors.green, fontWeight: FontWeight.w600, fontSize: 13),
                   ),
@@ -299,8 +303,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                           width: 16, height: 16,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.check, color: Colors.white, size: 18),
-                  label: const Text('Confirmer à mon tour',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  label: Text(loc.convConfirmMyTurn,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.green,
                     minimumSize: const Size(double.infinity, 40),
@@ -322,12 +326,12 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
           color: AppColors.orangeLight,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(children: [
-          Icon(Icons.hourglass_bottom_outlined, color: AppColors.orange, size: 16),
-          SizedBox(width: 10),
+        child: Row(children: [
+          const Icon(Icons.hourglass_bottom_outlined, color: AppColors.orange, size: 16),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text('En attente de confirmation du candidat...',
-                style: TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w500)),
+            child: Text(loc.convWaitingCandidateConfirm,
+                style: const TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w500)),
           ),
         ]),
       );
@@ -344,8 +348,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                   width: 16, height: 16,
                   child: CircularProgressIndicator(color: AppColors.green, strokeWidth: 2))
               : const Icon(Icons.handshake_outlined, color: AppColors.green, size: 18),
-          label: const Text('Confirmer l\'embauche',
-              style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w600)),
+          label: Text(loc.convConfirmHireButton,
+              style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w600)),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: AppColors.green),
             minimumSize: const Size(double.infinity, 44),
@@ -370,12 +374,13 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   void _showReportDialog() {
     String selectedReason = ReportRepository.reportReasons.first;
     final detailsCtrl = TextEditingController();
+    final loc = AppLocalizations.of(context)!;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Signaler'),
+          title: Text(loc.convReportTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,8 +398,8 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
               TextField(
                 controller: detailsCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Détails (optionnel)',
+                decoration: InputDecoration(
+                  hintText: loc.convReportDetailsHint,
                   isDense: true,
                 ),
               ),
@@ -403,7 +408,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
+              child: Text(loc.convCancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -418,22 +423,21 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                       );
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                          'Signalement envoyé. Merci, nous allons l\'examiner.'),
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(loc.convReportSent),
                       backgroundColor: AppColors.green,
                     ));
                   }
                 } catch (_) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Erreur lors du signalement.'),
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(loc.convReportError),
                       backgroundColor: AppColors.red,
                     ));
                   }
                 }
               },
-              child: const Text('Signaler'),
+              child: Text(loc.convReportTitle),
             ),
           ],
         ),
@@ -442,19 +446,19 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   }
 
   void _showBlockDialog() {
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Bloquer cet utilisateur'),
-        content: const Text(
-          'Vous ne verrez plus son profil ni ses messages, et cette '
-          'conversation sera masquée. Continuer ?',
-          style: TextStyle(fontSize: 13),
+        title: Text(loc.convBlockTitle),
+        content: Text(
+          loc.convBlockBody,
+          style: const TextStyle(fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
+            child: Text(loc.convCancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
@@ -466,22 +470,22 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                     .blockUser(session.userId, _otherUserId);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Utilisateur bloqué.'),
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(loc.convBlockedSuccess),
                   ));
                   _goBack(context);
                 }
               } catch (_) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Erreur lors du blocage.'),
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(loc.convBlockError),
                     backgroundColor: AppColors.red,
                   ));
                 }
               }
             },
             child:
-                const Text('Bloquer', style: TextStyle(color: Colors.white)),
+                Text(loc.convBlockConfirm, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -492,6 +496,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
     final hasConfirmedAlready =
         _isCandidate ? (_match?.hiredByCandidate ?? false) : (_match?.hiredByRecruiter ?? false);
     if (hasConfirmedAlready || _confirmingHire) return;
+    final loc = AppLocalizations.of(context)!;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -525,19 +530,15 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
             ),
             const SizedBox(height: 16),
             Text(
-              'Confirmer l\'embauche',
+              loc.convConfirmHireButton,
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
             ),
             const SizedBox(height: 8),
             Text(
               _isCandidate
-                  ? 'Confirmez-vous votre embauche chez '
-                      '${_otherUserName.isNotEmpty ? _otherUserName : 'cet employeur'} ? '
-                      'Cette action notifiera le recruteur.'
-                  : 'Confirmez-vous l\'embauche de '
-                      '${_otherUserName.isNotEmpty ? _otherUserName : 'cette personne'} ? '
-                      'Cette action notifiera le candidat.',
+                  ? loc.convConfirmHireBodyCandidate(_otherUserName.isNotEmpty ? _otherUserName : loc.convFallbackEmployer)
+                  : loc.convConfirmHireBodyRecruiter(_otherUserName.isNotEmpty ? _otherUserName : loc.convFallbackPerson),
               style: TextStyle(fontSize: 14, color: context.textSecondaryColor, height: 1.5),
             ),
             const SizedBox(height: 24),
@@ -546,7 +547,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(ctx, false),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: context.borderColor)),
-                  child: Text('Annuler', style: TextStyle(color: context.textSecondaryColor)),
+                  child: Text(loc.convCancel, style: TextStyle(color: context.textSecondaryColor)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -554,7 +555,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.green),
-                  child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+                  child: Text(loc.convConfirm, style: const TextStyle(color: Colors.white)),
                 ),
               ),
             ]),
@@ -570,15 +571,15 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
           .read(matchRepositoryProvider)
           .confirmHire(widget.matchId, isCandidate: _isCandidate);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Confirmation enregistrée.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(loc.convHireConfirmedSnack),
           backgroundColor: AppColors.green,
         ));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Erreur lors de la confirmation. Réessayez.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(loc.convHireConfirmError),
           backgroundColor: AppColors.red,
         ));
       }
@@ -608,6 +609,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
     final myUserId = session.userId;
 
     // Dernier message envoyé par moi
@@ -628,7 +630,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
             ),
           ),
         ),
-        title: Text(_title,
+        title: Text(_title.isEmpty ? loc.convDefaultTitle : _title,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -641,7 +643,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
           if (!_isCandidate && _userPlan == SubscriptionPlan.pro)
             IconButton(
               icon: const Icon(Icons.description_outlined),
-              tooltip: 'Rapport de candidature',
+              tooltip: loc.convMatchReportTooltip,
               onPressed: () => context.push('/recruiter/match-report/${widget.matchId}'),
             ),
           IconButton(
@@ -657,12 +659,12 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 if (v == 'report') _showReportDialog();
                 if (v == 'block') _showBlockDialog();
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(
                   value: 'report',
                   child: ListTile(
-                    leading: Icon(Icons.flag_outlined),
-                    title: Text('Signaler'),
+                    leading: const Icon(Icons.flag_outlined),
+                    title: Text(loc.convReportTitle),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                   ),
@@ -670,9 +672,9 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 PopupMenuItem(
                   value: 'block',
                   child: ListTile(
-                    leading: Icon(Icons.block, color: AppColors.red),
-                    title: Text('Bloquer',
-                        style: TextStyle(color: AppColors.red)),
+                    leading: const Icon(Icons.block, color: AppColors.red),
+                    title: Text(loc.convBlockConfirm,
+                        style: const TextStyle(color: AppColors.red)),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                   ),
@@ -692,7 +694,7 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                       const SizedBox(height: 12),
                       Text(_error!, style: const TextStyle(color: AppColors.textSecondary)),
                       const SizedBox(height: 16),
-                      OutlinedButton(onPressed: _init, child: const Text('Réessayer')),
+                      OutlinedButton(onPressed: _init, child: Text(loc.convRetry)),
                     ],
                   ),
                 )
@@ -702,11 +704,11 @@ class _ConversationDetailPageState extends ConsumerState<ConversationDetailPage>
                 _buildHireBanner(),
                 Expanded(
                   child: _messages.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
-                            'Aucun message.\nCommencez la conversation !',
+                            loc.convNoMessages,
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textHint),
+                            style: const TextStyle(color: AppColors.textHint),
                           ),
                         )
                       : ListView.builder(
@@ -787,10 +789,11 @@ class _Bubble extends StatelessWidget {
               padding: const EdgeInsets.only(right: 4, bottom: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.done_all, size: 14, color: AppColors.primary),
-                  SizedBox(width: 3),
-                  Text('Lu', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                children: [
+                  const Icon(Icons.done_all, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 3),
+                  Text(AppLocalizations.of(context)!.convSeenLabel,
+                      style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500)),
                 ],
               ),
             )
@@ -810,6 +813,7 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -822,14 +826,14 @@ class _InputBar extends StatelessWidget {
             if (onTemplates != null)
               IconButton(
                 icon: const Icon(Icons.bolt_outlined, color: AppColors.primary),
-                tooltip: 'Modèles de messages',
+                tooltip: loc.convTemplatesTitle,
                 onPressed: onTemplates,
               ),
             Expanded(
               child: TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: 'Écrivez un message...',
+                  hintText: loc.convMessageHint,
                   hintStyle: TextStyle(color: context.textHintColor),
                   filled: true,
                   fillColor: context.bgColor,

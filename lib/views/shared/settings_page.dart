@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/subscription.dart';
 import '../../services/auth_service.dart';
+import '../../services/feedback_service.dart';
 import '../../services/partner_service.dart';
 import '../../services/session_security_service.dart';
 import '../../services/session_service.dart';
@@ -11,6 +12,7 @@ import '../../services/subscription_service.dart';
 import '../../services/theme_service.dart';
 import '../../services/recruiter_theme_service.dart';
 import '../../models/recruiter_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -50,6 +52,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
     final themeNotifier = ref.read(themeProvider.notifier);
     // Brightness RÉELLEMENT affichée — pas la préférence brute du toggle :
     // une ambiance colorée (Alpine, Terracotta...) peut forcer le clair ou
@@ -59,7 +62,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final recruiterAccent = ref.watch(recruiterThemeProvider);
     final hasAccent = session.isRecruiter && recruiterAccent != null;
-    final roleLabel = session.isCandidate ? 'Candidat' : 'Recruteur';
+    final roleLabel = session.isCandidate ? loc.settingsCandidate : loc.recProfileRoleBadge;
 
     final bg = Theme.of(context).scaffoldBackgroundColor;
     final surface = Theme.of(context).colorScheme.surface;
@@ -97,8 +100,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 14),
                 const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
                 const SizedBox(height: 8),
-                const Text('Paramètres',
-                    style: TextStyle(
+                Text(loc.settingsTitle,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -114,7 +117,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-          Text('Compte',
+          Text(loc.settingsAccount,
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -124,16 +127,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             surface: surface,
             border: borderColor,
             children: [
-              _InfoRow(icon: Icons.person_outline, label: 'Nom', value: session.userName, textPrimary: textPrimary, textSecondary: textSecondary),
+              _InfoRow(icon: Icons.person_outline, label: loc.settingsName, value: session.userName, textPrimary: textPrimary, textSecondary: textSecondary),
               Divider(height: 1, color: borderColor),
-              _InfoRow(icon: Icons.email_outlined, label: 'Email', value: session.userEmail, textPrimary: textPrimary, textSecondary: textSecondary),
+              _InfoRow(icon: Icons.email_outlined, label: loc.settingsEmail, value: session.userEmail, textPrimary: textPrimary, textSecondary: textSecondary),
               Divider(height: 1, color: borderColor),
-              _InfoRow(icon: Icons.badge_outlined, label: 'Rôle', value: roleLabel, textPrimary: textPrimary, textSecondary: textSecondary),
+              _InfoRow(icon: Icons.badge_outlined, label: loc.settingsRole, value: roleLabel, textPrimary: textPrimary, textSecondary: textSecondary),
             ],
           ),
           if (_isPartner) ...[
             const SizedBox(height: 24),
-            Text('Partenaire',
+            Text(loc.settingsPartner,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -145,7 +148,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 _NavRow(
                   icon: Icons.handshake_outlined,
-                  label: 'Espace Partenaire',
+                  label: loc.settingsPartnerSpace,
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                   onTap: () => context.push('/partner/dashboard'),
@@ -155,7 +158,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ],
           if (session.isAdmin) ...[
             const SizedBox(height: 24),
-            Text('Administration',
+            Text(loc.settingsAdmin,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -167,7 +170,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 _NavRow(
                   icon: Icons.admin_panel_settings_outlined,
-                  label: 'Dashboard sécurité',
+                  label: loc.settingsSecurityDashboard,
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                   onTap: () => context.push('/admin/security'),
@@ -177,7 +180,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ],
           if (session.isRecruiter) ...[
             const SizedBox(height: 24),
-            Text('Abonnement',
+            Text(loc.settingsSubscription,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -197,7 +200,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ],
           const SizedBox(height: 24),
-          Text('Sécurité',
+          Text(loc.settingsSecurity,
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -209,7 +212,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             children: [
               _NavRow(
                 icon: Icons.lock_outline,
-                label: 'Changer le mot de passe',
+                label: loc.settingsChangePassword,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => _showChangePasswordDialog(context, ref),
@@ -217,7 +220,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Divider(height: 1, color: borderColor),
               _NavRow(
                 icon: Icons.devices_outlined,
-                label: 'Gérer mes sessions actives',
+                label: loc.settingsManageSessions,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => context.push('/security/sessions'),
@@ -225,7 +228,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Divider(height: 1, color: borderColor),
               _NavRow(
                 icon: Icons.history_toggle_off_outlined,
-                label: 'Supprimer mes logs de sécurité',
+                label: loc.settingsDeleteSecurityLogs,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => _deleteSecurityLogs(context, ref),
@@ -233,7 +236,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Divider(height: 1, color: borderColor),
               _NavRow(
                 icon: Icons.delete_forever_outlined,
-                label: 'Supprimer mon compte',
+                label: loc.settingsDeleteAccount,
                 labelColor: AppColors.red,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
@@ -242,7 +245,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
           const SizedBox(height: 24),
-          Text('Application',
+          Text(loc.settingsApplication,
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -254,7 +257,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             children: [
               _ToggleRow(
                 icon: Icons.dark_mode_outlined,
-                label: hasAccent ? 'Mode sombre (déterminé par l\'ambiance)' : 'Mode sombre',
+                label: hasAccent ? loc.settingsDarkModeAmbiance : loc.settingsDarkMode,
                 value: isDark,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
@@ -263,16 +266,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Divider(height: 1, color: borderColor),
               _NavRow(
                 icon: Icons.notifications_outlined,
-                label: 'Notifications',
+                label: loc.settingsNotifications,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => context.push('/notifications/settings'),
+              ),
+              Divider(height: 1, color: borderColor),
+              _MatchSoundToggleRow(
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
             ],
           ),
           if (session.isRecruiter) ...[
             const SizedBox(height: 24),
-            Text('Apparence',
+            Text(loc.settingsAppearance,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -294,7 +302,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ],
           const SizedBox(height: 24),
-          Text('Légal',
+          Text(loc.settingsLegal,
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -306,7 +314,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             children: [
               _NavRow(
                 icon: Icons.description_outlined,
-                label: 'Conditions générales d\'utilisation',
+                label: loc.settingsTerms,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => context.push('/legal/terms'),
@@ -314,7 +322,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Divider(height: 1, color: borderColor),
               _NavRow(
                 icon: Icons.privacy_tip_outlined,
-                label: 'Politique de confidentialité',
+                label: loc.settingsPrivacy,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => context.push('/legal/privacy'),
@@ -328,7 +336,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               if (context.mounted) context.go('/welcome');
             },
             icon: const Icon(Icons.logout),
-            label: const Text('Se déconnecter'),
+            label: Text(loc.settingsLogout),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.red,
               minimumSize: const Size(double.infinity, 52),
@@ -336,7 +344,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           const SizedBox(height: 40),
           Center(
-            child: Text('SparkWork v1.0.0',
+            child: Text(loc.settingsVersion,
                 style: TextStyle(color: textSecondary, fontSize: 12)),
           ),
               ],
@@ -348,18 +356,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _deleteSecurityLogs(BuildContext context, WidgetRef ref) async {
+    final loc = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer mes logs de sécurité'),
-        content: const Text(
-            'Vos historiques de connexions et d\'alertes de sécurité seront supprimés définitivement.'),
+        title: Text(loc.settingsDeleteSecurityLogs),
+        content: Text(loc.settingsDeleteLogsBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.convCancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+            child: Text(loc.recOffersDelete, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -367,14 +375,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (confirmed != true) return;
     await ref.read(sessionSecurityServiceProvider).deleteMySecurityLogs();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Logs de sécurité supprimés.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.settingsLogsDeleted),
         backgroundColor: AppColors.green,
       ));
     }
   }
 
   void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
@@ -385,7 +394,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Changer le mot de passe'),
+          title: Text(loc.settingsChangePassword),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -403,32 +412,32 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               TextField(
                 controller: currentCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'Mot de passe actuel',
-                    prefixIcon: Icon(Icons.lock_outline)),
+                decoration: InputDecoration(
+                    labelText: loc.secAlertCurrentPassword,
+                    prefixIcon: const Icon(Icons.lock_outline)),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: newCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'Nouveau mot de passe',
-                    prefixIcon: Icon(Icons.lock_reset)),
+                decoration: InputDecoration(
+                    labelText: loc.secAlertNewPassword,
+                    prefixIcon: const Icon(Icons.lock_reset)),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: confirmCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'Confirmer le nouveau',
-                    prefixIcon: Icon(Icons.lock_reset)),
+                decoration: InputDecoration(
+                    labelText: loc.settingsConfirmNewPassword,
+                    prefixIcon: const Icon(Icons.lock_reset)),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
+              child: Text(loc.convCancel),
             ),
             ElevatedButton(
               onPressed: loading
@@ -436,12 +445,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   : () async {
                       if (newCtrl.text.length < 6) {
                         setDialog(() =>
-                            error = 'Minimum 6 caractères.');
+                            error = loc.settingsPasswordMinLength);
                         return;
                       }
                       if (newCtrl.text != confirmCtrl.text) {
                         setDialog(() => error =
-                            'Les mots de passe ne correspondent pas.');
+                            loc.secAlertPasswordMismatch);
                         return;
                       }
                       setDialog(() { loading = true; error = null; });
@@ -455,14 +464,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       if (ok) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Mot de passe modifié !'),
+                            SnackBar(
+                                content: Text(loc.settingsPasswordChanged),
                                 backgroundColor: AppColors.green));
                       } else {
                         setDialog(() { loading = false; error = msg; });
                       }
                     },
-              child: Text(loading ? 'En cours...' : 'Modifier'),
+              child: Text(loading ? loc.secAlertInProgress : loc.settingsModify),
             ),
           ],
         ),
@@ -471,6 +480,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final passwordCtrl = TextEditingController();
     String? error;
     bool loading = false;
@@ -480,16 +490,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Supprimer mon compte'),
+          title: Text(loc.settingsDeleteAccount),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Cette action est définitive. Votre profil, vos likes, '
-                'vos matches, vos messages et vos offres seront '
-                'supprimés.',
-                style: TextStyle(fontSize: 13),
+              Text(
+                loc.settingsDeleteAccountBody,
+                style: const TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 16),
               if (error != null)
@@ -506,9 +514,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               TextField(
                 controller: passwordCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mot de passe (confirmation)',
-                  prefixIcon: Icon(Icons.lock_outline),
+                decoration: InputDecoration(
+                  labelText: loc.settingsPasswordConfirmLabel,
+                  prefixIcon: const Icon(Icons.lock_outline),
                 ),
               ),
             ],
@@ -516,7 +524,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           actions: [
             TextButton(
               onPressed: loading ? null : () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
+              child: Text(loc.convCancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -526,7 +534,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   : () async {
                       if (passwordCtrl.text.isEmpty) {
                         setDialog(() =>
-                            error = 'Mot de passe requis.');
+                            error = loc.settingsPasswordRequired);
                         return;
                       }
                       setDialog(() { loading = true; error = null; });
@@ -544,7 +552,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       }
                     },
               child: Text(
-                  loading ? 'Suppression...' : 'Supprimer définitivement',
+                  loading ? loc.settingsDeleting : loc.settingsDeletePermanently,
                   style: const TextStyle(color: Colors.white)),
             ),
           ],
@@ -567,18 +575,18 @@ class _SubRow extends StatelessWidget {
     required this.onManage,
   });
 
-  String get _planLabel {
-    if (sub == null) return 'Chargement...';
+  String _planLabel(AppLocalizations loc) {
+    if (sub == null) return loc.settingsLoading;
     if (sub!.isTrialActive) {
-      return 'Essai Pro — ${sub!.trialDaysRemaining} j restant${sub!.trialDaysRemaining > 1 ? 's' : ''}';
+      return loc.settingsTrialLabel(sub!.trialDaysRemaining);
     }
     switch (sub!.effectivePlan) {
       case SubscriptionPlan.free:
-        return 'Gratuit';
+        return loc.subMgmtFree;
       case SubscriptionPlan.starter:
-        return 'Starter — 49€/mois';
+        return loc.settingsPlanStarterPrice;
       case SubscriptionPlan.pro:
-        return 'Pro — 129€/mois';
+        return loc.settingsPlanProPrice;
     }
   }
 
@@ -597,6 +605,7 @@ class _SubRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return InkWell(
       onTap: onManage,
       child: Padding(
@@ -609,10 +618,10 @@ class _SubRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Mon abonnement',
+                  Text(loc.subMgmtTitle,
                       style: TextStyle(color: textPrimary, fontSize: 14)),
                   const SizedBox(height: 2),
-                  Text(_planLabel,
+                  Text(_planLabel(loc),
                       style: TextStyle(
                           color: _planColor,
                           fontSize: 12,
@@ -742,6 +751,7 @@ class _ThemeSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final current = ref.watch(recruiterThemeProvider);
     final unlocked = plan == SubscriptionPlan.starter || plan == SubscriptionPlan.pro;
     final canCustomize = plan == SubscriptionPlan.pro;
@@ -749,10 +759,10 @@ class _ThemeSelector extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Ambiance de votre espace recruteur',
+        Text(loc.settingsAmbianceTitle,
             style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 4),
-        Text('Le logo SparkWork reste inchangé. Visible uniquement par vous.',
+        Text(loc.settingsAmbianceSubtitle,
             style: TextStyle(color: textSecondary, fontSize: 11)),
         const SizedBox(height: 14),
         Wrap(
@@ -827,11 +837,11 @@ class _ClassicSwatch extends StatelessWidget {
           boxShadow: selected ? [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 8)] : null,
         ),
         child: Stack(children: [
-          const Positioned(
+          Positioned(
             bottom: 4, left: 0, right: 0,
-            child: Text('Classique',
+            child: Text(AppLocalizations.of(context)!.settingsClassic,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 9, fontWeight: FontWeight.bold)),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 9, fontWeight: FontWeight.bold)),
           ),
           if (selected)
             const Positioned(
@@ -933,6 +943,49 @@ class _ToggleRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Toggle « Son de match » — autonome : charge/persiste la préférence via
+/// FeedbackService, sans imposer d'état au reste de la page.
+class _MatchSoundToggleRow extends StatefulWidget {
+  final Color textPrimary;
+  final Color textSecondary;
+  const _MatchSoundToggleRow({
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  State<_MatchSoundToggleRow> createState() => _MatchSoundToggleRowState();
+}
+
+class _MatchSoundToggleRowState extends State<_MatchSoundToggleRow> {
+  final _feedback = FeedbackService();
+  bool _enabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedback.isMatchSoundEnabled().then((v) {
+      if (mounted) setState(() => _enabled = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ToggleRow(
+      icon: Icons.music_note_outlined,
+      label: AppLocalizations.of(context)!.settingsMatchSound,
+      value: _enabled,
+      textPrimary: widget.textPrimary,
+      textSecondary: widget.textSecondary,
+      onChanged: (v) {
+        setState(() => _enabled = v);
+        _feedback.setMatchSoundEnabled(v);
+        if (v) _feedback.playMatchSound(); // aperçu immédiat
+      },
     );
   }
 }

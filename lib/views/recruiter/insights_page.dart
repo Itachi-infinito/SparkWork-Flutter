@@ -6,6 +6,7 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../models/insight_report.dart';
 import '../../services/insight_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class InsightsPage extends ConsumerStatefulWidget {
   const InsightsPage({super.key});
@@ -42,9 +43,10 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Insights marché'),
+        title: Text(loc.insightsTitle),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
       ),
       body: _loading
@@ -58,6 +60,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
   }
 
   Widget _buildError() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -73,7 +76,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
             ElevatedButton(
               onPressed: () => context.push('/recruiter/plans'),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Passer au plan Pro', style: TextStyle(color: Colors.white)),
+              child: Text(loc.insightsUpgradeToPro, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -82,6 +85,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
   }
 
   Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -90,10 +94,10 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           children: [
             Icon(Icons.bar_chart_outlined, size: 64, color: context.textHintColor),
             const SizedBox(height: 16),
-            Text('Pas encore de rapport',
+            Text(loc.insightsNoReportYet,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
             const SizedBox(height: 8),
-            Text('Les insights marché sont générés mensuellement. Revenez en début de mois.',
+            Text(loc.insightsNoReportBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.textSecondaryColor, height: 1.5)),
           ],
@@ -103,6 +107,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
   }
 
   Widget _buildReport() {
+    final loc = AppLocalizations.of(context)!;
     final r = _report!;
     return RefreshIndicator(
       onRefresh: _load,
@@ -115,13 +120,13 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           _buildKpis(r),
           const SizedBox(height: 20),
           if (r.averageSalaryByRole.isNotEmpty) ...[
-            _SectionTitle('Salaires moyens par rôle'),
+            _SectionTitle(loc.insightsAvgSalaryByRole),
             const SizedBox(height: 12),
             _buildSalaryChart(r),
           ],
           if (r.mostSearchedSkills.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _SectionTitle('Compétences les plus recherchées'),
+            _SectionTitle(loc.insightsTopSkills),
             const SizedBox(height: 12),
             _buildSkillsCloud(r),
           ],
@@ -132,6 +137,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
   }
 
   Widget _buildHeader(InsightReport r) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -148,15 +154,15 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           Row(children: [
             const Icon(Icons.insights, color: Colors.white, size: 20),
             const SizedBox(width: 8),
-            const Text('Rapport mensuel',
-                style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(loc.insightsMonthlyReport,
+                style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ]),
           const SizedBox(height: 6),
           Text(r.periodLabel,
               style: const TextStyle(
                   color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('Secteur: ${r.sector} — ${r.region}',
+          Text(loc.insightsSectorRegion(r.sector, r.region),
               style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
         ],
       ),
@@ -164,17 +170,18 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
   }
 
   Widget _buildKpis(InsightReport r) {
+    final loc = AppLocalizations.of(context)!;
     return Row(children: [
       Expanded(child: _KpiCard(
         icon: Icons.people_outline,
-        label: 'Profils actifs',
+        label: loc.insightsActiveProfiles,
         value: '${r.totalActiveProfiles}',
         color: AppColors.green,
       )),
       const SizedBox(width: 10),
       Expanded(child: _KpiCard(
         icon: Icons.timer_outlined,
-        label: 'Temps match moy.',
+        label: loc.insightsAvgMatchTime,
         value: '${r.averageMatchTimeHours.toStringAsFixed(0)}h',
         color: AppColors.orange,
       )),

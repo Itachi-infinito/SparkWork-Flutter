@@ -5,7 +5,7 @@ class RecruiterProfile {
   final String companyDescription;
   final String location;
   final String website;
-  final String sector;
+  final List<String> sectors;
   final String companyNumber; // numéro BCE/TVA belge validé à l'inscription
   final String? contactPhotoUrl;
   final String? companyLogoUrl;
@@ -18,7 +18,7 @@ class RecruiterProfile {
     this.companyDescription = '',
     this.location = '',
     this.website = '',
-    this.sector = '',
+    this.sectors = const [],
     this.companyNumber = '',
     this.contactPhotoUrl,
     this.companyLogoUrl,
@@ -38,7 +38,7 @@ class RecruiterProfile {
     'companyDescription': companyDescription,
     'location': location,
     'website': website,
-    'sector': sector,
+    'sectors': sectors,
     'companyNumber': companyNumber,
     if (contactPhotoUrl != null) 'contactPhotoUrl': contactPhotoUrl,
     if (companyLogoUrl != null) 'companyLogoUrl': companyLogoUrl,
@@ -52,7 +52,13 @@ class RecruiterProfile {
     companyDescription: map['companyDescription'] as String? ?? '',
     location: map['location'] as String? ?? '',
     website: map['website'] as String? ?? '',
-    sector: map['sector'] as String? ?? '',
+    // Les profils créés avant l'introduction des secteurs n'ont pas ce
+    // champ — ils étaient tous implicitement Horeca.
+    sectors: map.containsKey('sectors')
+        ? (map['sectors'] as List<dynamic>? ?? const [])
+            .map((e) => e as String)
+            .toList()
+        : const ['horeca'],
     companyNumber: map['companyNumber'] as String? ?? '',
     contactPhotoUrl: map['contactPhotoUrl'] as String?,
     companyLogoUrl: map['companyLogoUrl'] as String?,
@@ -66,7 +72,7 @@ class RecruiterProfile {
     String? companyDescription,
     String? location,
     String? website,
-    String? sector,
+    List<String>? sectors,
     String? companyNumber,
     String? contactPhotoUrl,
     String? companyLogoUrl,
@@ -78,7 +84,7 @@ class RecruiterProfile {
     companyDescription: companyDescription ?? this.companyDescription,
     location: location ?? this.location,
     website: website ?? this.website,
-    sector: sector ?? this.sector,
+    sectors: sectors ?? this.sectors,
     companyNumber: companyNumber ?? this.companyNumber,
     contactPhotoUrl: contactPhotoUrl ?? this.contactPhotoUrl,
     companyLogoUrl: companyLogoUrl ?? this.companyLogoUrl,

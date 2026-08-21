@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../models/rating.dart';
 import '../../services/rating_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ReviewsListScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -35,9 +36,10 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Avis sur ${widget.displayName}'),
+        title: Text(loc.reviewsListTitle(widget.displayName)),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
       ),
       body: _loading
@@ -47,6 +49,7 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
   }
 
   Widget _buildBody() {
+    final loc = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -60,7 +63,7 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
                 children: [
                   Icon(Icons.star_outline, size: 48, color: context.textHintColor),
                   const SizedBox(height: 12),
-                  Text('Aucun avis pour l\'instant',
+                  Text(loc.reviewsListEmpty,
                       style: TextStyle(fontSize: 15, color: context.textSecondaryColor)),
                 ],
               ),
@@ -73,6 +76,7 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
   }
 
   Widget _buildAverageCard() {
+    final loc = AppLocalizations.of(context)!;
     final avg = _average!;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -92,7 +96,7 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
               Text(avg.averageScore.toStringAsFixed(1),
                   style: const TextStyle(
                       fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white)),
-              Text('sur 5.0',
+              Text(loc.reviewsListOutOf5,
                   style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
             ],
           ),
@@ -103,7 +107,7 @@ class _ReviewsListScreenState extends ConsumerState<ReviewsListScreen> {
               children: [
                 _StarRow(score: avg.averageScore),
                 const SizedBox(height: 6),
-                Text('${avg.totalReviews} avis',
+                Text(loc.reviewsListCount(avg.totalReviews),
                     style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
               ],
             ),

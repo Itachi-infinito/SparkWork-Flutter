@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecruiterProfilePage extends ConsumerStatefulWidget {
   const RecruiterProfilePage({super.key});
@@ -56,6 +58,7 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -79,7 +82,7 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                           // Company description
                           if (_profile != null &&
                               _profile!.companyDescription.isNotEmpty) ...[
-                            const _SectionTitle('À propos'),
+                            _SectionTitle(loc.candProfileAbout),
                             const SizedBox(height: 8),
                             Container(
                               width: double.infinity,
@@ -97,30 +100,30 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                             const SizedBox(height: 20),
                           ],
 
-                          const _SectionTitle('Statistiques'),
+                          _SectionTitle(loc.recProfileStatistics),
                           const SizedBox(height: 12),
                           Row(children: [
                             Expanded(
                                 child: _StatCard(
                                     icon: Icons.work_outline,
-                                    label: 'Offres publiées',
+                                    label: loc.recProfileOffersPublished,
                                     value: '$_offersCount',
                                     color: AppColors.primary)),
                             const SizedBox(width: 12),
                             Expanded(
                                 child: _StatCard(
                                     icon: Icons.favorite_outline,
-                                    label: 'Matches',
+                                    label: loc.recProfileMatches,
                                     value: '$_matchesCount',
                                     color: AppColors.red)),
                           ]),
                           const SizedBox(height: 24),
 
-                          const _SectionTitle('Actions'),
+                          _SectionTitle(loc.recProfileActions),
                           const SizedBox(height: 12),
                           _ActionTile(
                               icon: Icons.workspace_premium_outlined,
-                              label: 'Mon forfait — ${_currentPlan.displayName}',
+                              label: loc.recProfilePlan(_currentPlan.displayName),
                               color: AppColors.green,
                               onTap: () async {
                                 await context.push('/recruiter/subscription');
@@ -128,36 +131,36 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                               }),
                           _ActionTile(
                               icon: Icons.work_outline,
-                              label: 'Gérer mes offres',
+                              label: loc.recProfileManageOffers,
                               color: AppColors.primary,
                               onTap: () => context.go('/recruiter/offers')),
                           _ActionTile(
                               icon: Icons.favorite_outline,
-                              label: 'Voir mes matches',
+                              label: loc.recProfileViewMatches,
                               color: AppColors.red,
                               onTap: () => context.go('/recruiter/matches')),
                           _ActionTile(
                               icon: Icons.thumb_up_outlined,
-                              label: 'Candidats likés',
+                              label: loc.recProfileLikedCandidates,
                               color: AppColors.orange,
                               onTap: () =>
                                   context.push('/recruiter/likes')),
                           _ActionTile(
                               icon: Icons.people_outline,
-                              label: 'Parcourir les candidats',
+                              label: loc.recProfileBrowseCandidates,
                               color: AppColors.primaryDark,
                               onTap: () =>
                                   context.push('/recruiter/candidates')),
                           _ActionTile(
                               icon: Icons.history,
-                              label: 'Historique des profils vus',
+                              label: loc.recProfileViewHistory,
                               color: AppColors.textSecondary,
                               onTap: () =>
                                   context.push('/recruiter/history')),
                           if (_currentPlan == SubscriptionPlan.pro)
                             _ActionTile(
                                 icon: Icons.view_column_outlined,
-                                label: 'Pipeline de recrutement',
+                                label: loc.recProfilePipeline,
                                 color: const Color(0xFF8B5CF6),
                                 onTap: () =>
                                     context.push('/recruiter/pipeline')),
@@ -174,6 +177,7 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
   }
 
   Widget _buildHero(session) {
+    final loc = AppLocalizations.of(context)!;
     final contactPhotoUrl = _profile?.contactPhotoUrl;
     final logoUrl = _profile?.companyLogoUrl;
     final companyName = _profile?.companyName ?? session.userName;
@@ -225,9 +229,10 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
                       shape: BoxShape.circle,
                     ),
                     child: ClipOval(
-                      child: Image.network(logoUrl,
+                      child: CachedNetworkImage(
+                          imageUrl: logoUrl,
                           width: 32, height: 32, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox()),
+                          errorWidget: (_, __, ___) => const SizedBox()),
                     ),
                   ),
                 ),
@@ -266,8 +271,8 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Recruteur',
-                style: TextStyle(
+            child: Text(loc.recProfileRoleBadge,
+                style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
@@ -279,8 +284,8 @@ class _RecruiterProfilePageState extends ConsumerState<RecruiterProfilePage> {
               _load();
             },
             icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.white),
-            label: const Text('Modifier le profil',
-                style: TextStyle(color: Colors.white)),
+            label: Text(loc.candProfileEdit,
+                style: const TextStyle(color: Colors.white)),
             style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.white.withOpacity(0.5))),
           ),
@@ -306,11 +311,12 @@ class _CirclePhoto extends StatelessWidget {
   Widget build(BuildContext context) {
     if (url != null && url!.isNotEmpty) {
       return ClipOval(
-        child: Image.network(url!,
+        child: CachedNetworkImage(
+            imageUrl: url!,
             width: radius * 2,
             height: radius * 2,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildInitials()),
+            errorWidget: (_, __, ___) => _buildInitials()),
       );
     }
     return _buildInitials();

@@ -14,6 +14,7 @@ import '../../services/session_service.dart';
 import '../shared/interview_widgets.dart';
 import '../shared/nav_bar.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecruiterMatchesPage extends ConsumerStatefulWidget {
   const RecruiterMatchesPage({super.key});
@@ -58,7 +59,7 @@ class _RecruiterMatchesPageState
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Mes matches'),
+        title: Text(AppLocalizations.of(context)!.recMatchesTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -72,7 +73,9 @@ class _RecruiterMatchesPageState
     );
   }
 
-  Widget _buildEmpty() => Center(
+  Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -86,21 +89,21 @@ class _RecruiterMatchesPageState
                     color: AppColors.red, size: 40),
               ),
               const SizedBox(height: 20),
-              Text('Pas encore de match',
+              Text(loc.recMatchesEmptyTitle,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: context.textPrimaryColor)),
               const SizedBox(height: 8),
               Text(
-                  'Continuez à swiper pour matcher avec des candidats !',
+                  loc.recMatchesEmptySubtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => context.go('/recruiter/swipe'),
                 icon: const Icon(Icons.swipe),
-                label: const Text('Découvrir des candidats'),
+                label: Text(loc.recMatchesDiscoverCandidates),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.green),
               ),
@@ -108,8 +111,11 @@ class _RecruiterMatchesPageState
           ),
         ),
       );
+  }
 
-  Widget _buildList() => RefreshIndicator(
+  Widget _buildList() {
+    final loc = AppLocalizations.of(context)!;
+    return RefreshIndicator(
         onRefresh: _load,
         color: AppColors.green,
         child: ListView.separated(
@@ -118,9 +124,9 @@ class _RecruiterMatchesPageState
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (ctx, i) {
             final item = _items[i];
-            final name = item.candidate?.fullName ?? 'Candidat inconnu';
+            final name = item.candidate?.fullName ?? loc.recMatchesUnknownCandidate;
             final initials = item.candidate?.initials ?? '?';
-            final offerTitle = item.offer?.title ?? 'Offre supprimée';
+            final offerTitle = item.offer?.title ?? AppLocalizations.of(ctx)!.candMatchesDeletedOffer;
             return Container(
               decoration: BoxDecoration(
                 color: context.surfaceColor,
@@ -184,8 +190,8 @@ class _RecruiterMatchesPageState
                                           icon: const Icon(
                                               Icons.chat_bubble_outline,
                                               size: 14),
-                                          label: const Text('Message',
-                                              style: TextStyle(fontSize: 12)),
+                                          label: Text(loc.recMatchesMessage,
+                                              style: const TextStyle(fontSize: 12)),
                                           style: ElevatedButton.styleFrom(
                                               backgroundColor: AppColors.green,
                                               padding:
@@ -224,6 +230,7 @@ class _RecruiterMatchesPageState
           },
         ),
       );
+  }
 }
 
 class _MatchItem {
@@ -264,17 +271,18 @@ class _RateButtonState extends ConsumerState<_RateButton> {
   }
 
   Future<void> _openDialog() async {
+    final loc = AppLocalizations.of(context)!;
     int selected = _existingScore ?? 0;
     final comment = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          title: const Text('Évaluer'),
+          title: Text(loc.rateDialogTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Votre expérience avec ce candidat ?',
+              Text(loc.rateCandidateSubtitle,
                   style: TextStyle(fontSize: 13, color: context.textSecondaryColor)),
               const SizedBox(height: 12),
               Row(
@@ -296,19 +304,19 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               TextField(
                 controller: comment,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Commentaire (optionnel)',
+                decoration: InputDecoration(
+                  hintText: loc.rateCommentHint,
                   isDense: true,
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.rateCancel)),
             ElevatedButton(
               onPressed: selected == 0 ? null : () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.green),
-              child: const Text('Envoyer'),
+              child: Text(loc.rateSend),
             ),
           ],
         ),
@@ -325,8 +333,8 @@ class _RateButtonState extends ConsumerState<_RateButton> {
     );
     if (mounted) {
       setState(() => _existingScore = selected);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Évaluation envoyée !'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.rateSentConfirmation),
         backgroundColor: AppColors.green,
       ));
     }
@@ -341,6 +349,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               child: CircularProgressIndicator(strokeWidth: 2,
                   color: AppColors.green))));
     }
+    final loc = AppLocalizations.of(context)!;
     return SizedBox(
       height: 34,
       child: OutlinedButton.icon(
@@ -353,7 +362,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               : context.textSecondaryColor,
         ),
         label: Text(
-          _existingScore != null ? '$_existingScore★' : 'Évaluer',
+          _existingScore != null ? loc.rateScoreLabel(_existingScore!) : loc.rateButtonLabel,
           style: TextStyle(
               fontSize: 12,
               color: _existingScore != null

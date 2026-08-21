@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { sendPushToUser } from '../utils/sendPush';
+import { planFromProductId } from './planMapping';
 
 type RevenueCatEventType =
   | 'INITIAL_PURCHASE'
@@ -20,16 +21,6 @@ interface RevenueCatEvent {
   expiration_at_ms?: number;
   purchased_at_ms?: number;
   environment?: 'SANDBOX' | 'PRODUCTION';
-}
-
-const PRODUCT_TO_PLAN: Record<string, string> = {
-  sparkwork_starter_monthly: 'starter',
-  sparkwork_pro_monthly: 'pro',
-};
-
-function planFromProductId(productId: string | undefined): string | null {
-  if (!productId) return null;
-  return PRODUCT_TO_PLAN[productId] ?? null;
 }
 
 export const receiveRevenueCatWebhook = onRequest(

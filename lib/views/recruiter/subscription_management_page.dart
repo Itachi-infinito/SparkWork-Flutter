@@ -6,6 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/subscription.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SubscriptionManagementPage extends ConsumerStatefulWidget {
   const SubscriptionManagementPage({super.key});
@@ -26,48 +27,85 @@ class _SubscriptionManagementPageState
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool sync = true}) async {
     setState(() => _loading = true);
     final session = ref.read(sessionProvider);
-    final sub = await ref.read(subscriptionServiceProvider).getSubscription(session.userId);
+    final svc = ref.read(subscriptionServiceProvider);
+    // Réconcilie depuis RevenueCat (source de vérité) avant de lire Firestore.
+    if (sync) await svc.syncSubscriptionStatus();
+    final sub = await svc.getSubscription(session.userId);
     if (mounted) setState(() { _sub = sub; _loading = false; });
   }
 
   Future<void> _confirmCancel() async {
+    final svc = ref.read(subscriptionServiceProvider);
+    final isTest = svc.isTestStore;
+    final loc = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Annuler l\'abonnement'),
-        content: const Text(
-          'Vous allez être redirigé vers la gestion d\'abonnement de votre '
-          'store. Votre accès reste actif jusqu\'à la fin de la période déjà payée.',
+        title: Text(loc.subMgmtCancelTitle),
+        content: Text(
+          isTest
+              ? loc.subMgmtCancelTestBody
+              : loc.subMgmtCancelProdBody,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Retour'),
+            child: Text(loc.subMgmtBack),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Continuer', style: TextStyle(color: Colors.white)),
+            child: Text(loc.subMgmtContinue, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
-    await ref.read(subscriptionServiceProvider).openManageSubscriptions();
+
+    // Test Store : pas de page de gestion store — on résilie côté serveur et
+    // on repasse directement au plan Gratuit.
+    if (isTest) {
+      if (mounted) setState(() => _loading = true);
+      final ok = await svc.resetTestSubscription();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok
+            ? loc.subMgmtCancelledFree
+            : loc.subMgmtCancelFailed),
+        backgroundColor: ok ? AppColors.green : AppColors.red,
+      ));
+      return;
+    }
+
+    // Production : redirection vers la gestion d'abonnement du store.
+    final opened = await svc.openManageSubscriptions();
+    if (!mounted) return;
+    if (!opened) {
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.subMgmtManageInStore),
+      ));
+      return;
+    }
+    // Retour du store : réconcilie l'état réel puis rafraîchit l'UI.
+    await _load();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Une fois confirmé dans le store, votre statut se met à jour automatiquement.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.subMgmtStatusUpdated),
       ));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Mon abonnement')),
+      appBar: AppBar(title: Text(loc.subMgmtTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -88,8 +126,8 @@ class _SubscriptionManagementPageState
                     child: ElevatedButton.icon(
                       onPressed: () => context.push('/recruiter/plans'),
                       icon: const Icon(Icons.swap_horiz, color: Colors.white),
-                      label: const Text('Changer de plan',
-                          style: TextStyle(color: Colors.white)),
+                      label: Text(loc.subMgmtChangePlan,
+                          style: const TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         minimumSize: const Size(double.infinity, 50),
@@ -109,8 +147,8 @@ class _SubscriptionManagementPageState
                           side: BorderSide(color: AppColors.red.withOpacity(0.5)),
                           minimumSize: const Size(double.infinity, 50),
                         ),
-                        child: const Text('Annuler l\'abonnement',
-                            style: TextStyle(color: AppColors.red)),
+                        child: Text(loc.subMgmtCancelTitle,
+                            style: const TextStyle(color: AppColors.red)),
                       ),
                     ),
                   ],
@@ -121,6 +159,7 @@ class _SubscriptionManagementPageState
   }
 
   Widget _buildTrialBanner(RecruiterSubscription sub) {
+    final loc = AppLocalizations.of(context)!;
     final progress = (14 - sub.trialDaysRemaining) / 14;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -135,7 +174,7 @@ class _SubscriptionManagementPageState
           Row(children: [
             const Icon(Icons.star, color: Colors.amber, size: 20),
             const SizedBox(width: 8),
-            Text('Essai Pro — ${sub.trialDaysRemaining} jour${sub.trialDaysRemaining > 1 ? 's' : ''} restant${sub.trialDaysRemaining > 1 ? 's' : ''}',
+            Text(loc.subMgmtTrialBanner(sub.trialDaysRemaining),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
           ]),
           const SizedBox(height: 12),
@@ -154,6 +193,7 @@ class _SubscriptionManagementPageState
   }
 
   Widget _buildExpiredBanner() {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -165,19 +205,20 @@ class _SubscriptionManagementPageState
       child: Row(children: [
         const Icon(Icons.error_outline, color: AppColors.red),
         const SizedBox(width: 12),
-        const Expanded(
-          child: Text('Votre abonnement a expiré.',
-              style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Text(loc.subMgmtExpiredBanner,
+              style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
         ),
         TextButton(
           onPressed: () => context.push('/recruiter/plans'),
-          child: const Text('Renouveler', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+          child: Text(loc.subMgmtRenew, style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
         ),
       ]),
     );
   }
 
   Widget _buildCancelledBanner(RecruiterSubscription sub) {
+    final loc = AppLocalizations.of(context)!;
     final endDateLabel = sub.endDate != null
         ? DateFormat('d MMMM yyyy', 'fr_FR').format(sub.endDate!)
         : '';
@@ -193,7 +234,7 @@ class _SubscriptionManagementPageState
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Renouvellement désactivé — accès actif jusqu\'au $endDateLabel.',
+            loc.subMgmtRenewalDisabled(endDateLabel),
             style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w600, fontSize: 13),
           ),
         ),
@@ -202,6 +243,7 @@ class _SubscriptionManagementPageState
   }
 
   Widget _buildPlanCard(RecruiterSubscription? sub) {
+    final loc = AppLocalizations.of(context)!;
     final plan = sub?.effectivePlan ?? SubscriptionPlan.free;
     final renewalLabel = sub?.endDate != null
         ? DateFormat('d MMMM yyyy', 'fr_FR').format(sub!.endDate!)
@@ -229,7 +271,7 @@ class _SubscriptionManagementPageState
                   style: TextStyle(color: _planColor(plan), fontWeight: FontWeight.bold, fontSize: 13)),
             ),
             const Spacer(),
-            Text(plan.monthlyPrice == 0 ? 'Gratuit' : '${plan.monthlyPrice.toInt()}€/mois',
+            Text(plan.monthlyPrice == 0 ? loc.subMgmtFree : loc.subMgmtPricePerMonth(plan.monthlyPrice.toInt()),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           if (renewalLabel != null) ...[
@@ -239,8 +281,8 @@ class _SubscriptionManagementPageState
               const SizedBox(width: 6),
               Text(
                 sub?.cancelAtPeriodEnd == true
-                    ? 'Expire le $renewalLabel'
-                    : 'Prochain renouvellement : $renewalLabel',
+                    ? loc.subMgmtExpiresOn(renewalLabel)
+                    : loc.subMgmtNextRenewal(renewalLabel),
                 style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ]),
@@ -259,35 +301,36 @@ class _SubscriptionManagementPageState
   }
 
   Widget _buildFeaturesList(SubscriptionPlan plan) {
+    final loc = AppLocalizations.of(context)!;
     final features = switch (plan) {
-      SubscriptionPlan.free => const [
-          '5 swipes par jour',
-          '1 offre active maximum',
-          '3 conversations simultanées',
+      SubscriptionPlan.free => [
+          loc.planFeatureFreeSwipes,
+          loc.planFeatureFreeOffers,
+          loc.planFeatureFreeConversations,
         ],
-      SubscriptionPlan.starter => const [
-          '50 swipes par jour',
-          '3 offres actives simultanées',
-          'Conversations illimitées',
-          '1 boost d\'offre par mois',
-          'Stats : vues, taux de match',
+      SubscriptionPlan.starter => [
+          loc.planFeatureStarterSwipes,
+          loc.planFeatureStarterOffers,
+          loc.planFeatureUnlimitedConversations,
+          loc.planFeatureStarterBoost,
+          loc.planFeatureStarterStats,
         ],
-      SubscriptionPlan.pro => const [
-          'Swipes illimités',
-          '10 offres actives simultanées',
-          'Conversations illimitées',
-          '3 boosts d\'offre par mois',
-          'Stats avancées + profils intéressés',
-          'Badge Employeur vérifié',
-          'Gestion d\'équipe',
-          'Insights sectoriels',
+      SubscriptionPlan.pro => [
+          loc.planFeatureProSwipes,
+          loc.planFeatureProOffers,
+          loc.planFeatureUnlimitedConversations,
+          loc.planFeatureProBoosts,
+          loc.planFeatureProStats,
+          loc.planFeatureVerifiedBadge,
+          loc.planFeatureTeamManagement,
+          loc.planFeatureSectorInsights,
         ],
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Inclus dans votre plan',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        Text(loc.subMgmtIncludedInPlan,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         ...features.map((f) => Padding(
               padding: const EdgeInsets.only(bottom: 8),

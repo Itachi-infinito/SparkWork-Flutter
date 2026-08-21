@@ -7,6 +7,7 @@ class JobOffer {
   final String companyName;
   final String location;
   final String contractType;
+  final String sector;
   final String description;
   final String address;
   final double latitude;
@@ -32,6 +33,7 @@ class JobOffer {
     required this.companyName,
     required this.location,
     required this.contractType,
+    this.sector = 'horeca',
     required this.description,
     this.address = '',
     this.latitude = 0.0,
@@ -108,6 +110,7 @@ class JobOffer {
         'companyName': companyName,
         'location': location,
         'contractType': contractType,
+        'sector': sector,
         'description': description,
         'address': address,
         'latitude': latitude,
@@ -134,6 +137,9 @@ class JobOffer {
         companyName: map['companyName'] as String? ?? '',
         location: map['location'] as String? ?? '',
         contractType: map['contractType'] as String? ?? '',
+        // Les offres créées avant l'introduction des secteurs n'ont pas ce
+        // champ — elles étaient toutes implicitement Horeca.
+        sector: map['sector'] as String? ?? 'horeca',
         description: map['description'] as String? ?? '',
         address: map['address'] as String? ?? '',
         latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
@@ -160,6 +166,7 @@ class JobOffer {
     String? companyName,
     String? location,
     String? contractType,
+    String? sector,
     String? description,
     String? address,
     double? latitude,
@@ -184,6 +191,7 @@ class JobOffer {
         companyName: companyName ?? this.companyName,
         location: location ?? this.location,
         contractType: contractType ?? this.contractType,
+        sector: sector ?? this.sector,
         description: description ?? this.description,
         address: address ?? this.address,
         latitude: latitude ?? this.latitude,

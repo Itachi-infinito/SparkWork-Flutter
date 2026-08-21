@@ -29,8 +29,9 @@ class AuthService {
     required String role,
     Map<String, dynamic>? extraData,
   }) async {
+    UserCredential? cred;
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(
+      cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -70,6 +71,16 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return (false, _authError(e.code));
     } catch (e) {
+      // Le compte Auth a pu être créé avant l'échec (écriture Firestore,
+      // réseau, App Check...) — le supprimer pour ne pas laisser un compte
+      // orphelin (sans document users/{uid}) qui bloquerait tout nouvel
+      // essai avec le même email sur "email-already-in-use", et empêcherait
+      // aussi la connexion (SessionNotifier ne trouve jamais de profil).
+      if (cred?.user != null) {
+        try {
+          await cred!.user!.delete();
+        } catch (_) {}
+      }
       return (false, e.toString());
     }
   }

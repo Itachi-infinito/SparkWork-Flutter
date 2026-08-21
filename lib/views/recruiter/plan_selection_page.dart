@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/subscription.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class PlanSelectionPage extends ConsumerStatefulWidget {
   const PlanSelectionPage({super.key});
@@ -18,6 +19,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
   bool _loading = true;
   String? _processingPlan;
   bool _restoring = false;
+  bool _paymentsAvailable = true;
 
   @override
   void initState() {
@@ -25,22 +27,43 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool sync = true}) async {
     final session = ref.read(sessionProvider);
     final svc = ref.read(subscriptionServiceProvider);
+    // Réconcilie l'état réel depuis RevenueCat avant de lire Firestore, pour
+    // ne pas afficher un plan périmé (achat/annulation non encore propagés).
+    if (sync) await svc.syncSubscriptionStatus();
     final sub = await svc.getSubscription(session.userId);
-    if (mounted) setState(() { _currentSub = sub; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _currentSub = sub;
+        _paymentsAvailable = svc.isRevenueCatConfigured;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _selectPlan(SubscriptionPlan plan) async {
     if (plan == SubscriptionPlan.free) {
-      // La résiliation se fait toujours via le store, jamais côté client.
-      await _openManageSubscription();
+      // Gestion/résiliation centralisée dans la page « Mon abonnement » —
+      // évite les messages contradictoires entre les deux écrans.
+      context.push('/recruiter/subscription');
+      return;
+    }
+
+    // Garde-fou : si les paiements ne sont pas disponibles sur cet appareil,
+    // on prévient clairement au lieu de lancer un achat voué à échouer.
+    if (!_paymentsAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context)!.planSelPaymentsUnavailableSnack),
+        backgroundColor: AppColors.red,
+      ));
       return;
     }
 
     final confirmed = await _showPurchaseConfirmationSheet(plan);
     if (confirmed != true || !mounted) return;
+    final loc = AppLocalizations.of(context)!;
 
     setState(() => _processingPlan = plan.name);
     try {
@@ -55,7 +78,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
         await _load();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Bienvenue sur le plan ${plan.displayName} !'),
+          content: Text(loc.planSelWelcomePlan(plan.displayName)),
           backgroundColor: AppColors.green,
         ));
         context.go(ref.read(sessionProvider).isCandidate
@@ -70,19 +93,20 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
   }
 
   void _showPurchaseError(PurchaseResult result) {
+    final loc = AppLocalizations.of(context)!;
     String message;
     switch (result.outcome) {
       case PurchaseOutcome.userCancelled:
         return; // L'utilisateur a annulé lui-même — pas besoin de l'avertir.
       case PurchaseOutcome.networkError:
-        message = result.message ?? 'Erreur réseau. Réessayez.';
+        message = result.message ?? loc.planSelNetworkError;
         break;
       case PurchaseOutcome.notConfigured:
-        message = result.message ?? 'Paiements indisponibles sur cet appareil.';
+        message = result.message ?? loc.planSelPaymentsUnavailable;
         break;
       case PurchaseOutcome.paymentError:
       default:
-        message = 'Le paiement a échoué. Vérifiez vos informations bancaires et réessayez.';
+        message = loc.planSelPaymentFailed;
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
@@ -91,6 +115,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
   }
 
   Future<bool?> _showPurchaseConfirmationSheet(SubscriptionPlan plan) {
+    final loc = AppLocalizations.of(context)!;
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -113,7 +138,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                 ),
               ),
             ),
-            Text('Passer au plan ${plan.displayName}',
+            Text(loc.planSelSwitchToPlan(plan.displayName),
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             RichText(
@@ -121,23 +146,21 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
                 children: [
                   TextSpan(text: '${plan.monthlyPrice.toInt()}€'),
-                  const TextSpan(text: '/mois', style: TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.normal)),
+                  TextSpan(text: loc.planSelPerMonth, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.normal)),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Facturation mensuelle récurrente, résiliable à tout moment depuis '
-              'les paramètres de votre store (App Store ou Google Play). '
-              'Le paiement sera débité sur le compte associé à votre identifiant store.',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
+            Text(
+              loc.planSelBillingInfo,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 24),
             Row(children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Annuler'),
+                  child: Text(loc.planSelCancel),
                 ),
               ),
               const SizedBox(width: 12),
@@ -145,7 +168,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+                  child: Text(loc.planSelConfirm, style: const TextStyle(color: Colors.white)),
                 ),
               ),
             ]),
@@ -153,17 +176,6 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _openManageSubscription() async {
-    final svc = ref.read(subscriptionServiceProvider);
-    if (!svc.isRevenueCatConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Vous êtes déjà sur le plan Gratuit.'),
-      ));
-      return;
-    }
-    await svc.openManageSubscriptions();
   }
 
   Future<void> _restorePurchases() async {
@@ -174,10 +186,11 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
       if (!mounted) return;
       await _load();
       if (!mounted) return;
+      final loc = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(restored
-            ? 'Achats restaurés avec succès.'
-            : 'Aucun achat actif trouvé pour ce compte.'),
+            ? loc.planSelRestoreSuccess
+            : loc.planSelRestoreNone),
         backgroundColor: restored ? AppColors.green : AppColors.textSecondary,
       ));
     } finally {
@@ -187,6 +200,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -202,21 +216,21 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: const SafeArea(
+                child: SafeArea(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 60, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Choisissez votre plan',
-                            style: TextStyle(
+                        Text(loc.planSelChooseYourPlan,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 26,
                                 fontWeight: FontWeight.bold)),
-                        SizedBox(height: 4),
-                        Text('Recrutez mieux, recrutez plus vite',
-                            style: TextStyle(
+                        const SizedBox(height: 4),
+                        Text(loc.planSelSubtitle,
+                            style: const TextStyle(
                                 color: Colors.white70, fontSize: 14)),
                       ],
                     ),
@@ -238,6 +252,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                 delegate: SliverChildListDelegate([
                   if (_currentSub?.isTrialActive == true)
                     _TrialBanner(daysLeft: _currentSub!.trialDaysRemaining),
+                  if (!_paymentsAvailable) const _PaymentsUnavailableBanner(),
                   const SizedBox(height: 16),
                   _PlanCard(
                     plan: SubscriptionPlan.free,
@@ -269,7 +284,7 @@ class _PlanSelectionPageState extends ConsumerState<PlanSelectionPage> {
                               width: 14, height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.restore, size: 18),
-                      label: const Text('Restaurer mes achats'),
+                      label: Text(loc.planSelRestorePurchases),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -290,6 +305,7 @@ class _TrialBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -308,14 +324,43 @@ class _TrialBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Essai Pro en cours',
-                    style: TextStyle(
+                Text(loc.planSelTrialActive,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 15)),
-                Text('$daysLeft jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}',
+                Text(loc.planSelTrialDaysLeft(daysLeft),
                     style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentsUnavailableBanner extends StatelessWidget {
+  const _PaymentsUnavailableBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.orangeLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: AppColors.orange, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context)!.planSelPaymentsUnavailableBanner,
+              style: const TextStyle(color: AppColors.orange, fontSize: 12.5, height: 1.4),
             ),
           ),
         ],
@@ -347,7 +392,8 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final features = _features(plan);
+    final loc = AppLocalizations.of(context)!;
+    final features = _features(plan, loc);
     final isPro = plan == SubscriptionPlan.pro;
     final borderColor = highlighted ? AppColors.primary : Colors.grey.shade200;
 
@@ -411,8 +457,8 @@ class _PlanCard extends StatelessWidget {
                                 color: Colors.amber,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text('Recommandé',
-                                  style: TextStyle(
+                              child: Text(loc.planSelRecommended,
+                                  style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white)),
@@ -422,7 +468,7 @@ class _PlanCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       if (plan.monthlyPrice == 0)
-                        Text('Gratuit',
+                        Text(loc.subMgmtFree,
                             style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
@@ -440,7 +486,7 @@ class _PlanCard extends StatelessWidget {
                                 ),
                               ),
                               TextSpan(
-                                text: '/mois',
+                                text: loc.planSelPerMonth,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: highlighted
@@ -463,13 +509,13 @@ class _PlanCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.amber.withOpacity(0.5)),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Icon(Icons.star, color: Colors.amber, size: 16),
-                        SizedBox(height: 2),
-                        Text('14 jours\ngratuits',
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        const SizedBox(height: 2),
+                        Text(loc.planSelTrialDaysFree,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                                 color: Colors.amber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold)),
@@ -501,8 +547,8 @@ class _PlanCard extends StatelessWidget {
                       onPressed: null,
                       icon: const Icon(Icons.check_circle_outline,
                           color: AppColors.green),
-                      label: const Text('Plan actuel',
-                          style: TextStyle(color: AppColors.green)),
+                      label: Text(loc.planSelCurrentPlan,
+                          style: const TextStyle(color: AppColors.green)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.green),
                         shape: RoundedRectangleBorder(
@@ -519,8 +565,8 @@ class _PlanCard extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Gérer mon abonnement',
-                              style: TextStyle(color: AppColors.red, fontSize: 13)),
+                          child: Text(loc.planSelManageSubscription,
+                              style: const TextStyle(color: AppColors.red, fontSize: 13)),
                         )
                       : ElevatedButton(
                           onPressed: isProcessing ? null : () => onSelect(plan),
@@ -538,7 +584,7 @@ class _PlanCard extends StatelessWidget {
                                   child: CircularProgressIndicator(
                                       color: Colors.white, strokeWidth: 2),
                                 )
-                              : Text('Choisir ${plan.displayName}'),
+                              : Text(loc.planSelChoosePlan(plan.displayName)),
                         ),
             ),
           ),
@@ -547,34 +593,34 @@ class _PlanCard extends StatelessWidget {
     );
   }
 
-  List<(String, bool)> _features(SubscriptionPlan p) {
+  List<(String, bool)> _features(SubscriptionPlan p, AppLocalizations loc) {
     switch (p) {
       case SubscriptionPlan.free:
         return [
-          ('5 swipes par jour', true),
-          ('1 offre active maximum', true),
-          ('3 conversations simultanées', true),
-          ('Boosts d\'offre', false),
-          ('Statistiques', false),
-          ('Badge Employeur vérifié', false),
+          (loc.planFeatureFreeSwipes, true),
+          (loc.planFeatureFreeOffers, true),
+          (loc.planFeatureFreeConversations, true),
+          (loc.planSelFeatureBoosts, false),
+          (loc.planSelFeatureStats, false),
+          (loc.planFeatureVerifiedBadge, false),
         ];
       case SubscriptionPlan.starter:
         return [
-          ('50 swipes par jour', true),
-          ('3 offres actives simultanées', true),
-          ('Conversations illimitées', true),
-          ('1 boost d\'offre par mois', true),
-          ('Stats : vues, taux de match', true),
-          ('Badge Employeur vérifié', false),
+          (loc.planFeatureStarterSwipes, true),
+          (loc.planFeatureStarterOffers, true),
+          (loc.planFeatureUnlimitedConversations, true),
+          (loc.planFeatureStarterBoost, true),
+          (loc.planFeatureStarterStats, true),
+          (loc.planFeatureVerifiedBadge, false),
         ];
       case SubscriptionPlan.pro:
         return [
-          ('Swipes illimités', true),
-          ('10 offres actives simultanées', true),
-          ('Conversations illimitées', true),
-          ('3 boosts d\'offre par mois', true),
-          ('Stats avancées + profils intéressés', true),
-          ('Badge Employeur vérifié ✓', true),
+          (loc.planFeatureProSwipes, true),
+          (loc.planFeatureProOffers, true),
+          (loc.planFeatureUnlimitedConversations, true),
+          (loc.planFeatureProBoosts, true),
+          (loc.planFeatureProStats, true),
+          (loc.planSelFeatureVerifiedBadgeCheck, true),
         ];
     }
   }
@@ -618,12 +664,9 @@ class _LegalNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'Les abonnements sont mensuels et résiliables à tout moment depuis '
-      'votre store (App Store ou Google Play). '
-      'Le plan Pro inclut 14 jours d\'essai gratuit sans engagement '
-      'pour les nouveaux comptes recruteurs.',
-      style: TextStyle(
+    return Text(
+      AppLocalizations.of(context)!.planSelLegalNote,
+      style: const TextStyle(
         fontSize: 12,
         color: AppColors.textHint,
         height: 1.5,

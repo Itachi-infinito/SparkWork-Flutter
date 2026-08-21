@@ -11,6 +11,7 @@ import '../../models/verification_model.dart';
 import '../../services/session_service.dart';
 import '../../services/stripe_identity_service.dart';
 import '../../services/veriff_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Steps of the verification flow
 enum _Step { info, docType, consent, waiting, result }
@@ -181,20 +182,20 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Future<void> _deleteData() async {
+    final loc = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer mes données'),
-        content: const Text(
-            'Voulez-vous supprimer vos données de vérification ? Vous devrez recommencer la vérification.'),
+        title: Text(loc.verifDeleteDataTitle),
+        content: Text(loc.verifDeleteDataBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(loc.verifCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer', style: TextStyle(color: AppColors.red)),
+            child: Text(loc.verifDelete, style: const TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -215,9 +216,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vérification d\'identité'),
+        title: Text(loc.verifTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -235,8 +237,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               _verificationModel!.status != VeriffStatus.unverified)
             TextButton(
               onPressed: _deleteData,
-              child: const Text('Supprimer',
-                  style: TextStyle(color: AppColors.red, fontSize: 12)),
+              child: Text(loc.verifDelete,
+                  style: const TextStyle(color: AppColors.red, fontSize: 12)),
             ),
         ],
       ),
@@ -264,6 +266,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   // ── Step 1 : Info ────────────────────────────────────────────────────────────
 
   Widget _buildInfoStep() {
+    final loc = AppLocalizations.of(context)!;
     final attemptCount = _verificationModel?.attemptCount ?? 0;
     final attemptsLeft = 3 - attemptCount;
 
@@ -295,7 +298,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Prouvez que c\'est bien vous',
+            loc.verifProveItsYou,
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -304,15 +307,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'La vérification d\'identité est rapide (< 2 min) et 100% sécurisée. '
-            'Elle est gérée par Veriff, certifié eIDAS et conforme au RGPD.',
+            loc.verifIntro,
             style: TextStyle(
                 fontSize: 13, color: context.textSecondaryColor, height: 1.6),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
 
-          ..._benefits.map((b) => _BenefitRow(icon: b.$1, text: b.$2)),
+          ..._benefits(loc).map((b) => _BenefitRow(icon: b.$1, text: b.$2)),
 
           if (attemptCount > 0) ...[
             const SizedBox(height: 12),
@@ -327,7 +329,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 const Icon(Icons.info_outline, color: AppColors.orange, size: 16),
                 const SizedBox(width: 10),
                 Text(
-                  '${3 - attemptCount} tentative${(3 - attemptCount) > 1 ? 's' : ''} restante${(3 - attemptCount) > 1 ? 's' : ''}',
+                  loc.verifAttemptsLeft(3 - attemptCount),
                   style: const TextStyle(
                       color: AppColors.orange,
                       fontSize: 13,
@@ -345,8 +347,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               icon: const Icon(Icons.arrow_forward, color: Colors.white),
               label: Text(
                 attemptsLeft > 0
-                    ? 'Commencer la vérification'
-                    : 'Tentatives épuisées — contactez le support',
+                    ? loc.verifStartVerification
+                    : loc.verifAttemptsExhausted,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -362,28 +364,29 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     );
   }
 
-  static const _benefits = [
-    (Icons.verified_user_outlined, 'Badge "ID Vérifié" visible par les recruteurs'),
-    (Icons.trending_up, 'Priorité dans les résultats de recherche'),
-    (Icons.handshake_outlined, '+40 % de chances d\'être contacté'),
-    (Icons.lock_outline, 'Vos documents ne quittent jamais Veriff — SparkWork ne les stocke pas'),
+  List<(IconData, String)> _benefits(AppLocalizations loc) => [
+    (Icons.verified_user_outlined, loc.verifBenefitBadge),
+    (Icons.trending_up, loc.verifBenefitPriority),
+    (Icons.handshake_outlined, loc.verifBenefitContact),
+    (Icons.lock_outline, loc.verifBenefitPrivacy),
   ];
 
   // ── Step 2 : Choix du document ───────────────────────────────────────────────
 
   Widget _buildDocTypeStep() {
+    final loc = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Quel document allez-vous utiliser ?',
+          Text(loc.verifWhichDocument,
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: context.textPrimaryColor)),
           const SizedBox(height: 8),
-          Text('Choisissez un document officiel en cours de validité.',
+          Text(loc.verifChooseDocument,
               style: TextStyle(fontSize: 13, color: context.textSecondaryColor)),
           const SizedBox(height: 24),
           ...DocumentType.values.map((dt) => _DocTypeCard(
@@ -401,8 +404,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 minimumSize: const Size(double.infinity, 52),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Continuer',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(loc.verifContinue,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 12),
@@ -411,7 +414,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
             child: OutlinedButton(
               onPressed: _launching ? null : _startStripeVerification,
               style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
-              child: const Text('Vérifier avec Stripe Identity'),
+              child: Text(loc.verifStripeIdentity),
             ),
           ),
         ],
@@ -422,12 +425,13 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   // ── Step 3 : Consentement RGPD ───────────────────────────────────────────────
 
   Widget _buildConsentStep() {
+    final loc = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Avant de continuer',
+          Text(loc.verifBeforeContinuing,
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -449,7 +453,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   const Icon(Icons.privacy_tip_outlined,
                       color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
-                  Text('Protection de vos données',
+                  Text(loc.verifDataProtection,
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -457,11 +461,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 ]),
                 const SizedBox(height: 10),
                 Text(
-                  '• Vos données d\'identité sont transmises directement à Veriff, '
-                  'partenaire certifié eIDAS et conforme au RGPD.\n'
-                  '• SparkWork ne stocke jamais vos images de documents.\n'
-                  '• Veriff supprime automatiquement vos données après 7 jours.\n'
-                  '• Nous conservons uniquement : statut de vérification et date de décision.',
+                  loc.verifDataProtectionBody,
                   style: TextStyle(
                       fontSize: 12, color: context.textSecondaryColor, height: 1.7),
                 ),
@@ -471,7 +471,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     style: TextStyle(
                         fontSize: 12, color: context.textSecondaryColor),
                     children: [
-                      const TextSpan(text: 'Politique de confidentialité : '),
+                      TextSpan(text: loc.verifPrivacyPolicyLabel),
                       TextSpan(
                         text: 'veriff.com/privacy',
                         style: const TextStyle(
@@ -501,13 +501,13 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ce que Veriff va faire :',
+                Text(loc.verifWhatVeriffDoes,
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                         color: context.textPrimaryColor)),
                 const SizedBox(height: 10),
-                ..._veriffSteps.map((s) => Padding(
+                ..._veriffSteps(loc).map((s) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,8 +547,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      'J\'accepte que mes données d\'identité soient transmises à Veriff '
-                      'dans le cadre de ma vérification d\'identité, conformément au RGPD.',
+                      loc.verifConsentText,
                       style: TextStyle(
                           fontSize: 12,
                           color: context.textSecondaryColor,
@@ -572,7 +571,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                           color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.play_circle_outline, color: Colors.white),
               label: Text(
-                _launching ? 'Lancement...' : 'Commencer la vérification',
+                _launching ? loc.verifLaunching : loc.verifStartVerification,
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold),
               ),
@@ -590,17 +589,18 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     );
   }
 
-  static const _veriffSteps = [
-    'Capture guidée de votre document (recto-verso)',
-    'Vérification automatique de la qualité de l\'image',
-    'Selfie avec détection de vivacité (liveness check)',
-    'Matching facial entre selfie et document',
-    'Résultat en moins de 2 minutes',
+  List<String> _veriffSteps(AppLocalizations loc) => [
+    loc.verifStep1,
+    loc.verifStep2,
+    loc.verifStep3,
+    loc.verifStep4,
+    loc.verifStep5,
   ];
 
   // ── Step 4 : En attente ──────────────────────────────────────────────────────
 
   Widget _buildWaitingStep() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -614,7 +614,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     color: AppColors.primary, strokeWidth: 3),
               ),
               const SizedBox(height: 24),
-              Text('Lancement de la vérification…',
+              Text(loc.verifLaunchingInProgress,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 16,
@@ -631,7 +631,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     size: 64, color: AppColors.orange),
               ),
               const SizedBox(height: 24),
-              Text('Vérification en cours',
+              Text(loc.verifInProgress,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 20,
@@ -639,9 +639,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                       color: context.textPrimaryColor)),
               const SizedBox(height: 12),
               Text(
-                'Vos documents sont en cours d\'analyse par Veriff.\n'
-                'Cela prend généralement moins de 2 minutes.\n'
-                'Vous recevrez une notification dès que la décision est prise.',
+                loc.verifInProgressBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 13,
@@ -652,8 +650,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               OutlinedButton.icon(
                 onPressed: _loadStatus,
                 icon: const Icon(Icons.refresh, color: AppColors.primary),
-                label: const Text('Vérifier le statut',
-                    style: TextStyle(color: AppColors.primary)),
+                label: Text(loc.verifCheckStatus,
+                    style: const TextStyle(color: AppColors.primary)),
                 style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primary)),
               ),
@@ -688,6 +686,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Widget _buildApprovedState() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -709,15 +708,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               child: const Icon(Icons.verified_user, size: 64, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            const Text('Identité vérifiée !',
-                style: TextStyle(
+            Text(loc.verifApprovedTitle,
+                style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF3B82F6))),
             const SizedBox(height: 12),
             Text(
-              'Votre badge "ID Vérifié" est actif. '
-              'Les recruteurs peuvent voir que votre identité a été confirmée.',
+              loc.verifApprovedBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13,
@@ -732,8 +730,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   minimumSize: const Size(200, 48)),
-              child: const Text('Retour au profil',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(loc.verifBackToProfile,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -742,6 +740,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Widget _buildRejectedState() {
+    final loc = AppLocalizations.of(context)!;
     final reason = _verificationModel?.declineReason;
     final canRetry = _verificationModel?.canRetry ?? false;
     return Center(
@@ -760,8 +759,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   size: 64, color: AppColors.red),
             ),
             const SizedBox(height: 24),
-            const Text('Vérification refusée',
-                style: TextStyle(
+            Text(loc.verifRejectedTitle,
+                style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.red)),
@@ -773,7 +772,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   color: AppColors.redLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text('Motif : $reason',
+                child: Text(loc.verifRejectedReason(reason),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         fontSize: 13, color: AppColors.red, height: 1.5)),
@@ -782,8 +781,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
             ],
             Text(
               canRetry
-                  ? 'Vous pouvez réessayer avec un document différent ou de meilleure qualité.'
-                  : 'Vous avez atteint le nombre maximum de tentatives (3/3). Contactez notre support.',
+                  ? loc.verifRejectedRetryBody
+                  : loc.verifRejectedNoRetryBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13,
@@ -798,8 +797,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   _launchResult = null;
                 }),
                 icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text('Réessayer',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                label: Text(loc.verifRetry,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
@@ -810,8 +809,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               OutlinedButton.icon(
                 onPressed: () { /* TODO: open support */ },
                 icon: const Icon(Icons.support_agent, color: AppColors.primary),
-                label: const Text('Contacter le support',
-                    style: TextStyle(color: AppColors.primary)),
+                label: Text(loc.verifContactSupport,
+                    style: const TextStyle(color: AppColors.primary)),
                 style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primary)),
               ),
@@ -822,6 +821,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Widget _buildResubmissionState() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -838,15 +838,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   size: 64, color: AppColors.orange),
             ),
             const SizedBox(height: 24),
-            const Text('Document illisible',
-                style: TextStyle(
+            Text(loc.verifUnreadableTitle,
+                style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.orange)),
             const SizedBox(height: 12),
             Text(
-              'Votre document n\'était pas lisible (flou, reflet, image coupée). '
-              'Recommencez avec un document bien éclairé et sans reflet.',
+              loc.verifUnreadableBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13,
@@ -861,8 +860,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 _launchResult = null;
               }),
               icon: const Icon(Icons.replay, color: Colors.white),
-              label: const Text('Resoumettre',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(loc.verifResubmit,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.orange,
                   shape: RoundedRectangleBorder(
@@ -876,6 +875,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Widget _buildSdkErrorState() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -884,15 +884,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: AppColors.red),
             const SizedBox(height: 20),
-            const Text('Erreur inattendue',
-                style: TextStyle(
+            Text(loc.verifUnexpectedErrorTitle,
+                style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.red)),
             const SizedBox(height: 12),
             Text(
-              'Une erreur s\'est produite lors du lancement de la vérification. '
-              'Vérifiez votre connexion et réessayez.',
+              loc.verifUnexpectedErrorBody,
               textAlign: TextAlign.center,
               style: TextStyle(color: context.textSecondaryColor, height: 1.5),
             ),
@@ -903,8 +902,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 _launchResult = null;
               }),
               icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text('Réessayer',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(loc.verifRetry,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(

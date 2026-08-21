@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
@@ -41,27 +42,19 @@ class AppAvatar extends StatelessWidget {
         width: radius * 2,
         height: radius * 2,
         child: ClipOval(
-          child: Image.network(
-            photoPath!,
+          // Cache disque : les avatars reviennent sur tous les écrans
+          // (listes, chat, cartes) — sans cache, chaque affichage
+          // re-téléchargeait la photo.
+          child: CachedNetworkImage(
+            imageUrl: photoPath!,
             width: radius * 2,
             height: radius * 2,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildInitials(),
-            loadingBuilder: (_, child, progress) {
-              if (progress == null) return child;
-              return CircleAvatar(
-                radius: radius,
-                backgroundColor: AppColors.primaryLight,
-                child: SizedBox(
-                  width: radius * 0.6,
-                  height: radius * 0.6,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                ),
-              );
-            },
+            errorWidget: (_, __, ___) => _buildInitials(),
+            placeholder: (_, __) => CircleAvatar(
+              radius: radius,
+              backgroundColor: AppColors.primaryLight,
+            ),
           ),
         ),
       );

@@ -199,13 +199,10 @@ class SessionSecurityService {
         (snap) => snap.data()?['isRestricted'] as bool? ?? false);
   }
 
-  /// Demande un code de déblocage à 6 chiffres.
-  /// TODO: aucun fournisseur d'emailing n'est branché — le code retourné en
-  /// dev doit être retiré dès qu'un envoi d'email réel est en place côté CF.
-  Future<String?> requestUnlockOtp() async {
+  /// Demande un code de déblocage à 6 chiffres envoyé par email.
+  Future<void> requestUnlockOtp() async {
     final callable = _functions.httpsCallable('requestRestrictedUnlockOtp');
-    final result = await callable.call();
-    return (result.data as Map)['devOnlyCode'] as String?;
+    await callable.call();
   }
 
   Future<bool> verifyUnlockOtp(String code) async {

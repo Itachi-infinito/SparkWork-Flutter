@@ -39,5 +39,10 @@ service firebase.storage {
           && (request.resource.contentType.matches('image/.*')
               || request.resource.contentType == 'application/pdf');
     }
+
+    // Refus explicite par défaut pour tout chemin non listé ci-dessus.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

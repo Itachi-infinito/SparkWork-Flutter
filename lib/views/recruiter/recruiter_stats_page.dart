@@ -7,6 +7,7 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../models/subscription.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../shared/nav_bar.dart';
 
 class RecruiterStatsPage extends ConsumerStatefulWidget {
@@ -59,6 +60,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final matchRate = _totalLikesGiven > 0
         ? ((_totalMatches / _totalLikesGiven) * 100).round()
         : 0;
@@ -66,7 +68,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Statistiques'),
+        title: Text(loc.recStatsTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -92,25 +94,25 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                           childAspectRatio: 1.4,
                           children: [
                             _StatCard(
-                              label: 'Offres publiées',
+                              label: loc.recStatsOffersPublished,
                               value: '$_totalOffers',
                               icon: Icons.work_outline,
                               color: AppColors.primary,
                             ),
                             _StatCard(
-                              label: 'Candidats likés',
+                              label: loc.recStatsCandidatesLiked,
                               value: '$_totalLikesGiven',
                               icon: Icons.thumb_up_outlined,
                               color: AppColors.orange,
                             ),
                             _StatCard(
-                              label: 'Matches',
+                              label: loc.recStatsMatches,
                               value: '$_totalMatches',
                               icon: Icons.favorite,
                               color: AppColors.green,
                             ),
                             _StatCard(
-                              label: 'Taux de match',
+                              label: loc.recStatsMatchRate,
                               value: '$matchRate%',
                               icon: Icons.trending_up,
                               color: const Color(0xFF8B5CF6),
@@ -124,7 +126,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                         const SizedBox(height: 24),
                         if (_totalLikesGiven > 0) ...[
                           Text(
-                            'Entonnoir de recrutement',
+                            loc.recStatsFunnelTitle,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -146,6 +148,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   }
 
   Widget _buildLockedState(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -161,14 +164,14 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
               child: const Icon(Icons.lock_outline, color: AppColors.primary, size: 48),
             ),
             const SizedBox(height: 20),
-            Text('Statistiques réservées',
+            Text(loc.recStatsLockedTitle,
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: context.textPrimaryColor)),
             const SizedBox(height: 10),
             Text(
-              'Passez au plan Starter ou Pro pour accéder à vos statistiques de recrutement.',
+              loc.recStatsLockedBody,
               style: TextStyle(color: context.textSecondaryColor, height: 1.5),
               textAlign: TextAlign.center,
             ),
@@ -176,7 +179,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
             ElevatedButton.icon(
               onPressed: () => context.push('/recruiter/plans'),
               icon: const Icon(Icons.arrow_upward),
-              label: const Text('Voir les plans'),
+              label: Text(loc.recStatsSeePlans),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -191,6 +194,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   }
 
   Widget _buildUnmatchedSection() {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -198,7 +202,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
           children: [
             const Icon(Icons.visibility, color: Color(0xFF8B5CF6), size: 18),
             const SizedBox(width: 6),
-            Text('Candidats intéressés sans match',
+            Text(loc.recStatsUnmatchedTitle,
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -207,7 +211,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          '${_unmatchedLikerIds.length} candidat${_unmatchedLikerIds.length > 1 ? 's' : ''} ont aimé vos offres mais vous ne les avez pas encore swipés.',
+          loc.recStatsUnmatchedBody(_unmatchedLikerIds.length),
           style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
         ),
         const SizedBox(height: 12),
@@ -216,8 +220,8 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
           child: OutlinedButton.icon(
             onPressed: () => context.push('/recruiter/swipe'),
             icon: const Icon(Icons.swipe, color: Color(0xFF8B5CF6)),
-            label: const Text('Explorer ces candidats',
-                style: TextStyle(color: Color(0xFF8B5CF6))),
+            label: Text(loc.recStatsExploreCandidates,
+                style: const TextStyle(color: Color(0xFF8B5CF6))),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFF8B5CF6)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -229,6 +233,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   }
 
   Widget _buildChart(int matchRate) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -240,7 +245,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Likes → Matches',
+            loc.recStatsLikesToMatches,
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -263,7 +268,7 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
-                        final labels = ['Likés', 'Matchés'];
+                        final labels = [loc.recStatsLikedLabel, loc.recStatsMatchedLabel];
                         final i = v.toInt();
                         if (i < 0 || i > 1) return const SizedBox();
                         return Padding(
@@ -313,9 +318,9 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _Legend(color: AppColors.orange, label: 'Candidats likés'),
+              _Legend(color: AppColors.orange, label: loc.recStatsCandidatesLiked),
               const SizedBox(width: 20),
-              _Legend(color: AppColors.green, label: 'Taux de match ($matchRate%)'),
+              _Legend(color: AppColors.green, label: loc.recStatsMatchRateLegend(matchRate)),
             ],
           ),
         ],
@@ -324,20 +329,21 @@ class _RecruiterStatsPageState extends ConsumerState<RecruiterStatsPage> {
   }
 
   Widget _buildTips() {
+    final loc = AppLocalizations.of(context)!;
     final tips = <(String, IconData, Color)>[
       if (_totalOffers == 0)
-        ('Publiez votre première offre pour commencer.', Icons.add_circle_outline, AppColors.orange)
+        (loc.recStatsTipPublishFirst, Icons.add_circle_outline, AppColors.orange)
       else if (_totalMatches == 0)
-        ('Continuez à swiper pour obtenir vos premiers matches !', Icons.swipe, AppColors.primary)
+        (loc.recStatsTipKeepSwiping, Icons.swipe, AppColors.primary)
       else
-        ('Excellent ! Vous avez $_totalMatches match${_totalMatches > 1 ? 'es' : ''}.', Icons.check_circle_outline, AppColors.green),
+        (loc.recStatsTipGreat(_totalMatches), Icons.check_circle_outline, AppColors.green),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Conseils',
+          loc.recStatsTips,
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
         ),
         const SizedBox(height: 12),

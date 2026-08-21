@@ -12,6 +12,7 @@ import '../../repositories/candidate_profile_repository.dart';
 import '../../services/availability_service.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateProfilePage extends ConsumerStatefulWidget {
   const CandidateProfilePage({super.key});
@@ -54,7 +55,9 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
     );
   }
 
-  Widget _buildEmpty() => Center(
+  Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -63,33 +66,35 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
               Icon(Icons.person_off_outlined,
                   size: 64, color: context.textHintColor),
               const SizedBox(height: 16),
-              Text('Profil introuvable',
+              Text(loc.candProfileNotFound,
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: context.textPrimaryColor)),
               const SizedBox(height: 8),
-              Text('Votre profil n\'a pas pu être chargé.',
+              Text(loc.candProfileNotFoundSubtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton(
-                  onPressed: _load, child: const Text('Réessayer')),
+                  onPressed: _load, child: Text(loc.candProfileRetry)),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () async {
                   await context.push('/candidate/profile/edit');
                   _load();
                 },
-                child: const Text('Créer mon profil'),
+                child: Text(loc.candProfileCreate),
               ),
             ],
           ),
         ),
       );
+  }
 
   Widget _buildProfile() {
     final p = _profile!;
+    final loc = AppLocalizations.of(context)!;
     final score = ProfileCompletion.calculate(_profile);
     final missing = ProfileCompletion.missing(_profile);
 
@@ -163,8 +168,8 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                     },
                     icon: const Icon(Icons.edit_outlined,
                         size: 16, color: Colors.white),
-                    label: const Text('Modifier le profil',
-                        style: TextStyle(color: Colors.white)),
+                    label: Text(loc.candProfileEdit,
+                        style: const TextStyle(color: Colors.white)),
                     style: OutlinedButton.styleFrom(
                         side: BorderSide(
                             color: Colors.white.withOpacity(0.5))),
@@ -194,7 +199,7 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                   const SizedBox(height: 20),
 
                   if (p.bio.isNotEmpty) ...[
-                    _SectionTitle('À propos'),
+                    _SectionTitle(loc.candProfileAbout),
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
@@ -211,10 +216,10 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                     const SizedBox(height: 20),
                   ],
 
-                  _SectionTitle('Compétences'),
+                  _SectionTitle(loc.candProfileSkills),
                   const SizedBox(height: 8),
                   p.skillList.isEmpty
-                      ? Text('Aucune compétence renseignée.',
+                      ? Text(loc.candProfileNoSkills,
                           style: TextStyle(
                               color: context.textHintColor, fontSize: 13))
                       : Wrap(
@@ -238,7 +243,7 @@ class _CandidateProfilePageState extends ConsumerState<CandidateProfilePage> {
                         ),
                   const SizedBox(height: 20),
 
-                  _SectionTitle('Préférences'),
+                  _SectionTitle(loc.candProfilePreferences),
                   const SizedBox(height: 8),
                   _PrefsGrid(profile: p),
                   const SizedBox(height: 32),
@@ -264,19 +269,20 @@ class _PrefsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final items = [
-      (Icons.work_outline, 'Contrat',
+      (Icons.work_outline, loc.candProfileContract,
           profile.desiredContractType.isEmpty
-              ? 'Non renseigné'
+              ? loc.candProfileNotSet
               : profile.desiredContractType),
-      (Icons.star_outline, 'Niveau',
+      (Icons.star_outline, loc.candProfileLevel,
           profile.desiredLevel.isEmpty
-              ? 'Non renseigné'
+              ? loc.candProfileNotSet
               : profile.desiredLevel),
-      (Icons.euro_outlined, 'Salaire', profile.salaryDisplay),
-      (Icons.wifi_outlined, 'Télétravail',
+      (Icons.euro_outlined, loc.candProfileSalary, profile.salaryDisplay),
+      (Icons.wifi_outlined, loc.candProfileRemote,
           profile.remotePreference.isEmpty
-              ? 'Non renseigné'
+              ? loc.candProfileNotSet
               : profile.remotePreference),
     ];
 
@@ -359,6 +365,7 @@ class _AvailableNowCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final isActive = profile.isAvailableNowActive;
     final daysLeft = profile.availableNowDaysLeft;
 
@@ -393,7 +400,7 @@ class _AvailableNowCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Disponible maintenant',
+                  loc.candProfileAvailableNow,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -403,8 +410,8 @@ class _AvailableNowCard extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   isActive
-                      ? 'Expire dans $daysLeft jour${daysLeft > 1 ? 's' : ''}'
-                      : 'Signalez votre disponibilité immédiate',
+                      ? loc.candProfileAvailableNowExpires(daysLeft)
+                      : loc.candProfileAvailableNowPrompt,
                   style: TextStyle(
                     fontSize: 12,
                     color: isActive ? AppColors.green : context.textSecondaryColor,
@@ -440,6 +447,7 @@ class _VerificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final Color color;
     final IconData icon;
     final String label;
@@ -449,26 +457,26 @@ class _VerificationCard extends StatelessWidget {
       case 'verified':
         color = const Color(0xFF3B82F6);
         icon = Icons.verified_user;
-        label = 'Identité vérifiée';
-        sub = 'Badge de confiance actif';
+        label = loc.candProfileVerifiedTitle;
+        sub = loc.candProfileVerifiedSubtitle;
         break;
       case 'pending':
         color = AppColors.orange;
         icon = Icons.hourglass_bottom_outlined;
-        label = 'Vérification en cours';
-        sub = 'Délai : 24 à 48h ouvrées';
+        label = loc.candProfilePendingTitle;
+        sub = loc.candProfilePendingSubtitle;
         break;
       case 'rejected':
         color = AppColors.red;
         icon = Icons.gpp_bad_outlined;
-        label = 'Vérification rejetée';
-        sub = 'Appuyez pour re-soumettre';
+        label = loc.candProfileRejectedTitle;
+        sub = loc.candProfileRejectedSubtitle;
         break;
       default:
         color = AppColors.primary;
         icon = Icons.shield_outlined;
-        label = 'Vérifier mon identité';
-        sub = 'Obtenez le badge de confiance';
+        label = loc.candProfileUnverifiedTitle;
+        sub = loc.candProfileUnverifiedSubtitle;
     }
 
     return InkWell(

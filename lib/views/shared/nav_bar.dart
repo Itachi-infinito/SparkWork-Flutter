@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/unread_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateNavBar extends ConsumerWidget {
   final int currentIndex;
@@ -11,6 +12,7 @@ class CandidateNavBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasUnread = ref.watch(unreadMessagesProvider).value ?? false;
+    final loc = AppLocalizations.of(context)!;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -52,18 +54,18 @@ class CandidateNavBar extends ConsumerWidget {
             }
           },
           destinations: [
-            const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Accueil'),
-            const NavigationDestination(
-                icon: Icon(Icons.swipe_outlined),
-                selectedIcon: Icon(Icons.swipe_rounded),
-                label: 'Swipe'),
-            const NavigationDestination(
-                icon: Icon(Icons.favorite_outline_rounded),
-                selectedIcon: Icon(Icons.favorite_rounded),
-                label: 'Matches'),
+            NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home_rounded),
+                label: loc.navHome),
+            NavigationDestination(
+                icon: const Icon(Icons.swipe_outlined),
+                selectedIcon: const Icon(Icons.swipe_rounded),
+                label: loc.navSwipe),
+            NavigationDestination(
+                icon: const Icon(Icons.favorite_outline_rounded),
+                selectedIcon: const Icon(Icons.favorite_rounded),
+                label: loc.navMatches),
             NavigationDestination(
               icon: Badge(
                   isLabelVisible: hasUnread,
@@ -71,12 +73,12 @@ class CandidateNavBar extends ConsumerWidget {
               selectedIcon: Badge(
                   isLabelVisible: hasUnread,
                   child: const Icon(Icons.chat_bubble_rounded)),
-              label: 'Messages',
+              label: loc.navMessages,
             ),
-            const NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profil'),
+            NavigationDestination(
+                icon: const Icon(Icons.person_outline_rounded),
+                selectedIcon: const Icon(Icons.person_rounded),
+                label: loc.navProfile),
           ],
         ),
       ),
@@ -91,6 +93,7 @@ class RecruiterNavBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasUnread = ref.watch(unreadMessagesProvider).value ?? false;
+    final loc = AppLocalizations.of(context)!;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -132,18 +135,18 @@ class RecruiterNavBar extends ConsumerWidget {
             }
           },
           destinations: [
-            const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Accueil'),
-            const NavigationDestination(
-                icon: Icon(Icons.swipe_outlined),
-                selectedIcon: Icon(Icons.swipe_rounded),
-                label: 'Swipe'),
-            const NavigationDestination(
-                icon: Icon(Icons.work_outline_rounded),
-                selectedIcon: Icon(Icons.work_rounded),
-                label: 'Offres'),
+            NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home_rounded),
+                label: loc.navHome),
+            NavigationDestination(
+                icon: const Icon(Icons.swipe_outlined),
+                selectedIcon: const Icon(Icons.swipe_rounded),
+                label: loc.navSwipe),
+            NavigationDestination(
+                icon: const Icon(Icons.work_outline_rounded),
+                selectedIcon: const Icon(Icons.work_rounded),
+                label: loc.navOffers),
             NavigationDestination(
               icon: Badge(
                   isLabelVisible: hasUnread,
@@ -151,12 +154,12 @@ class RecruiterNavBar extends ConsumerWidget {
               selectedIcon: Badge(
                   isLabelVisible: hasUnread,
                   child: const Icon(Icons.favorite_rounded)),
-              label: 'Matches',
+              label: loc.navMatches,
             ),
-            const NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profil'),
+            NavigationDestination(
+                icon: const Icon(Icons.person_outline_rounded),
+                selectedIcon: const Icon(Icons.person_rounded),
+                label: loc.navProfile),
           ],
         ),
       ),

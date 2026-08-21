@@ -96,12 +96,19 @@ service cloud.firestore {
       allow read, write: if isAuth() && request.auth.uid == profileId;
     }
 
-    // Job offers — anyone reads, only owning recruiter writes
+    // Job offers — anyone reads, only owning recruiter writes.
+    // isBoosted/boostedAt sont réservés au serveur (Callable useBoost) :
+    // un boost a une valeur monétaire, le client ne peut pas se l'attribuer.
     match /job_offers/{offerId} {
       allow read: if isAuth();
       allow create: if isAuth()
-          && request.resource.data.recruiterUserId == request.auth.uid;
-      allow update, delete: if isAuth()
+          && request.resource.data.recruiterUserId == request.auth.uid
+          && request.resource.data.get('isBoosted', false) == false;
+      allow update: if isAuth()
+          && resource.data.recruiterUserId == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['isBoosted', 'boostedAt']);
+      allow delete: if isAuth()
           && resource.data.recruiterUserId == request.auth.uid;
     }
 
@@ -247,20 +254,27 @@ service cloud.firestore {
       // (Admin SDK, qui ignore ces règles).
     }
 
-    // Quotas de swipes — lecture/écriture par le propriétaire
+    // Quotas de swipes — lecture par le propriétaire, écriture serveur
+    // UNIQUEMENT (Callable consumeSwipe, transactionnel). Empêche la remise
+    // à zéro du compteur côté client.
     match /swipe_quotas/{userId} {
-      allow read, write: if isAuth() && request.auth.uid == userId;
+      allow read: if isAuth() && request.auth.uid == userId;
+      allow write: if false;
     }
 
-    // Crédits de boost — lecture/écriture par le propriétaire
+    // Crédits de boost — lecture par le propriétaire, écriture serveur
+    // UNIQUEMENT (Callable useBoost) : un crédit a une valeur monétaire.
     match /boost_credits/{userId} {
-      allow read, write: if isAuth() && request.auth.uid == userId;
+      allow read: if isAuth() && request.auth.uid == userId;
+      allow write: if false;
     }
 
-    // Moyennes de notes — lecture par tous, écriture serveur (Cloud Function)
+    // Moyennes de notes — lecture par tous, écriture serveur UNIQUEMENT
+    // (onRatingCreated, Admin SDK). Jamais le client : un utilisateur
+    // pouvait s'attribuer sa propre moyenne.
     match /average_ratings/{userId} {
       allow read: if isAuth();
-      allow write: if isAuth() && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // Recommandations — gestion par le candidat concerné
@@ -420,6 +434,13 @@ service cloud.firestore {
     match /verifications/{userId} {
       allow read: if isAuth() && request.auth.uid == userId;
       allow write: if false;
+    }
+
+    // Refus explicite par défaut : toute collection non listée ci-dessus est
+    // inaccessible. Firestore refuse déjà les chemins non matchés, mais ce
+    // catch-all rend la politique visible et auditable (zéro accès implicite).
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

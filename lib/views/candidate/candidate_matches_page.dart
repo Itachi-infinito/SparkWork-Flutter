@@ -13,6 +13,7 @@ import '../../repositories/rating_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/interview_widgets.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateMatchesPage extends ConsumerStatefulWidget {
   const CandidateMatchesPage({super.key});
@@ -56,7 +57,7 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
       }
       if (mounted) setState(() { _matches = items; _loadingMatches = false; });
     } catch (_) {
-      if (mounted) setState(() { _error = 'Erreur lors du chargement.'; _loadingMatches = false; });
+      if (mounted) setState(() { _error = AppLocalizations.of(context)!.candMatchesLoadError; _loadingMatches = false; });
     }
   }
 
@@ -78,6 +79,7 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -99,8 +101,8 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: Row(
                       children: [
-                        const Text('Activité',
-                            style: TextStyle(
+                        Text(loc.candMatchesTitle,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold)),
@@ -115,8 +117,8 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
                     indicatorColor: Colors.white,
                     indicatorSize: TabBarIndicatorSize.label,
                     tabs: [
-                      Tab(child: _TabLabel(icon: Icons.favorite, label: 'Matches', count: _matches.length, active: true)),
-                      Tab(child: _TabLabel(icon: Icons.bookmark_border, label: 'Mes likes', count: _likedOffers.length, active: false)),
+                      Tab(child: _TabLabel(icon: Icons.favorite, label: loc.candMatchesTabMatches, count: _matches.length, active: true)),
+                      Tab(child: _TabLabel(icon: Icons.bookmark_border, label: loc.candMatchesTabLikes, count: _likedOffers.length, active: false)),
                     ],
                   ),
                 ],
@@ -238,7 +240,9 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
     );
   }
 
-  Widget _buildError() => Center(
+  Widget _buildError() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -246,40 +250,47 @@ class _CandidateMatchesPageState extends ConsumerState<CandidateMatchesPage>
         const SizedBox(height: 16),
         Text(_error!, style: const TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
         const SizedBox(height: 20),
-        OutlinedButton(onPressed: _loadMatches, child: const Text('Réessayer')),
+        OutlinedButton(onPressed: _loadMatches, child: Text(loc.candMatchesRetry)),
       ]),
     ),
   );
+  }
 
-  Widget _buildEmptyMatches() => Center(
+  Widget _buildEmptyMatches() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(width: 80, height: 80, decoration: const BoxDecoration(color: AppColors.redLight, shape: BoxShape.circle), child: const Icon(Icons.favorite, color: AppColors.red, size: 40)),
         const SizedBox(height: 20),
-        Text('Pas encore de match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
+        Text(loc.candMatchesEmptyTitle, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
         const SizedBox(height: 8),
-        Text('Continuez à swiper pour trouver votre futur employeur !', textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
+        Text(loc.candMatchesEmptySubtitle, textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
         const SizedBox(height: 24),
-        ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: const Text('Découvrir des offres')),
+        ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: Text(loc.candMatchesDiscoverOffers)),
       ]),
     ),
   );
+  }
 
-  Widget _buildEmptyLikes() => Center(
+  Widget _buildEmptyLikes() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(width: 80, height: 80, decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), child: const Icon(Icons.favorite_border, color: AppColors.primary, size: 40)),
         const SizedBox(height: 20),
-        Text('Aucune offre likée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
+        Text(loc.candMatchesEmptyLikesTitle, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
         const SizedBox(height: 8),
-        Text('Les offres que vous aimez apparaîtront ici.', textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
+        Text(loc.candMatchesEmptyLikesSubtitle, textAlign: TextAlign.center, style: TextStyle(color: context.textSecondaryColor)),
         const SizedBox(height: 24),
-        ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: const Text('Découvrir des offres')),
+        ElevatedButton.icon(onPressed: () => context.go('/candidate/swipe'), icon: const Icon(Icons.swipe), label: Text(loc.candMatchesDiscoverOffers)),
       ]),
     ),
   );
+  }
 }
 
 class _TabLabel extends StatelessWidget {
@@ -387,7 +398,7 @@ class _MatchCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(offer?.title ?? 'Offre supprimée',
+                        Text(offer?.title ?? AppLocalizations.of(context)!.candMatchesDeletedOffer,
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
@@ -410,8 +421,8 @@ class _MatchCard extends StatelessWidget {
                                 onPressed: onMessage,
                                 icon: const Icon(Icons.chat_bubble_outline,
                                     size: 14),
-                                label: const Text('Message',
-                                    style: TextStyle(fontSize: 12)),
+                                label: Text(AppLocalizations.of(context)!.candMatchesMessage,
+                                    style: const TextStyle(fontSize: 12)),
                                 style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 12),
@@ -487,18 +498,19 @@ class _RateButtonState extends ConsumerState<_RateButton> {
   }
 
   Future<void> _openDialog() async {
+    final loc = AppLocalizations.of(context)!;
     int selected = _existingScore ?? 0;
     final comment = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          title: const Text('Évaluer'),
+          title: Text(loc.rateDialogTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Votre expérience avec ce recruteur ?',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(loc.rateRecruiterSubtitle,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -519,18 +531,18 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               TextField(
                 controller: comment,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Commentaire (optionnel)',
+                decoration: InputDecoration(
+                  hintText: loc.rateCommentHint,
                   isDense: true,
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.rateCancel)),
             ElevatedButton(
               onPressed: selected == 0 ? null : () => Navigator.pop(ctx, true),
-              child: const Text('Envoyer'),
+              child: Text(loc.rateSend),
             ),
           ],
         ),
@@ -547,8 +559,8 @@ class _RateButtonState extends ConsumerState<_RateButton> {
     );
     if (mounted) {
       setState(() => _existingScore = selected);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Évaluation envoyée !'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.rateSentConfirmation),
         backgroundColor: AppColors.green,
       ));
     }
@@ -562,6 +574,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
           child: Center(child: SizedBox(width: 16, height: 16,
               child: CircularProgressIndicator(strokeWidth: 2))));
     }
+    final loc = AppLocalizations.of(context)!;
     return SizedBox(
       height: 34,
       child: OutlinedButton.icon(
@@ -574,7 +587,7 @@ class _RateButtonState extends ConsumerState<_RateButton> {
               : AppColors.textSecondary,
         ),
         label: Text(
-          _existingScore != null ? '$_existingScore★' : 'Évaluer',
+          _existingScore != null ? loc.rateScoreLabel(_existingScore!) : loc.rateButtonLabel,
           style: TextStyle(
               fontSize: 12,
               color: _existingScore != null

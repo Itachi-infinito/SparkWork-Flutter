@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../models/team.dart';
 import '../../services/session_service.dart';
 import '../../services/team_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class TeamManagementPage extends ConsumerStatefulWidget {
   const TeamManagementPage({super.key});
@@ -56,20 +58,21 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
   }
 
   Future<void> _inviteMember() async {
+    final loc = AppLocalizations.of(context)!;
     final emailCtrl = TextEditingController();
     String? role = 'member';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Inviter un membre'),
+        title: Text(loc.teamInviteTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: emailCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Email du collaborateur',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: loc.teamMemberEmail,
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
@@ -77,22 +80,22 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
             StatefulBuilder(builder: (_, setLocal) {
               return DropdownButtonFormField<String>(
                 value: role,
-                items: const [
-                  DropdownMenuItem(value: 'member', child: Text('Membre')),
-                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                items: [
+                  DropdownMenuItem(value: 'member', child: Text(loc.teamRoleMember)),
+                  DropdownMenuItem(value: 'admin', child: Text(loc.teamRoleAdmin)),
                 ],
                 onChanged: (v) { setLocal(() => role = v); },
-                decoration: const InputDecoration(labelText: 'Rôle'),
+                decoration: InputDecoration(labelText: loc.teamRole),
               );
             }),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.teamCancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Inviter', style: TextStyle(color: Colors.white)),
+            child: Text(loc.teamInvite, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -110,7 +113,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invitation envoyée'), backgroundColor: AppColors.green),
+          SnackBar(content: Text(loc.teamInviteSent), backgroundColor: AppColors.green),
         );
         _load();
       }
@@ -125,17 +128,18 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
   }
 
   Future<void> _removeMember(String memberId, String displayName) async {
+    final loc = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Retirer le membre'),
-        content: Text('Voulez-vous retirer $displayName de l\'équipe ?'),
+        title: Text(loc.teamRemoveMemberTitle),
+        content: Text(loc.teamRemoveMemberBody(displayName)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.teamCancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-            child: const Text('Retirer', style: TextStyle(color: Colors.white)),
+            child: Text(loc.teamRemove, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -156,16 +160,17 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mon équipe'),
+        title: Text(loc.teamTitle),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
         actions: [
           if (_team != null)
             IconButton(
               icon: const Icon(Icons.person_add_outlined),
               onPressed: _inviteMember,
-              tooltip: 'Inviter un membre',
+              tooltip: loc.teamInviteMemberTooltip,
             ),
         ],
       ),
@@ -180,6 +185,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
   }
 
   Widget _buildError() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -195,7 +201,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
             ElevatedButton(
               onPressed: () => context.push('/recruiter/plans'),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Passer au plan Pro', style: TextStyle(color: Colors.white)),
+              child: Text(loc.teamUpgradeToPro, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -204,6 +210,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
   }
 
   Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -212,17 +219,17 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
           children: [
             Icon(Icons.group_outlined, size: 64, color: context.textHintColor),
             const SizedBox(height: 16),
-            Text('Pas encore d\'équipe',
+            Text(loc.teamNoTeamYet,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
             const SizedBox(height: 8),
-            Text('Créez une équipe pour collaborer avec vos collègues sur les candidatures.',
+            Text(loc.teamNoTeamBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.textSecondaryColor, height: 1.5)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _createTeam,
               icon: const Icon(Icons.group_add, color: Colors.white),
-              label: const Text('Créer mon équipe', style: TextStyle(color: Colors.white)),
+              label: Text(loc.teamCreateMyTeam, style: const TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -235,6 +242,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
   }
 
   Widget _buildTeam() {
+    final loc = AppLocalizations.of(context)!;
     final userId = ref.read(sessionProvider).userId;
     final isOwner = _team!.isOwner(userId);
 
@@ -258,9 +266,9 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Mon équipe',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text('${_team!.members.length} membre${_team!.members.length > 1 ? 's' : ''}',
+                  Text(loc.teamTitle,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(loc.teamMemberCount(_team!.members.length),
                       style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
                 ],
               ),
@@ -268,7 +276,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
           ),
         ),
         const SizedBox(height: 20),
-        Text('Membres',
+        Text(loc.teamMembers,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
         const SizedBox(height: 12),
         ..._team!.members.map((m) {
@@ -286,7 +294,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: AppColors.primaryLight,
-                  backgroundImage: m.photoUrl != null ? NetworkImage(m.photoUrl!) : null,
+                  backgroundImage: m.photoUrl != null ? CachedNetworkImageProvider(m.photoUrl!) : null,
                   child: m.photoUrl == null
                       ? Text(
                           (m.displayName?.isNotEmpty == true) ? m.displayName![0].toUpperCase() : '?',
@@ -311,8 +319,8 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
                               color: AppColors.primaryLight,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Text('Vous',
-                                style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                            child: Text(loc.teamYou,
+                                style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ]),
@@ -334,7 +342,7 @@ class _TeamManagementPageState extends ConsumerState<TeamManagementPage> {
         OutlinedButton.icon(
           onPressed: _inviteMember,
           icon: const Icon(Icons.person_add_outlined, color: AppColors.primary),
-          label: const Text('Inviter un collaborateur', style: TextStyle(color: AppColors.primary)),
+          label: Text(loc.teamInviteCollaborator, style: const TextStyle(color: AppColors.primary)),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: AppColors.primary),
             minimumSize: const Size(double.infinity, 48),

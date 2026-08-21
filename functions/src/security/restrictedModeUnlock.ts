@@ -2,6 +2,8 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
+import { sendEmail } from '../utils/email';
+import { otpUnlockEmail } from '../utils/emailTemplates';
 
 const OTP_TTL_MINUTES = 10;
 
@@ -9,16 +11,6 @@ function hashCode(code: string): string {
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 
-/**
- * Génère un code à 6 chiffres pour débloquer un compte en mode restreint.
- *
- * TODO: aucun fournisseur d'emailing n'est configuré (SendGrid/Mailgun...).
- * Le code est actuellement journalisé via logger.info ET retourné dans la
- * réponse pour permettre les tests de bout en bout — RETIRER le code de la
- * réponse dès qu'un envoi d'email réel est branché, sans quoi n'importe qui
- * avec le token d'auth de l'utilisateur peut se débloquer sans jamais lire
- * son email.
- */
 export const requestRestrictedUnlockOtp = onCall(
   { region: 'europe-west1', enforceAppCheck: true },
   async (request) => {
@@ -38,13 +30,21 @@ export const requestRestrictedUnlockOtp = onCall(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    logger.info(`Unlock OTP for ${userId}: ${code} (expires in ${OTP_TTL_MINUTES} min)`);
+    // Récupère l'email de l'utilisateur depuis Firebase Auth
+    const userRecord = await admin.auth().getUser(userId);
+    const email = userRecord.email;
+    if (!email) {
+      logger.error(`requestRestrictedUnlockOtp: no email for user ${userId}`);
+      throw new HttpsError('internal', 'Impossible d\'envoyer le code — email manquant.');
+    }
 
-    return {
-      sent: true,
-      // TODO: retirer une fois l'envoi d'email réel branché.
-      devOnlyCode: code,
-    };
+    await sendEmail(
+      email,
+      `Votre code de déblocage SparkWork : ${code}`,
+      otpUnlockEmail(code, OTP_TTL_MINUTES)
+    );
+
+    return { sent: true };
   }
 );
 

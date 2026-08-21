@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class JobOfferListPage extends ConsumerStatefulWidget {
   const JobOfferListPage({super.key});
@@ -79,10 +80,11 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Offres disponibles'),
+        title: Text(loc.candOfferListTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
@@ -98,7 +100,7 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Rechercher par titre, entreprise...',
+                hintText: loc.candOfferListSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -117,7 +119,7 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Row(children: [
                 Text(
-                  '${_filtered.length} offre${_filtered.length > 1 ? 's' : ''}',
+                  loc.candOfferListCount(_filtered.length),
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
@@ -135,11 +137,11 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
                             ? Icons.search_off
                             : Icons.work_off_outlined,
                         title: _searchCtrl.text.isNotEmpty
-                            ? 'Aucun résultat'
-                            : 'Aucune offre disponible',
+                            ? loc.candOfferListNoResults
+                            : loc.candOfferListNoOffers,
                         subtitle: _searchCtrl.text.isNotEmpty
-                            ? 'Essayez avec d\'autres mots-clés.'
-                            : 'Les offres apparaîtront ici.',
+                            ? loc.candOfferListNoResultsSubtitle
+                            : loc.candOfferListEmptySubtitle,
                         action: _searchCtrl.text.isNotEmpty
                             ? OutlinedButton.icon(
                                 onPressed: () {
@@ -148,7 +150,7 @@ class _JobOfferListPageState extends ConsumerState<JobOfferListPage> {
                                 },
                                 icon: const Icon(Icons.clear,
                                     color: AppColors.primary, size: 16),
-                                label: const Text('Effacer',
+                                label: Text(loc.candSwipeClearFilters,
                                     style:
                                         TextStyle(color: AppColors.primary)),
                                 style: OutlinedButton.styleFrom(

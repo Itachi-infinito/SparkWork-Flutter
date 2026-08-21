@@ -1,4 +1,5 @@
 ﻿import '../core/constants/app_skills.dart';
+import 'work_experience.dart';
 
 enum VerificationStatus { unverified, pending, verified, rejected }
 
@@ -9,6 +10,7 @@ class CandidateProfile {
   final String location;
   final String desiredContractType;
   final String desiredLevel;
+  final List<String> sectors;
   final List<String> skills;
   final String bio;
   final int desiredSalaryMin;
@@ -33,6 +35,9 @@ class CandidateProfile {
   // Programme partenaires (Feature 9)
   final String? partnerBadge; // ex: "École Paul Bocuse"
 
+  // Historique professionnel (SparkScore stabilité)
+  final List<WorkExperience> workHistory;
+
   const CandidateProfile({
     required this.profileId,
     required this.userId,
@@ -40,6 +45,7 @@ class CandidateProfile {
     this.location = '',
     this.desiredContractType = '',
     this.desiredLevel = '',
+    this.sectors = const [],
     this.skills = const [],
     this.bio = '',
     this.desiredSalaryMin = 0,
@@ -57,6 +63,7 @@ class CandidateProfile {
     this.verificationMethod,
     this.verificationRejectionReason,
     this.partnerBadge,
+    this.workHistory = const [],
   });
 
   bool get isAvailableNowActive {
@@ -117,6 +124,7 @@ class CandidateProfile {
     'location': location,
     'desiredContractType': desiredContractType,
     'desiredLevel': desiredLevel,
+    'sectors': sectors,
     'skills': skills.join(', '),
     'bio': bio,
     'desiredSalaryMin': desiredSalaryMin,
@@ -134,6 +142,7 @@ class CandidateProfile {
     if (verificationMethod != null) 'verificationMethod': verificationMethod,
     if (verificationRejectionReason != null) 'verificationRejectionReason': verificationRejectionReason,
     if (partnerBadge != null) 'partnerBadge': partnerBadge,
+    'workHistory': workHistory.map((e) => e.toMap()).toList(),
   };
 
   factory CandidateProfile.fromMap(Map<String, dynamic> map) => CandidateProfile(
@@ -144,6 +153,13 @@ class CandidateProfile {
     desiredContractType: map['desiredContractType'] as String? ?? '',
     desiredLevel:
         AppSkills.normalizeLevel(map['desiredLevel'] as String? ?? ''),
+    // Les profils créés avant l'introduction des secteurs n'ont pas ce
+    // champ — ils étaient tous implicitement Horeca.
+    sectors: map.containsKey('sectors')
+        ? (map['sectors'] as List<dynamic>? ?? const [])
+            .map((e) => e as String)
+            .toList()
+        : const ['horeca'],
     skills: AppSkills.parseSkills(map['skills'] as String? ?? ''),
     bio: map['bio'] as String? ?? '',
     desiredSalaryMin: (map['desiredSalaryMin'] as num?)?.toInt() ?? 0,
@@ -162,6 +178,9 @@ class CandidateProfile {
     verificationMethod: map['verificationMethod'] as String?,
     verificationRejectionReason: map['verificationRejectionReason'] as String?,
     partnerBadge: map['partnerBadge'] as String?,
+    workHistory: (map['workHistory'] as List<dynamic>? ?? [])
+        .map((e) => WorkExperience.fromMap(e as Map<String, dynamic>))
+        .toList(),
   );
 
   CandidateProfile copyWith({
@@ -171,6 +190,7 @@ class CandidateProfile {
     String? location,
     String? desiredContractType,
     String? desiredLevel,
+    List<String>? sectors,
     List<String>? skills,
     String? bio,
     int? desiredSalaryMin,
@@ -188,6 +208,7 @@ class CandidateProfile {
     String? verificationMethod,
     String? verificationRejectionReason,
     String? partnerBadge,
+    List<WorkExperience>? workHistory,
   }) => CandidateProfile(
     profileId: profileId ?? this.profileId,
     userId: userId ?? this.userId,
@@ -195,6 +216,7 @@ class CandidateProfile {
     location: location ?? this.location,
     desiredContractType: desiredContractType ?? this.desiredContractType,
     desiredLevel: desiredLevel ?? this.desiredLevel,
+    sectors: sectors ?? this.sectors,
     skills: skills ?? this.skills,
     bio: bio ?? this.bio,
     desiredSalaryMin: desiredSalaryMin ?? this.desiredSalaryMin,
@@ -212,5 +234,6 @@ class CandidateProfile {
     verificationMethod: verificationMethod ?? this.verificationMethod,
     verificationRejectionReason: verificationRejectionReason ?? this.verificationRejectionReason,
     partnerBadge: partnerBadge ?? this.partnerBadge,
+    workHistory: workHistory ?? this.workHistory,
   );
 }

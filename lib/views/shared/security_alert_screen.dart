@@ -7,6 +7,7 @@ import '../../models/active_session.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_security_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Flow de sécurisation en 3 étapes, déclenché quand l'utilisateur tape
 /// "Non, sécuriser mon compte" sur une notification d'anomalie.
@@ -56,13 +57,13 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
   }
 
   Future<void> _submitPasswordChange() async {
+    final loc = AppLocalizations.of(context)!;
     if (!_isStrongPassword(_newPwd.text)) {
-      setState(() => _pwdError =
-          'Minimum 8 caractères, 1 majuscule, 1 chiffre, 1 caractère spécial.');
+      setState(() => _pwdError = loc.secAlertPasswordRequirements);
       return;
     }
     if (_newPwd.text != _confirmPwd.text) {
-      setState(() => _pwdError = 'Les mots de passe ne correspondent pas.');
+      setState(() => _pwdError = loc.secAlertPasswordMismatch);
       return;
     }
     setState(() { _pwdLoading = true; _pwdError = null; });
@@ -80,9 +81,10 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sécuriser mon compte'),
+        title: Text(loc.secAlertTitle),
         automaticallyImplyLeading: false,
       ),
       body: _loading
@@ -123,18 +125,18 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
   }
 
   Widget _buildStep1Sessions() {
+    final loc = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Étape 1 — Sessions actives',
+          Text(loc.secAlertStep1Title,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          const Text(
-            'Voici les appareils récemment connectés à votre compte. '
-            'Déconnectez tous ceux que vous ne reconnaissez pas.',
-            style: TextStyle(color: AppColors.textSecondary),
+          Text(
+            loc.secAlertStep1Body,
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -149,7 +151,7 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
                 ),
                 title: Text(s.deviceModel),
                 subtitle: Text('${s.deviceOS} · $dateLabel'),
-                trailing: Text(s.isActive ? 'Active' : 'Inactive',
+                trailing: Text(s.isActive ? loc.secSessionsActive : loc.secSessionsInactive,
                     style: TextStyle(
                         color: s.isActive ? AppColors.green : Colors.grey, fontSize: 12)),
               );
@@ -164,8 +166,8 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
                   backgroundColor: AppColors.red, minimumSize: const Size(double.infinity, 50)),
               child: Text(
                   _terminatedOthers
-                      ? 'Appareils déconnectés ✓'
-                      : 'Déconnecter tous les autres appareils',
+                      ? loc.secAlertDevicesDisconnected
+                      : loc.secAlertDisconnectAllOthers,
                   style: const TextStyle(color: Colors.white)),
             ),
           ),
@@ -176,7 +178,7 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
               onPressed: _terminatedOthers ? () => setState(() => _step = 1) : null,
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary, minimumSize: const Size(double.infinity, 50)),
-              child: const Text('Continuer', style: TextStyle(color: Colors.white)),
+              child: Text(loc.secAlertContinue, style: const TextStyle(color: Colors.white)),
             ),
           ),
         ],
@@ -185,17 +187,18 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
   }
 
   Widget _buildStep2Password() {
+    final loc = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Étape 2 — Nouveau mot de passe',
+          Text(loc.secAlertStep2Title,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          const Text(
-            'Par sécurité, choisissez un nouveau mot de passe.',
-            style: TextStyle(color: AppColors.textSecondary),
+          Text(
+            loc.secAlertStep2Body,
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
           if (_pwdError != null)
@@ -209,26 +212,26 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
           TextField(
             controller: _currentPwd,
             obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'Mot de passe actuel', prefixIcon: Icon(Icons.lock_outline)),
+            decoration: InputDecoration(
+                labelText: loc.secAlertCurrentPassword, prefixIcon: const Icon(Icons.lock_outline)),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _newPwd,
             obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'Nouveau mot de passe', prefixIcon: Icon(Icons.lock_reset)),
+            decoration: InputDecoration(
+                labelText: loc.secAlertNewPassword, prefixIcon: const Icon(Icons.lock_reset)),
           ),
           const SizedBox(height: 4),
-          Text('8 caractères min., 1 majuscule, 1 chiffre, 1 caractère spécial.',
+          Text(loc.secAlertPasswordRequirements,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           const SizedBox(height: 12),
           TextField(
             controller: _confirmPwd,
             obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'Confirmer le nouveau mot de passe',
-                prefixIcon: Icon(Icons.lock_reset)),
+            decoration: InputDecoration(
+                labelText: loc.secAlertConfirmPassword,
+                prefixIcon: const Icon(Icons.lock_reset)),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -237,7 +240,7 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
               onPressed: _pwdLoading ? null : _submitPasswordChange,
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary, minimumSize: const Size(double.infinity, 50)),
-              child: Text(_pwdLoading ? 'En cours...' : 'Modifier le mot de passe',
+              child: Text(_pwdLoading ? loc.secAlertInProgress : loc.secAlertChangePassword,
                   style: const TextStyle(color: Colors.white)),
             ),
           ),
@@ -247,6 +250,7 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
   }
 
   Widget _buildStep3Confirmation() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -260,20 +264,20 @@ class _SecurityAlertScreenState extends ConsumerState<SecurityAlertScreen> {
               child: const Icon(Icons.verified_user, size: 56, color: AppColors.green),
             ),
             const SizedBox(height: 24),
-            const Text('Votre compte est sécurisé.',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(loc.secAlertSecuredTitle,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'Tous les autres appareils ont été déconnectés et votre mot de passe a été modifié.',
+            Text(
+              loc.secAlertSecuredBody,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () => context.go('/settings'),
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary, minimumSize: const Size(200, 48)),
-              child: const Text('Terminer', style: TextStyle(color: Colors.white)),
+              child: Text(loc.secAlertFinish, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),

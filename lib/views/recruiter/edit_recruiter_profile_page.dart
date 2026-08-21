@@ -1,14 +1,17 @@
 import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
+import '../../core/widgets/sector_selector.dart';
 import '../../models/recruiter_profile.dart';
 import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class EditRecruiterProfilePage extends ConsumerStatefulWidget {
   const EditRecruiterProfilePage({super.key});
@@ -29,6 +32,7 @@ class _EditRecruiterProfilePageState
   String? _currentContactPhotoUrl;
   String? _currentLogoUrl;
   String _companyNumber = '';
+  final List<String> _sectors = [];
   Uint8List? _newContactPhotoBytes;
   Uint8List? _newLogoBytes;
 
@@ -64,6 +68,9 @@ class _EditRecruiterProfilePageState
         _currentContactPhotoUrl = profile.contactPhotoUrl;
         _currentLogoUrl = profile.companyLogoUrl;
         _companyNumber = profile.companyNumber;
+        _sectors
+          ..clear()
+          ..addAll(profile.sectors);
       });
     } else {
       // Pre-fill company name from session
@@ -99,6 +106,7 @@ class _EditRecruiterProfilePageState
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final loc = AppLocalizations.of(context)!;
     setState(() => _saving = true);
     try {
       final userId = ref.read(sessionProvider).userId;
@@ -113,7 +121,7 @@ class _EditRecruiterProfilePageState
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Photo contact non sauvegardée : $e'),
+                content: Text(loc.recEditContactPhotoError(e.toString())),
                 backgroundColor: Colors.orange));
           }
         }
@@ -124,7 +132,7 @@ class _EditRecruiterProfilePageState
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Logo non sauvegardé : $e'),
+                content: Text(loc.recEditLogoError(e.toString())),
                 backgroundColor: Colors.orange));
           }
         }
@@ -138,6 +146,7 @@ class _EditRecruiterProfilePageState
         location: _locationCtrl.text.trim(),
         website: _websiteCtrl.text.trim(),
         companyNumber: _companyNumber,
+        sectors: _sectors,
         contactPhotoUrl: contactPhotoUrl,
         companyLogoUrl: logoUrl,
       );
@@ -147,15 +156,15 @@ class _EditRecruiterProfilePageState
           .upsertProfile(profile);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Profil mis à jour !'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(loc.candEditProfileUpdated),
             backgroundColor: AppColors.green));
         context.pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur : $e')));
+            SnackBar(content: Text(loc.recEditGenericError(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -169,6 +178,7 @@ class _EditRecruiterProfilePageState
           body: Center(child: CircularProgressIndicator(color: AppColors.green)));
     }
 
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -176,7 +186,7 @@ class _EditRecruiterProfilePageState
         elevation: 0,
         leading: IconButton(
             icon: const Icon(Icons.close), onPressed: () => context.pop()),
-        title: const Text('Modifier le profil entreprise'),
+        title: Text(loc.recEditTitle),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
@@ -186,8 +196,8 @@ class _EditRecruiterProfilePageState
                     height: 18,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.green))
-                : const Text('Enregistrer',
-                    style: TextStyle(
+                : Text(loc.candEditSave,
+                    style: const TextStyle(
                         color: AppColors.green, fontWeight: FontWeight.w600)),
           ),
         ],
@@ -206,8 +216,8 @@ class _EditRecruiterProfilePageState
                   // Contact photo
                   Expanded(
                     child: _PhotoUploadTile(
-                      label: 'Photo de contact',
-                      hint: 'Votre photo (RH, manager...)',
+                      label: loc.recEditContactPhotoLabel,
+                      hint: loc.recEditContactPhotoHint,
                       bytes: _newContactPhotoBytes,
                       existingUrl: _currentContactPhotoUrl,
                       onTap: () => _pickPhoto(_PhotoTarget.contact),
@@ -217,8 +227,8 @@ class _EditRecruiterProfilePageState
                   // Company logo
                   Expanded(
                     child: _PhotoUploadTile(
-                      label: 'Logo entreprise',
-                      hint: 'Logo carré ou rond',
+                      label: loc.recEditLogoLabel,
+                      hint: loc.recEditLogoHint,
                       bytes: _newLogoBytes,
                       existingUrl: _currentLogoUrl,
                       onTap: () => _pickPhoto(_PhotoTarget.logo),
@@ -229,53 +239,65 @@ class _EditRecruiterProfilePageState
               ),
               const SizedBox(height: 24),
 
-              const _Label('Nom de l\'entreprise *'),
+              _Label(loc.recEditCompanyName),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _companyCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'ex: Restaurant Le Provençal',
-                  prefixIcon: Icon(Icons.business_outlined),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.recEditCompanyNameHint,
+                  prefixIcon: const Icon(Icons.business_outlined),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.trim().length < 2 ? 'Champ requis (min. 2 caractères)' : null,
+                    v == null || v.trim().length < 2 ? loc.recEditCompanyNameRequired : null,
               ),
               const SizedBox(height: 16),
 
-              const _Label('Description de l\'entreprise'),
+              _Label(loc.recEditSectors),
+              const SizedBox(height: 8),
+              SectorSelector(
+                selected: _sectors,
+                onChanged: (sectors) => setState(() {
+                  _sectors
+                    ..clear()
+                    ..addAll(sectors);
+                }),
+              ),
+              const SizedBox(height: 16),
+
+              _Label(loc.recEditCompanyDescription),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Parlez de votre établissement...',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.recEditCompanyDescriptionHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
 
-              const _Label('Localisation'),
+              _Label(loc.recEditLocation),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _locationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Ville, commune...',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.recEditLocationHint,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
 
-              const _Label('Site web'),
+              _Label(loc.recEditWebsite),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _websiteCtrl,
                 keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                  labelText: 'https://...',
-                  prefixIcon: Icon(Icons.link_outlined),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.recEditWebsiteHint,
+                  prefixIcon: const Icon(Icons.link_outlined),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 32),
@@ -332,11 +354,13 @@ class _PhotoUploadTile extends StatelessWidget {
       preview = isSquare
           ? ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(existingUrl!, width: 80, height: 80, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _placeholder()))
+              child: CachedNetworkImage(
+                  imageUrl: existingUrl!, width: 80, height: 80, fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => _placeholder()))
           : ClipOval(
-              child: Image.network(existingUrl!, width: 80, height: 80, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _placeholder()));
+              child: CachedNetworkImage(
+                  imageUrl: existingUrl!, width: 80, height: 80, fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => _placeholder()));
     } else {
       preview = _placeholder();
     }

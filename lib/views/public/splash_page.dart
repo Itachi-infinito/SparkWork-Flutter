@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/session_service.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
@@ -120,7 +121,7 @@ class _SplashPageState extends ConsumerState<SplashPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Le recrutement Horeca',
+                    AppLocalizations.of(context)!.splashTagline,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
                       fontSize: 15,

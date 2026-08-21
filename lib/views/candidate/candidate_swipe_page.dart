@@ -1,11 +1,13 @@
 ﻿import 'dart:async';
 import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_sectors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/candidate_profile.dart';
 import '../../models/job_offer.dart';
@@ -25,6 +27,7 @@ import '../../core/widgets/animated_action_button.dart';
 import '../../core/widgets/swipe_overlay.dart';
 import '../../services/notification_service.dart';
 import '../../core/widgets/empty_state.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CandidateSwipePage extends ConsumerStatefulWidget {
   const CandidateSwipePage({super.key});
@@ -49,6 +52,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   String _filterLevel = '';
   String _filterRemoteMode = '';
   String _filterLocation = '';
+  String _filterSector = '';
   int? _filterMinSalary;
 
   SwipeOverlayType _overlayType = SwipeOverlayType.none;
@@ -67,6 +71,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       _filterLevel.isNotEmpty ||
       _filterRemoteMode.isNotEmpty ||
       _filterLocation.isNotEmpty ||
+      _filterSector.isNotEmpty ||
       _filterMinSalary != null;
 
   
@@ -176,6 +181,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
         if (_filterMinSalary != null &&
             o.salaryMax > 0 &&
             o.salaryMax < _filterMinSalary!) return false;
+        if (_filterSector.isNotEmpty && o.sector != _filterSector) return false;
         return true;
       }).toList();
     });
@@ -218,6 +224,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
         if (_filterRemoteMode.isNotEmpty && o.remoteMode != _filterRemoteMode) return false;
         if (_filterLocation.isNotEmpty && !o.location.toLowerCase().contains(_filterLocation.toLowerCase())) return false;
         if (_filterMinSalary != null && o.salaryMax > 0 && o.salaryMax < _filterMinSalary!) return false;
+        if (_filterSector.isNotEmpty && o.sector != _filterSector) return false;
         return true;
       }).toList();
 
@@ -248,16 +255,19 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       _filterLevel = '';
       _filterRemoteMode = '';
       _filterLocation = '';
+      _filterSector = '';
       _filterMinSalary = null;
     });
     _applyFilters();
   }
 
   void _showFilterSheet() {
+    final loc = AppLocalizations.of(context)!;
     String tempContract = _filterContractType;
     String tempLevel = _filterLevel;
     String tempRemote = _filterRemoteMode;
     String tempLocation = _filterLocation;
+    String tempSector = _filterSector;
     int? tempSalary = _filterMinSalary;
     final locationCtrl = TextEditingController(text: _filterLocation);
     final salaryCtrl =
@@ -280,7 +290,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Filtres',
+                    Text(loc.candSwipeFiltersTitle,
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -292,18 +302,29 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                           tempLevel = '';
                           tempRemote = '';
                           tempLocation = '';
+                          tempSector = '';
                           tempSalary = null;
                           locationCtrl.clear();
                           salaryCtrl.clear();
                         });
                       },
-                      child: const Text('Réinitialiser',
-                          style: TextStyle(color: AppColors.primary)),
+                      child: Text(loc.candSwipeReset,
+                          style: const TextStyle(color: AppColors.primary)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const _FilterLabel('Type de contrat'),
+                _FilterLabel(loc.candSwipeSector),
+                const SizedBox(height: 8),
+                _ChipGroup(
+                  options: AppSectors.all.map((s) => s.id).toList(),
+                  selected: tempSector,
+                  labelBuilder: AppSectors.labelFor,
+                  onSelected: (v) =>
+                      setSheet(() => tempSector = v == tempSector ? '' : v),
+                ),
+                const SizedBox(height: 16),
+                _FilterLabel(loc.candSwipeContractType),
                 const SizedBox(height: 8),
                 _ChipGroup(
                   options: AppSkills.contractTypes,
@@ -312,7 +333,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                       setSheet(() => tempContract = v == tempContract ? '' : v),
                 ),
                 const SizedBox(height: 16),
-                const _FilterLabel('Niveau d\'expérience'),
+                _FilterLabel(loc.candSwipeLevel),
                 const SizedBox(height: 8),
                 _ChipGroup(
                   options: AppSkills.levels,
@@ -321,7 +342,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                       setSheet(() => tempLevel = v == tempLevel ? '' : v),
                 ),
                 const SizedBox(height: 16),
-                const _FilterLabel('Télétravail'),
+                _FilterLabel(loc.candSwipeRemote),
                 const SizedBox(height: 8),
                 _ChipGroup(
                   options: AppSkills.remoteModes,
@@ -330,27 +351,27 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                       setSheet(() => tempRemote = v == tempRemote ? '' : v),
                 ),
                 const SizedBox(height: 16),
-                const _FilterLabel('Localisation'),
+                _FilterLabel(loc.candSwipeLocation),
                 const SizedBox(height: 8),
                 TextField(
                   controller: locationCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Ex: Paris, Lyon...',
+                  decoration: InputDecoration(
+                    hintText: loc.candSwipeLocationHint,
                     prefixIcon:
-                        Icon(Icons.location_on_outlined, size: 18),
+                        const Icon(Icons.location_on_outlined, size: 18),
                     isDense: true,
                   ),
                   onChanged: (v) => tempLocation = v,
                 ),
                 const SizedBox(height: 16),
-                const _FilterLabel('Salaire minimum (€/mois)'),
+                _FilterLabel(loc.candSwipeMinSalary),
                 const SizedBox(height: 8),
                 TextField(
                   controller: salaryCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: 'Ex: 2000',
-                    prefixIcon: Icon(Icons.euro, size: 18),
+                  decoration: InputDecoration(
+                    hintText: loc.candSwipeSalaryHint,
+                    prefixIcon: const Icon(Icons.euro, size: 18),
                     isDense: true,
                   ),
                   onChanged: (v) => tempSalary = int.tryParse(v),
@@ -365,6 +386,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                         _filterLevel = tempLevel;
                         _filterRemoteMode = tempRemote;
                         _filterLocation = tempLocation;
+                        _filterSector = tempSector;
                         _filterMinSalary = tempSalary;
                       });
                       _applyFilters();
@@ -376,8 +398,8 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Appliquer les filtres',
-                        style: TextStyle(color: Colors.white)),
+                    child: Text(loc.candSwipeApplyFilters,
+                        style: const TextStyle(color: Colors.white)),
                   ),
                 ),
               ],
@@ -454,12 +476,13 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(profileVersionProvider, (prev, next) {
-    if (mounted) _loadData(); 
+    if (mounted) _loadData();
     });
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      
+
       appBar: AppBar(
-        title: const Text('Découvrir des offres'),
+        title: Text(loc.candSwipeTitle),
         elevation: 0,
         actions: [
           Stack(
@@ -467,7 +490,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
               IconButton(
                 icon: const Icon(Icons.tune),
                 onPressed: _showFilterSheet,
-                tooltip: 'Filtres',
+                tooltip: loc.candSwipeFiltersTooltip,
               ),
               if (_hasActiveFilters)
                 Positioned(
@@ -508,7 +531,16 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   }
 
   Widget _buildActiveFilterChips() {
+    final loc = AppLocalizations.of(context)!;
     final chips = <Widget>[];
+    if (_filterSector.isNotEmpty) {
+      chips.add(_ActiveChip(
+          label: AppSectors.labelFor(_filterSector),
+          onRemove: () {
+            setState(() => _filterSector = '');
+            _applyFilters();
+          }));
+    }
     if (_filterContractType.isNotEmpty) {
       chips.add(_ActiveChip(
           label: _filterContractType,
@@ -569,9 +601,9 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
             style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(60, 30)),
-            child: const Text('Effacer',
+            child: Text(loc.candSwipeClearFilters,
                 style:
-                    TextStyle(color: AppColors.primary, fontSize: 12)),
+                    const TextStyle(color: AppColors.primary, fontSize: 12)),
           ),
         ],
       ),
@@ -582,6 +614,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
       _allOffers.where((o) => o.isFlash && o.isFlashActive).toList();
 
   Widget _buildFlashSection() {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -591,13 +624,13 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
             children: [
               const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 18),
               const SizedBox(width: 6),
-              const Text('Missions Flash',
-                  style: TextStyle(
+              Text(loc.candSwipeFlashSection,
+                  style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFF59E0B))),
               const Spacer(),
-              Text('${_flashOffers.length} disponible${_flashOffers.length > 1 ? 's' : ''}',
+              Text(loc.candSwipeFlashAvailable(_flashOffers.length),
                   style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           ),
@@ -623,6 +656,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   }
 
   Widget _buildErrorState() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -637,7 +671,7 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
             OutlinedButton(
-                onPressed: _loadData, child: const Text('Réessayer')),
+                onPressed: _loadData, child: Text(loc.candSwipeRetry)),
           ],
         ),
       ),
@@ -645,27 +679,28 @@ class _CandidateSwipePageState extends ConsumerState<CandidateSwipePage> {
   }
 
   Widget _buildEmptyState() {
+  final loc = AppLocalizations.of(context)!;
   final isFiltered = _hasActiveFilters && _allOffers.isNotEmpty;
   return EmptyState(
     icon: isFiltered ? Icons.filter_list_off : Icons.bolt,
-    title: isFiltered ? 'Aucun résultat' : 'Aucune offre disponible',
+    title: isFiltered ? loc.candSwipeNoResults : loc.candSwipeNoOffers,
     subtitle: isFiltered
-        ? 'Aucune offre ne correspond à vos filtres.'
-        : 'Vous avez tout vu ! Revenez plus tard.',
+        ? loc.candSwipeNoResultsSubtitle
+        : loc.candSwipeAllSeenSubtitle,
     action: isFiltered
         ? OutlinedButton.icon(
             onPressed: _clearFilters,
             icon: const Icon(Icons.filter_list_off, color: AppColors.primary),
-            label: const Text('Supprimer les filtres',
-                style: TextStyle(color: AppColors.primary)),
+            label: Text(loc.candSwipeRemoveFilters,
+                style: const TextStyle(color: AppColors.primary)),
             style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary)),
           )
         : OutlinedButton.icon(
             onPressed: _loadData,
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            label: const Text('Actualiser',
-                style: TextStyle(color: AppColors.primary)),
+            label: Text(loc.candSwipeRefresh,
+                style: const TextStyle(color: AppColors.primary)),
             style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary),
                 padding: const EdgeInsets.symmetric(
@@ -771,10 +806,12 @@ class _ChipGroup extends StatelessWidget {
   final List<String> options;
   final String selected;
   final ValueChanged<String> onSelected;
+  final String Function(String)? labelBuilder;
   const _ChipGroup(
       {required this.options,
       required this.selected,
-      required this.onSelected});
+      required this.onSelected,
+      this.labelBuilder});
 
   @override
   Widget build(BuildContext context) {
@@ -798,7 +835,7 @@ class _ChipGroup extends StatelessWidget {
                       ? AppColors.primary
                       : Theme.of(context).colorScheme.outline.withOpacity(0.4)),
             ),
-            child: Text(o,
+            child: Text(labelBuilder?.call(o) ?? o,
                 style: TextStyle(
                     fontSize: 12,
                     color: isSelected
@@ -906,10 +943,12 @@ class _JobOfferCard extends StatelessWidget {
         children: [
           // ── Background ──────────────────────────────────────────────────
           if (hasContactPhoto)
-            Image.network(
-              contactPhotoUrl,
+            CachedNetworkImage(
+              imageUrl: contactPhotoUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
+              placeholder: (_, __) =>
+                  Container(decoration: BoxDecoration(gradient: bgGradient)),
+              errorWidget: (_, __, ___) =>
                   Container(decoration: BoxDecoration(gradient: bgGradient)),
             )
           else
@@ -1008,9 +1047,10 @@ class _JobOfferCard extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(logoUrl,
+                  child: CachedNetworkImage(
+                      imageUrl: logoUrl,
                       width: 40, height: 40, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox()),
+                      errorWidget: (_, __, ___) => const SizedBox()),
                 ),
               ),
             ),
@@ -1131,13 +1171,13 @@ class _JobOfferCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.white.withOpacity(0.4)),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.verified, color: Colors.white, size: 11),
-                        SizedBox(width: 4),
-                        Text('Employeur vérifié',
-                            style: TextStyle(
+                        const Icon(Icons.verified, color: Colors.white, size: 11),
+                        const SizedBox(width: 4),
+                        Text(AppLocalizations.of(context)!.candSwipeVerifiedEmployer,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600)),

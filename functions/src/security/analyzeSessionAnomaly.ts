@@ -1,6 +1,8 @@
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions/v2';
 import { sendPushToUser } from '../utils/sendPush';
+import { sendEmail } from '../utils/email';
+import { teamUpsellEmail } from '../utils/emailTemplates';
 
 type Severity = 'medium' | 'high';
 interface DetectedFlag {
@@ -170,17 +172,6 @@ async function enableRestrictedMode(
   logger.info(`Restricted mode enabled for ${userId} (occurrence #${newCount})`);
 }
 
-/**
- * Email d'upsell vers la Gestion d'équipe Pro — limité à 1x/mois par
- * utilisateur. L'envoi réel n'est PAS encore branché (aucun fournisseur
- * d'emailing configuré, ex: SendGrid/Mailgun) — l'intention est journalisée
- * et la dernière date de queue est tracée pour respecter la limite,
- * de sorte que le branchement réel n'aura qu'à lire `pendingTeamUpsellEmail`.
- *
- * TODO: brancher un fournisseur d'emailing et envoyer réellement le message
- * "Plusieurs personnes utilisent votre compte SparkWork ?" depuis
- * support@sparkwork.be.
- */
 async function maybeQueueTeamUpsellEmail(
   db: admin.firestore.Firestore,
   userId: string,
@@ -194,16 +185,33 @@ async function maybeQueueTeamUpsellEmail(
     return; // déjà envoyé ce mois-ci
   }
 
+  // Récupère l'email depuis Firebase Auth
+  let email: string | undefined;
+  try {
+    const userRecord = await admin.auth().getUser(userId);
+    email = userRecord.email;
+  } catch (err) {
+    logger.error(`maybeQueueTeamUpsellEmail: cannot fetch user ${userId}`, err);
+    return;
+  }
+  if (!email) return;
+
   await userRef.set(
     {
       lastTeamUpsellEmailAt: admin.firestore.FieldValue.serverTimestamp(),
-      pendingTeamUpsellEmail: true,
+      pendingTeamUpsellEmail: false,
     },
     { merge: true }
   );
 
+  await sendEmail(
+    email,
+    'Plusieurs appareils utilisent votre compte SparkWork',
+    teamUpsellEmail(distinctDeviceCount, forcedByRestriction)
+  );
+
   logger.info(
-    `Team upsell email queued for ${userId} ` +
+    `Team upsell email sent to ${email} for ${userId} ` +
       (forcedByRestriction
         ? '(triggered by repeated restricted mode)'
         : `(${distinctDeviceCount} distinct devices in 30 days)`)

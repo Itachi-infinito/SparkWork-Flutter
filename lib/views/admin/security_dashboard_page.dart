@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Dashboard sécurité — accessible uniquement aux comptes `isAdmin: true`.
 /// Toutes les métriques sont des heuristiques de détection de partage de
@@ -43,12 +44,13 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
   }
 
   Future<void> _unlockUser(String userId) async {
+    final loc = AppLocalizations.of(context)!;
     final callable =
         FirebaseFunctions.instanceFor(region: 'europe-west1').httpsCallable('adminUnlockRestrictedAccount');
     await callable.call({'userId': userId});
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Compte débloqué.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.secDashUnlocked),
         backgroundColor: AppColors.green,
       ));
     }
@@ -56,29 +58,31 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
   }
 
   void _exportRestrictedList() {
+    final loc = AppLocalizations.of(context)!;
     final csv = StringBuffer('userId,fullName,email\n');
     for (final doc in _restrictedUsers) {
       final d = doc.data();
       csv.writeln('${doc.id},${d['fullName'] ?? ''},${d['email'] ?? ''}');
     }
     Clipboard.setData(ClipboardData(text: csv.toString()));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Liste copiée (CSV) dans le presse-papiers.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(loc.secDashCsvCopied),
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final session = ref.watch(sessionProvider);
     if (!session.isAdmin) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Dashboard sécurité')),
-        body: const Center(child: Text('Accès réservé aux administrateurs.')),
+        appBar: AppBar(title: Text(loc.secDashTitle)),
+        body: Center(child: Text(loc.secDashAdminOnly)),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard sécurité')),
+      appBar: AppBar(title: Text(loc.secDashTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -95,32 +99,32 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
                     childAspectRatio: 1.4,
                     children: [
                       _KpiCard(
-                        label: 'Comptes multi-appareils',
+                        label: loc.secDashMultiDevice,
                         value: '${_metrics?['totalAccountsWithMultipleDevices'] ?? '—'}',
                         color: AppColors.primary,
                       ),
                       _KpiCard(
-                        label: 'Alertes moyennes',
+                        label: loc.secDashMediumAlerts,
                         value: '${_metrics?['totalMediumFlags'] ?? '—'}',
                         color: AppColors.orange,
                       ),
                       _KpiCard(
-                        label: 'Alertes élevées',
+                        label: loc.secDashHighAlerts,
                         value: '${_metrics?['totalHighFlags'] ?? '—'}',
                         color: AppColors.red,
                       ),
                       _KpiCard(
-                        label: 'Comptes restreints',
+                        label: loc.secDashRestrictedAccounts,
                         value: '${_metrics?['totalRestrictedAccounts'] ?? '—'}',
                         color: AppColors.red,
                       ),
                       _KpiCard(
-                        label: 'Partages estimés',
+                        label: loc.secDashEstimatedShares,
                         value: '${_metrics?['estimatedSharedAccounts'] ?? '—'}',
                         color: AppColors.orange,
                       ),
                       _KpiCard(
-                        label: 'Revenu mensuel perdu (est.)',
+                        label: loc.secDashRevenueLeak,
                         value: '${_metrics?['potentialRevenueLeakMonthly'] ?? '—'}€',
                         color: AppColors.green,
                       ),
@@ -129,21 +133,21 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      Text('Comptes restreints (${_restrictedUsers.length})',
+                      Text(loc.secDashRestrictedCount(_restrictedUsers.length),
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       const Spacer(),
                       TextButton.icon(
                         onPressed: _restrictedUsers.isEmpty ? null : _exportRestrictedList,
                         icon: const Icon(Icons.download_outlined, size: 16),
-                        label: const Text('Exporter CSV'),
+                        label: Text(loc.secDashExportCsv),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   if (_restrictedUsers.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text('Aucun compte restreint actuellement.'),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text(loc.secDashNoRestricted),
                     )
                   else
                     ..._restrictedUsers.map((doc) {
@@ -162,7 +166,7 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(d['fullName'] as String? ?? 'Sans nom',
+                                  Text(d['fullName'] as String? ?? loc.secDashNoName,
                                       style: const TextStyle(fontWeight: FontWeight.w600)),
                                   Text(d['email'] as String? ?? '',
                                       style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
@@ -171,7 +175,7 @@ class _SecurityDashboardPageState extends ConsumerState<SecurityDashboardPage> {
                             ),
                             TextButton(
                               onPressed: () => _unlockUser(doc.id),
-                              child: const Text('Débloquer'),
+                              child: Text(loc.secDashUnlockButton),
                             ),
                           ],
                         ),

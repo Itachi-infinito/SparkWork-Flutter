@@ -13,6 +13,7 @@ import '../../models/subscription.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecruiterHomePage extends ConsumerStatefulWidget {
   const RecruiterHomePage({super.key});
@@ -61,7 +62,8 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
       if (offer == null || !mounted) return;
 
       final candidateProfile = await profileRepo.getProfile(pending.candidateUserId);
-      final candidateName = candidateProfile?.fullName ?? 'Un candidat';
+      final loc = AppLocalizations.of(context)!;
+      final candidateName = candidateProfile?.fullName ?? loc.recHomeUnknownCandidate;
 
       if (!mounted) return;
       context.push('/match', extra: {
@@ -106,6 +108,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
     final displayName = session.userName.contains(' - ')
         ? session.userName.split(' - ').last
         : session.userName;
@@ -152,13 +155,13 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text('Bonjour, $displayName 👋',
+                  Text(loc.recHomeGreeting(displayName),
                       style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Trouvez les meilleurs talents Horeca',
+                  Text(loc.recHomeSubtitle,
                       style: TextStyle(
                           color: Colors.white.withOpacity(0.75),
                           fontSize: 14)),
@@ -183,11 +186,11 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
             // Stats row
             Row(
               children: [
-                _StatCard(label: 'Offres', value: '$_offerCount', color: AppColors.green),
+                _StatCard(label: loc.recHomeStatOffers, value: '$_offerCount', color: AppColors.green),
                 const SizedBox(width: 12),
-                _StatCard(label: 'Matches', value: '$_matchCount', color: AppColors.red),
+                _StatCard(label: loc.recHomeStatMatches, value: '$_matchCount', color: AppColors.red),
                 const SizedBox(width: 12),
-                _StatCard(label: 'Swipés', value: '$_swipedCount', color: AppColors.primary),
+                _StatCard(label: loc.recHomeStatSwiped, value: '$_swipedCount', color: AppColors.primary),
               ],
             ),
             const SizedBox(height: 20),
@@ -219,13 +222,13 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                           color: Colors.white, size: 28),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Explorer les candidats',
-                        style: TextStyle(
+                    Text(loc.recHomeDiscoverTitle,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    Text('Swipez pour trouver vos futurs collaborateurs',
+                    Text(loc.recHomeDiscoverSubtitle,
                         style: TextStyle(
                             color: Colors.white.withOpacity(0.85),
                             fontSize: 13)),
@@ -236,8 +239,8 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                       decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10)),
-                      child: const Text('Commencer',
-                          style: TextStyle(
+                      child: Text(loc.recHomeStart,
+                          style: const TextStyle(
                               color: AppColors.green,
                               fontWeight: FontWeight.w600)),
                     ),
@@ -248,7 +251,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
             const SizedBox(height: 24),
 
             // Quick actions
-            Text('Accès rapide',
+            Text(loc.recHomeQuickAccess,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
@@ -259,7 +262,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.add_circle_outline,
-                    label: 'Ajouter offre',
+                    label: loc.recHomeAddOffer,
                     color: AppColors.green,
                     onTap: () => context.push('/recruiter/offers/add'),
                   ),
@@ -268,7 +271,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.favorite_outline,
-                    label: 'Matches',
+                    label: loc.recHomeMatches,
                     color: AppColors.red,
                     onTap: () => context.go('/recruiter/matches'),
                   ),
@@ -277,7 +280,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.thumb_up_outlined,
-                    label: 'Likes reçus',
+                    label: loc.recHomeLikesReceived,
                     color: AppColors.orange,
                     onTap: () => context.push('/recruiter/likes'),
                   ),
@@ -290,7 +293,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.work_outline,
-                    label: 'Mes offres',
+                    label: loc.recHomeMyOffers,
                     color: AppColors.primary,
                     onTap: () => context.go('/recruiter/offers'),
                   ),
@@ -299,7 +302,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.people_outline,
-                    label: 'Candidats',
+                    label: loc.recHomeCandidates,
                     color: AppColors.primaryDark,
                     onTap: () => context.push('/recruiter/candidates'),
                   ),
@@ -308,7 +311,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.chat_bubble_outline,
-                    label: 'Messages',
+                    label: loc.recHomeMessages,
                     color: AppColors.green,
                     onTap: () => context.go('/messages'),
                   ),
@@ -321,7 +324,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.bar_chart_outlined,
-                    label: 'Statistiques',
+                    label: loc.recHomeStats,
                     color: AppColors.primary,
                     onTap: () => context.push('/recruiter/stats'),
                   ),
@@ -330,7 +333,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.group_outlined,
-                    label: 'Mon équipe',
+                    label: loc.recHomeMyTeam,
                     color: const Color(0xFF8B5CF6),
                     onTap: () => context.push('/recruiter/team'),
                   ),
@@ -339,7 +342,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.insights_outlined,
-                    label: 'Insights',
+                    label: loc.recHomeInsights,
                     color: AppColors.orange,
                     onTap: () => context.push('/recruiter/insights'),
                   ),
@@ -350,7 +353,7 @@ class _RecruiterHomePageState extends ConsumerState<RecruiterHomePage> {
             // Recent matches
             if (_recentMatches.isNotEmpty) ...[
               const SizedBox(height: 24),
-              Text('Derniers matches',
+              Text(loc.recHomeRecentMatches,
                   style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -453,7 +456,8 @@ class _RecentMatchTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8)),
                 minimumSize: Size.zero,
               ),
-              child: const Text('Message', style: TextStyle(fontSize: 12)),
+              child: Text(AppLocalizations.of(context)!.recHomeMessageButton,
+                  style: const TextStyle(fontSize: 12)),
             ),
           ),
         ],
@@ -469,6 +473,7 @@ class _TrialBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: onManage,
       child: Container(
@@ -489,20 +494,20 @@ class _TrialBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Essai Pro en cours',
-                      style: TextStyle(
+                  Text(loc.recHomeTrialActive,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 13)),
                   Text(
-                    '$daysLeft jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}',
+                    loc.recHomeTrialDaysLeft(daysLeft),
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            const Text('Gérer mon plan',
-                style: TextStyle(
+            Text(loc.recHomeManagePlan,
+                style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
                     decoration: TextDecoration.underline,

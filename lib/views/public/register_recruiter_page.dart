@@ -1,15 +1,24 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/company_number.dart';
+import '../../core/widgets/onboarding_step_scaffold.dart';
 import '../../core/widgets/partner_code_field.dart';
+import '../../core/widgets/sector_selector.dart';
 import '../../core/widgets/terms_checkbox.dart';
 import '../../models/partner.dart';
 import '../../models/recruiter_profile.dart';
 import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/auth_service.dart';
 import '../../services/partner_service.dart';
+import '../../l10n/generated/app_localizations.dart';
+
+const _kRecruiterGradient = LinearGradient(
+  colors: [Color(0xFF059669), AppColors.green],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
 
 class RegisterRecruiterPage extends ConsumerStatefulWidget {
   const RegisterRecruiterPage({super.key});
@@ -21,7 +30,7 @@ class RegisterRecruiterPage extends ConsumerStatefulWidget {
 
 class _RegisterRecruiterPageState
     extends ConsumerState<RegisterRecruiterPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _accountFormKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -32,6 +41,10 @@ class _RegisterRecruiterPageState
   bool _obscure = true;
   bool _acceptedTerms = false;
   Partner? _resolvedPartner;
+  final List<String> _sectors = [];
+  int _step = 0;
+
+  static const _totalSteps = 2;
 
   @override
   void dispose() {
@@ -43,11 +56,33 @@ class _RegisterRecruiterPageState
     super.dispose();
   }
 
+  void _goBack() {
+    if (_step == 0) {
+      context.pop();
+      return;
+    }
+    setState(() { _step -= 1; _error = null; });
+  }
+
+  void _goNext() {
+    final loc = AppLocalizations.of(context)!;
+    setState(() => _error = null);
+    if (_step == 0) {
+      if (_sectors.isEmpty) {
+        setState(() => _error = loc.regRecSectorsRequired);
+        return;
+      }
+      setState(() => _step = 1);
+      return;
+    }
+    _register();
+  }
+
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    final loc = AppLocalizations.of(context)!;
+    if (!_accountFormKey.currentState!.validate()) return;
     if (!_acceptedTerms) {
-      setState(() =>
-          _error = 'Vous devez accepter les conditions d\'utilisation.');
+      setState(() => _error = loc.regRecTermsRequired);
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -61,6 +96,7 @@ class _RegisterRecruiterPageState
     final companyNumber = CompanyNumber.normalize(_companyNumberCtrl.text);
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
+    final sectors = List<String>.from(_sectors);
 
     try {
       final fullName = '$name - $company';
@@ -86,6 +122,7 @@ class _RegisterRecruiterPageState
         userId: uid,
         companyName: company,
         companyNumber: companyNumber,
+        sectors: sectors,
       ));
 
       // Code partenaire — n'a jamais d'incidence sur le succès de l'inscription
@@ -106,7 +143,7 @@ class _RegisterRecruiterPageState
 
       if (mounted) context.go('/recruiter/home');
     } catch (e) {
-      if (mounted) setState(() => _error = 'Erreur lors de l\'inscription.');
+      if (mounted) setState(() => _error = loc.regRecGenericError);
     } finally {
       if (mounted) setState(() { _loading = false; });
     }
@@ -114,181 +151,133 @@ class _RegisterRecruiterPageState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Compte recruteur'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Gradient header
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(
-                  24, MediaQuery.of(context).padding.top + 12, 24, 28),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF059669), AppColors.green],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(height: 14),
-                  const Icon(Icons.business_center_rounded,
-                      color: Colors.white, size: 28),
-                  const SizedBox(height: 8),
-                  const Text('Compte recruteur',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5)),
-                  const SizedBox(height: 4),
-                  Text('Trouvez les meilleurs talents Horeca',
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.72),
-                          fontSize: 14)),
-                ],
-              ),
-            ),
+    final loc = AppLocalizations.of(context)!;
+    final steps = <(String, String, Widget)>[
+      (loc.regRecSectionSectors, loc.regRecSectionSectorsHint, _buildSectorsStep()),
+      (loc.regRecStepAccountTitle, loc.regRecStepAccountSubtitle, _buildAccountStep(loc)),
+    ];
+    final current = steps[_step];
 
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    if (_error != null)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: AppColors.redLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(_error!,
-                      style: const TextStyle(color: AppColors.red)),
-                ),
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Votre nom complet *',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().length < 2) ? 'Nom requis' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _companyCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de l\'établissement *',
-                  prefixIcon: Icon(Icons.business_outlined),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().length < 2) ? 'Nom établissement requis' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _companyNumberCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Numéro d\'entreprise (BCE) *',
-                  hintText: 'ex: 0123.456.749 ou BE0123456749',
-                  prefixIcon: Icon(Icons.verified_outlined),
-                  helperText:
-                      'Vérifié automatiquement — atteste que vous êtes une entreprise.',
-                  helperMaxLines: 2,
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Numéro d\'entreprise requis';
-                  }
-                  if (!CompanyNumber.isValid(v)) {
-                    return 'Numéro BCE invalide (10 chiffres, clé de contrôle incorrecte)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email professionnel *',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Email requis';
-                  if (!v.contains('@')) return 'Email invalide';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordCtrl,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe *',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                ),
-                validator: (v) {
-                  if (v == null || v.length < 6) return 'Minimum 6 caractères';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              PartnerCodeField(
-                onResolved: (p) => setState(() => _resolvedPartner = p),
-              ),
-              const SizedBox(height: 24),
-              TermsCheckbox(
-                value: _acceptedTerms,
-                onChanged: (v) => setState(() => _acceptedTerms = v),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loading ? null : _register,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.green),
-                    child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Text('Créer mon compte recruteur'),
-              ),
-              const SizedBox(height: 24),
-                  ],
-                ),
+    return OnboardingStepScaffold(
+      step: _step,
+      totalSteps: _totalSteps,
+      title: current.$1,
+      subtitle: current.$2,
+      headerIcon: Icons.business_center_rounded,
+      headerGradient: _kRecruiterGradient,
+      buttonColor: AppColors.green,
+      onBack: _goBack,
+      onNext: _loading ? null : _goNext,
+      nextLabel: _step == _totalSteps - 1 ? loc.regRecSubmit : loc.wizardNext,
+      loading: _loading,
+      errorText: _error,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: KeyedSubtree(key: ValueKey(_step), child: current.$3),
+      ),
+    );
+  }
+
+  Widget _buildSectorsStep() {
+    return SectorSelector(
+      selected: _sectors,
+      onChanged: (sectors) => setState(() {
+        _sectors
+          ..clear()
+          ..addAll(sectors);
+      }),
+    );
+  }
+
+  Widget _buildAccountStep(AppLocalizations loc) {
+    return Form(
+      key: _accountFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            controller: _nameCtrl,
+            decoration: InputDecoration(
+              labelText: loc.regRecFullName,
+              prefixIcon: const Icon(Icons.person_outline),
+            ),
+            validator: (v) =>
+                (v == null || v.trim().length < 2) ? loc.regRecFullNameError : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _companyCtrl,
+            decoration: InputDecoration(
+              labelText: loc.regRecCompanyName,
+              prefixIcon: const Icon(Icons.business_outlined),
+            ),
+            validator: (v) =>
+                (v == null || v.trim().length < 2) ? loc.regRecCompanyNameError : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _companyNumberCtrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: loc.regRecCompanyNumber,
+              hintText: loc.regRecCompanyNumberHint,
+              prefixIcon: const Icon(Icons.verified_outlined),
+              helperText: loc.regRecCompanyNumberHelper,
+              helperMaxLines: 2,
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return loc.regRecCompanyNumberRequired;
+              }
+              if (!CompanyNumber.isValid(v)) {
+                return loc.regRecCompanyNumberInvalid;
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: loc.regRecEmail,
+              prefixIcon: const Icon(Icons.email_outlined),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return loc.regRecEmailRequired;
+              if (!v.contains('@')) return loc.regRecEmailInvalid;
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _passwordCtrl,
+            obscureText: _obscure,
+            decoration: InputDecoration(
+              labelText: loc.regRecPassword,
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscure
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
-          ],
-        ),
+            validator: (v) {
+              if (v == null || v.length < 6) return loc.regRecPasswordError;
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          PartnerCodeField(
+            onResolved: (p) => setState(() => _resolvedPartner = p),
+          ),
+          const SizedBox(height: 24),
+          TermsCheckbox(
+            value: _acceptedTerms,
+            onChanged: (v) => setState(() => _acceptedTerms = v),
+          ),
+        ],
       ),
     );
   }

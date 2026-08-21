@@ -2,8 +2,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/confetti_overlay.dart';
 import '../../repositories/match_repository.dart';
+import '../../services/feedback_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MatchPage extends ConsumerStatefulWidget {
   final String matchId;
@@ -74,6 +77,12 @@ class _MatchPageState extends ConsumerState<MatchPage>
 
     _entranceCtrl.forward().then((_) => _textCtrl.forward());
     _markSeen();
+
+    // Le moment clé de l'app : impact haptique fort + chime signature,
+    // synchronisés avec l'animation d'entrée.
+    final feedback = ref.read(feedbackServiceProvider);
+    feedback.match();
+    feedback.playMatchSound();
   }
 
   Future<void> _markSeen() async {
@@ -92,6 +101,7 @@ class _MatchPageState extends ConsumerState<MatchPage>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -111,6 +121,8 @@ class _MatchPageState extends ConsumerState<MatchPage>
                 size: MediaQuery.of(context).size,
               ),
             ),
+            // Confettis aux couleurs Spark par-dessus le fond, sous le contenu
+            const ConfettiOverlay(),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -167,9 +179,9 @@ class _MatchPageState extends ConsumerState<MatchPage>
                           curve: const Interval(0.0, 0.5,
                               curve: Curves.easeOut),
                         )),
-                        child: const Text(
-                          "C'est un Match !",
-                          style: TextStyle(
+                        child: Text(
+                          loc.matchPageTitle,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 34,
                             fontWeight: FontWeight.bold,
@@ -184,7 +196,7 @@ class _MatchPageState extends ConsumerState<MatchPage>
                     FadeTransition(
                       opacity: _subtitleAnim,
                       child: Text(
-                        'Vous avez matché avec\n${widget.companyName}\npour le poste de\n${widget.jobOfferTitle}',
+                        loc.matchPageSubtitle(widget.companyName, widget.jobOfferTitle),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
@@ -206,7 +218,7 @@ class _MatchPageState extends ConsumerState<MatchPage>
                               onPressed: () => context
                                   .push('/messages/${widget.matchId}'),
                               icon: const Icon(Icons.chat_bubble_outline),
-                              label: const Text('Envoyer un message'),
+                              label: Text(loc.matchPageSendMessage),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: AppColors.primary,
@@ -234,7 +246,7 @@ class _MatchPageState extends ConsumerState<MatchPage>
                                         BorderRadius.circular(14)),
                               ),
                               child:
-                                  const Text('Continuer à swiper'),
+                                  Text(loc.matchPageContinueSwiping),
                             ),
                           ),
                         ],

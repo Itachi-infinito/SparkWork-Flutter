@@ -7,6 +7,7 @@ import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class LikedOffersPage extends ConsumerStatefulWidget {
   const LikedOffersPage({super.key});
@@ -82,10 +83,11 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Mes offres likées'),
+        title: Text(loc.candHomeLikedOffersTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -96,7 +98,7 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Rechercher par titre, entreprise...',
+                hintText: loc.candOfferListSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -132,6 +134,7 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
   }
 
   Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -145,14 +148,14 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
             child: const Icon(Icons.thumb_up_outlined, color: AppColors.red, size: 40),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Aucune offre likée',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          Text(
+            loc.candMatchesEmptyLikesTitle,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Swipez à droite sur les offres qui vous intéressent !',
-            style: TextStyle(color: AppColors.textSecondary),
+          Text(
+            loc.candLikedOffersSwipePrompt,
+            style: const TextStyle(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -163,7 +166,7 @@ class _LikedOffersPageState extends ConsumerState<LikedOffersPage> {
               child: ElevatedButton.icon(
                 onPressed: () => context.go('/candidate/swipe'),
                 icon: const Icon(Icons.swipe, color: Colors.white),
-                label: const Text('Découvrir des offres', style: TextStyle(color: Colors.white)),
+                label: Text(loc.candMatchesDiscoverOffers, style: const TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   minimumSize: const Size(double.infinity, 48),
@@ -248,7 +251,7 @@ class _LikedOfferCard extends StatelessWidget {
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.thumb_down_outlined, color: AppColors.red, size: 20),
-              tooltip: 'Retirer le like',
+              tooltip: AppLocalizations.of(context)!.candLikedOffersUnlikeTooltip,
               onPressed: onUnlike,
               visualDensity: VisualDensity.compact,
             ),

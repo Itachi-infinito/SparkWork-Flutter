@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/app_user.dart';
 import 'session_security_service.dart';
@@ -78,7 +79,11 @@ class SessionNotifier extends StateNotifier<SessionState> {
         isAdmin: data['isAdmin'] as bool? ?? false,
       );
       state = SessionState(user: appUser, isLoading: false);
-    } catch (_) {
+    } catch (e) {
+      // Ne jamais avaler cette erreur en silence : un utilisateur
+      // authentifié dont le profil ne charge pas (App Check refusé, règles
+      // Firestore, réseau...) reste sinon bloqué sur /login sans indice.
+      debugPrint('SessionNotifier._onAuthChanged: échec de chargement du profil pour ${firebaseUser.uid} — $e');
       state = const SessionState(isLoading: false);
     }
   }

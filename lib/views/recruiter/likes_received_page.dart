@@ -10,6 +10,7 @@ import '../../repositories/candidate_job_like_repository.dart';
 import '../../repositories/candidate_profile_repository.dart';
 import '../../repositories/job_offer_repository.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class LikesReceivedPage extends ConsumerStatefulWidget {
   const LikesReceivedPage({super.key});
@@ -88,10 +89,11 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Likes reçus'),
+        title: Text(loc.likesReceivedTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -104,7 +106,9 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
     );
   }
 
-  Widget _buildEmpty() => Center(
+  Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -119,21 +123,21 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                     color: AppColors.orange, size: 40),
               ),
               const SizedBox(height: 20),
-              Text('Aucun like reçu',
+              Text(loc.likesReceivedEmptyTitle,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: context.textPrimaryColor)),
               const SizedBox(height: 8),
               Text(
-                  'Les candidats qui ont liké vos offres apparaîtront ici.',
+                  loc.likesReceivedEmptyBody,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => context.go('/recruiter/offers/add'),
                 icon: const Icon(Icons.add),
-                label: const Text('Publier une offre'),
+                label: Text(loc.likesReceivedPublishOffer),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.orange),
               ),
@@ -141,8 +145,11 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
           ),
         ),
       );
+  }
 
-  Widget _buildList() => RefreshIndicator(
+  Widget _buildList() {
+    final loc = AppLocalizations.of(context)!;
+    return RefreshIndicator(
         onRefresh: _load,
         color: AppColors.orange,
         child: ListView.separated(
@@ -228,8 +235,8 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                                     color: AppColors.orangeLight,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Text('Super',
-                                      style: TextStyle(
+                                  child: Text(loc.likesReceivedSuperBadge,
+                                      style: const TextStyle(
                                           color: AppColors.orange,
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold)),
@@ -237,7 +244,7 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text('sur "${item.offer.title}"',
+                          Text(loc.likesReceivedOnOffer(item.offer.title),
                               style: TextStyle(
                                   color: context.textSecondaryColor,
                                   fontSize: 12)),
@@ -284,4 +291,5 @@ class _LikesReceivedPageState extends ConsumerState<LikesReceivedPage> {
           },
         ),
       );
+  }
 }

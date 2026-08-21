@@ -7,6 +7,7 @@ import '../../core/constants/app_theme_ext.dart';
 import '../../models/recommendation.dart';
 import '../../services/recommendation_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecommendationsPage extends ConsumerStatefulWidget {
   const RecommendationsPage({super.key});
@@ -54,6 +55,7 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
   }
 
   void _showLinkSheet(String link) {
+    final loc = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: context.surfaceColor,
@@ -66,12 +68,12 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
           children: [
             const Icon(Icons.link, color: AppColors.primary, size: 40),
             const SizedBox(height: 12),
-            const Text('Lien de recommandation créé',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(loc.recommLinkCreatedTitle,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Partagez ce lien avec la personne qui souhaite vous recommander.',
+            Text(loc.recommLinkShareBody,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -90,12 +92,12 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: link));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lien copié !'), backgroundColor: AppColors.green),
+                    SnackBar(content: Text(loc.recommLinkCopied), backgroundColor: AppColors.green),
                   );
                   Navigator.pop(ctx);
                 },
                 icon: const Icon(Icons.copy, color: Colors.white),
-                label: const Text('Copier le lien', style: TextStyle(color: Colors.white)),
+                label: Text(loc.recommCopyLink, style: const TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               ),
             ),
@@ -107,16 +109,17 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recommandations'),
+        title: Text(loc.recommTitle),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
         actions: [
           if (_published.length < RecommendationService.maxPublished)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: _requestNew,
-              tooltip: 'Demander une recommandation',
+              tooltip: loc.recommRequestTooltip,
             ),
         ],
       ),
@@ -131,20 +134,21 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
   }
 
   Widget _buildBody() {
+    final loc = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _buildQuota(),
         if (_published.isNotEmpty) ...[
           const SizedBox(height: 20),
-          Text('Publiées (${_published.length})',
+          Text(loc.recommPublishedCount(_published.length),
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
           const SizedBox(height: 12),
           ..._published.map((r) => _RecommendationCard(rec: r, isPublished: true)),
         ],
         if (_pending.isNotEmpty) ...[
           const SizedBox(height: 20),
-          Text('En attente (${_pending.length})',
+          Text(loc.recommPendingCount(_pending.length),
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
           const SizedBox(height: 12),
           ..._pending.map((r) => _RecommendationCard(rec: r, isPublished: false)),
@@ -156,17 +160,17 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
               children: [
                 Icon(Icons.thumb_up_outlined, size: 64, color: context.textHintColor),
                 const SizedBox(height: 16),
-                Text('Aucune recommandation',
+                Text(loc.recommEmptyTitle,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
                 const SizedBox(height: 8),
-                Text('Demandez des recommandations à d\'anciens collègues ou managers.',
+                Text(loc.recommEmptyBody,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: context.textSecondaryColor)),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: _requestNew,
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Demander une recommandation', style: TextStyle(color: Colors.white)),
+                  label: Text(loc.recommRequestTooltip, style: const TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                 ),
               ],
@@ -179,6 +183,7 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
   }
 
   Widget _buildQuota() {
+    final loc = AppLocalizations.of(context)!;
     final count = _published.length;
     final max = RecommendationService.maxPublished;
     return Container(
@@ -194,7 +199,7 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$count / $max recommandations publiées',
+                Text(loc.recommQuota(count, max),
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimaryColor)),
                 const SizedBox(height: 6),
                 ClipRRect(
@@ -214,7 +219,7 @@ class _RecommendationsPageState extends ConsumerState<RecommendationsPage> {
             ElevatedButton.icon(
               onPressed: _requestNew,
               icon: const Icon(Icons.add, color: Colors.white, size: 16),
-              label: const Text('Demander', style: TextStyle(color: Colors.white, fontSize: 12)),
+              label: Text(loc.recommRequestShort, style: const TextStyle(color: Colors.white, fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -234,6 +239,7 @@ class _RecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -269,14 +275,14 @@ class _RecommendationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isPublished ? rec.authorName : 'En attente de réponse',
+                      isPublished ? rec.authorName : loc.recommPendingResponse,
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           color: context.textPrimaryColor),
                     ),
                     if (isPublished && rec.authorRole.isNotEmpty)
-                      Text('${rec.authorRole} — ${rec.authorCompany}',
+                      Text(loc.recommRoleCompany(rec.authorRole, rec.authorCompany),
                           style: TextStyle(fontSize: 12, color: context.textSecondaryColor)),
                   ],
                 ),
@@ -288,7 +294,7 @@ class _RecommendationCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  isPublished ? 'Publiée' : 'En attente',
+                  isPublished ? loc.recommBadgePublished : loc.recommBadgePending,
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,

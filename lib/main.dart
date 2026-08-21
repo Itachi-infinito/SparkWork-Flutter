@@ -14,8 +14,10 @@ import 'core/theme/app_theme.dart';
 import 'core/widgets/restricted_mode_banner.dart';
 import 'core/widgets/team_upsell_sheet.dart';
 import 'firebase_options.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'models/security_flag.dart';
 import 'services/local_notification_service.dart';
+import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'services/session_security_service.dart';
 import 'services/session_service.dart';
@@ -25,8 +27,9 @@ import 'services/recruiter_theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Données de locale pour les dates en français (DateFormat 'fr_FR')
+  // Données de locale pour les dates (DateFormat 'fr_FR' / 'en_US')
   await initializeDateFormatting('fr_FR');
+  await initializeDateFormatting('en_US');
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (e) {
@@ -138,6 +141,7 @@ class _SparkWorkAppState extends ConsumerState<SparkWorkApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeProvider);
+    final locale = ref.watch(localeProvider);
     final session = ref.watch(sessionProvider);
     final recruiterTheme = ref.watch(recruiterThemeProvider);
     final accent = session.isRecruiter ? recruiterTheme : null;
@@ -207,14 +211,14 @@ class _SparkWorkAppState extends ConsumerState<SparkWorkApp> {
       theme: AppTheme.theme(accent: accent),
       darkTheme: AppTheme.darkTheme(accent: accent),
       themeMode: effectiveThemeMode,
-      // Widgets Material en français (date pickers, dialogs...)
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [Locale('fr', 'FR'), Locale('en')],
-      locale: const Locale('fr', 'FR'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: locale,
       routerConfig: router,
       builder: (context, child) {
         return Column(

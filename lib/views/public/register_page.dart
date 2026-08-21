@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RegisterPage extends StatelessWidget {
   const RegisterPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: Column(
         children: [
@@ -37,14 +39,14 @@ class RegisterPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 const Icon(Icons.bolt, color: Colors.white, size: 30),
                 const SizedBox(height: 8),
-                const Text('Je suis…',
-                    style: TextStyle(
+                Text(loc.registerTitle,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5)),
                 const SizedBox(height: 4),
-                Text('Choisissez votre profil pour commencer',
+                Text(loc.registerSubtitle,
                     style: TextStyle(
                         color: Colors.white.withOpacity(0.72),
                         fontSize: 14)),
@@ -60,8 +62,8 @@ class RegisterPage extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
                   _RoleCard(
-                    title: 'Candidat',
-                    subtitle: 'Je cherche un emploi dans le Horeca',
+                    title: loc.registerCandidateTitle,
+                    subtitle: loc.registerCandidateSubtitle,
                     icon: Icons.person_search_rounded,
                     gradient: const LinearGradient(
                         colors: [AppColors.primaryDark, AppColors.primary]),
@@ -69,8 +71,8 @@ class RegisterPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _RoleCard(
-                    title: 'Recruteur',
-                    subtitle: 'Je cherche des talents pour mon établissement',
+                    title: loc.registerRecruiterTitle,
+                    subtitle: loc.registerRecruiterSubtitle,
                     icon: Icons.business_center_rounded,
                     gradient: const LinearGradient(
                         colors: [Color(0xFF059669), AppColors.green]),
@@ -80,13 +82,13 @@ class RegisterPage extends StatelessWidget {
                   GestureDetector(
                     onTap: () => context.go('/login'),
                     child: RichText(
-                      text: const TextSpan(
-                        text: 'Déjà un compte ? ',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      text: TextSpan(
+                        text: loc.registerHaveAccount,
+                        style: const TextStyle(color: AppColors.textSecondary),
                         children: [
                           TextSpan(
-                            text: 'Se connecter',
-                            style: TextStyle(
+                            text: loc.registerLogin,
+                            style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600),
                           ),

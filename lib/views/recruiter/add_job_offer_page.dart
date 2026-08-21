@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
+import '../../core/constants/app_sectors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../models/job_offer.dart';
 import '../../repositories/job_offer_repository.dart';
+import '../../repositories/recruiter_profile_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/quota_reached_bottom_sheet.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AddJobOfferPage extends ConsumerStatefulWidget {
   const AddJobOfferPage({super.key});
@@ -29,6 +32,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
   String? _contractType;
   String? _level;
   String? _remoteMode;
+  String? _sector;
   final List<String> _requiredSkills = [];
   final List<String> _niceSkills = [];
   bool _loading = false;
@@ -36,6 +40,22 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
   bool _isFlash = false;
   int _flashDurationHours = 24;
   String _urgencyLevel = 'normal';
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillSector();
+  }
+
+  Future<void> _prefillSector() async {
+    final session = ref.read(sessionProvider);
+    final profile = await ref
+        .read(recruiterProfileRepositoryProvider)
+        .getProfile(session.userId);
+    if (mounted && profile != null && profile.sectors.isNotEmpty) {
+      setState(() => _sector = profile.sectors.first);
+    }
+  }
 
   @override
   void dispose() {
@@ -50,6 +70,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final loc = AppLocalizations.of(context)!;
     setState(() { _loading = true; _error = null; });
     try {
       final session = ref.read(sessionProvider);
@@ -70,11 +91,15 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
       final salaryMax = int.tryParse(_salaryMaxCtrl.text.trim()) ?? 0;
 
       if (salaryMin < 0 || salaryMax < 0) {
-        setState(() { _error = 'Le salaire ne peut pas être négatif.'; });
+        setState(() { _error = loc.recAddOfferSalaryNegative; });
         return;
       }
       if (salaryMin > 0 && salaryMax > 0 && salaryMin > salaryMax) {
-        setState(() { _error = 'Le salaire minimum ne peut pas dépasser le maximum.'; });
+        setState(() { _error = loc.recAddOfferSalaryMinMax; });
+        return;
+      }
+      if (_sector == null) {
+        setState(() { _error = loc.recAddOfferSectorRequired; });
         return;
       }
       final now = DateTime.now().toUtc();
@@ -85,6 +110,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
         companyName: _companyCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
         contractType: _contractType ?? '',
+        sector: _sector!,
         description: _descriptionCtrl.text.trim(),
         salaryMin: salaryMin,
         salaryMax: salaryMax,
@@ -105,8 +131,8 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Offre publiée avec succès !'),
+        SnackBar(
+          content: Text(loc.recAddOfferSuccess),
           backgroundColor: AppColors.green,
         ),
       );
@@ -118,10 +144,11 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Nouvelle offre'),
+        title: Text(loc.recOffersNewOffer),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
@@ -136,8 +163,8 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Publier',
-                    style: TextStyle(
+                : Text(loc.recAddOfferPublish,
+                    style: const TextStyle(
                         color: AppColors.green, fontWeight: FontWeight.w600)),
           ),
         ],
@@ -169,19 +196,37 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                   ),
                 ),
 
-              _sectionLabel('Informations du poste'),
+              _sectionLabel(loc.recAddOfferSectionInfo),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _sector,
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferSector,
+                  prefixIcon: const Icon(Icons.category_outlined),
+                ),
+                items: AppSectors.all
+                    .map((s) => DropdownMenuItem(value: s.id, child: Text(s.label)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _sector = v;
+                  final available = AppSkills.skillsForSectors([v ?? '']).toSet();
+                  _requiredSkills.removeWhere((s) => !available.contains(s));
+                  _niceSkills.removeWhere((s) => !available.contains(s));
+                }),
+                validator: (v) => v == null ? loc.recAddOfferSectorRequired : null,
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _titleCtrl,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Titre du poste *',
-                  hintText: 'Ex: Serveur en salle',
-                  prefixIcon: Icon(Icons.work_outline),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferJobTitle,
+                  hintText: loc.recAddOfferJobTitleHint,
+                  prefixIcon: const Icon(Icons.work_outline),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().length < 3) {
-                    return 'Titre requis (min 3 caractères)';
+                    return loc.recAddOfferJobTitleError;
                   }
                   return null;
                 },
@@ -191,14 +236,14 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               TextFormField(
                 controller: _companyCtrl,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de l\'établissement *',
-                  hintText: 'Ex: Restaurant Le Gourmet',
-                  prefixIcon: Icon(Icons.business_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferCompanyName,
+                  hintText: loc.recAddOfferCompanyNameHint,
+                  prefixIcon: const Icon(Icons.business_outlined),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().length < 2) {
-                    return 'Nom de l\'établissement requis';
+                    return loc.recAddOfferCompanyNameError;
                   }
                   return null;
                 },
@@ -207,14 +252,14 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
               TextFormField(
                 controller: _locationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Localisation *',
-                  hintText: 'Ex: Bruxelles, Ixelles',
-                  prefixIcon: Icon(Icons.location_on_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferLocation,
+                  hintText: loc.recAddOfferLocationHint,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().length < 2) {
-                    return 'Localisation requise';
+                    return loc.recAddOfferLocationError;
                   }
                   return null;
                 },
@@ -223,23 +268,23 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
               DropdownButtonFormField<String>(
                 value: _contractType,
-                decoration: const InputDecoration(
-                  labelText: 'Type de contrat *',
-                  prefixIcon: Icon(Icons.description_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferContractType,
+                  prefixIcon: const Icon(Icons.description_outlined),
                 ),
                 items: AppSkills.contractTypes
                     .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
                 onChanged: (v) => setState(() => _contractType = v),
-                validator: (v) => v == null ? 'Type de contrat requis' : null,
+                validator: (v) => v == null ? loc.recAddOfferContractTypeError : null,
               ),
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
                 value: _level,
-                decoration: const InputDecoration(
-                  labelText: 'Niveau d\'expérience',
-                  prefixIcon: Icon(Icons.bar_chart_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferLevel,
+                  prefixIcon: const Icon(Icons.bar_chart_outlined),
                 ),
                 items: AppSkills.levels
                     .map((l) => DropdownMenuItem(value: l, child: Text(l)))
@@ -250,9 +295,9 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
               DropdownButtonFormField<String>(
                 value: _remoteMode,
-                decoration: const InputDecoration(
-                  labelText: 'Mode de travail',
-                  prefixIcon: Icon(Icons.home_work_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.recAddOfferWorkMode,
+                  prefixIcon: const Icon(Icons.home_work_outlined),
                 ),
                 items: AppSkills.remoteModes
                     .map((r) => DropdownMenuItem(value: r, child: Text(r)))
@@ -261,7 +306,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               ),
               const SizedBox(height: 24),
 
-              _sectionLabel('Rémunération (€/mois)'),
+              _sectionLabel(loc.recAddOfferSectionSalary),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -269,9 +314,9 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                     child: TextFormField(
                       controller: _salaryMinCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Salaire min',
-                        prefixIcon: Icon(Icons.euro_outlined),
+                      decoration: InputDecoration(
+                        labelText: loc.recAddOfferSalaryMin,
+                        prefixIcon: const Icon(Icons.euro_outlined),
                       ),
                     ),
                   ),
@@ -280,9 +325,9 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                     child: TextFormField(
                       controller: _salaryMaxCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Salaire max',
-                        prefixIcon: Icon(Icons.euro_outlined),
+                      decoration: InputDecoration(
+                        labelText: loc.recAddOfferSalaryMax,
+                        prefixIcon: const Icon(Icons.euro_outlined),
                       ),
                     ),
                   ),
@@ -290,10 +335,11 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               ),
               const SizedBox(height: 24),
 
-              _sectionLabel('Compétences requises'),
+              _sectionLabel(loc.candOfferDetailRequiredSkills),
               const SizedBox(height: 12),
               _SkillPicker(
                 selected: _requiredSkills,
+                availableSkills: AppSkills.skillsForSectors([_sector ?? '']),
                 accentColor: AppColors.primary,
                 bgColor: AppColors.primaryLight,
                 onChanged: (skills) => setState(() {
@@ -304,10 +350,11 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               ),
               const SizedBox(height: 24),
 
-              _sectionLabel('Compétences appréciées'),
+              _sectionLabel(loc.candOfferDetailNiceSkills),
               const SizedBox(height: 12),
               _SkillPicker(
                 selected: _niceSkills,
+                availableSkills: AppSkills.skillsForSectors([_sector ?? '']),
                 accentColor: AppColors.green,
                 bgColor: AppColors.greenLight,
                 onChanged: (skills) => setState(() {
@@ -318,26 +365,26 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
               ),
               const SizedBox(height: 24),
 
-              _sectionLabel('Description du poste *'),
+              _sectionLabel(loc.recAddOfferSectionDescription),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionCtrl,
                 maxLines: 6,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  hintText: 'Décrivez le poste, les missions, le contexte...',
+                decoration: InputDecoration(
+                  hintText: loc.recAddOfferDescriptionHint,
                   alignLabelWithHint: true,
                 ),
                 validator: (v) {
                   if (v == null || v.trim().length < 10) {
-                    return 'Description requise (min 10 caractères)';
+                    return loc.recAddOfferDescriptionError;
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
 
-              _sectionLabel('⚡ Offre Flash'),
+              _sectionLabel(loc.recAddOfferFlashSection),
               const SizedBox(height: 8),
               _FlashSection(
                 isFlash: _isFlash,
@@ -358,7 +405,7 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
                         width: 20,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Publier l\'offre'),
+                    : Text(loc.recAddOfferSubmit),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.green),
               ),
@@ -381,13 +428,14 @@ class _AddJobOfferPageState extends ConsumerState<AddJobOfferPage> {
 
 class _SkillPicker extends StatelessWidget {
   final List<String> selected;
+  final List<String> availableSkills;
   final Color accentColor;
   final Color bgColor;
   final ValueChanged<List<String>> onChanged;
-  const _SkillPicker({required this.selected, required this.accentColor, required this.bgColor, required this.onChanged});
+  const _SkillPicker({required this.selected, required this.availableSkills, required this.accentColor, required this.bgColor, required this.onChanged});
 
   void _showPicker(BuildContext context) {
-    final available = AppSkills.horecaSkills
+    final available = availableSkills
         .toSet()
         .where((s) => !selected.contains(s))
         .toList();
@@ -414,7 +462,7 @@ class _SkillPicker extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => _showPicker(context),
           icon: const Icon(Icons.add),
-          label: const Text('Ajouter une compétence'),
+          label: Text(AppLocalizations.of(context)!.recAddOfferAddSkill),
           style: OutlinedButton.styleFrom(
             foregroundColor: accentColor,
             side: BorderSide(color: accentColor),
@@ -460,6 +508,7 @@ class _FlashSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: isFlash ? const Color(0xFFFFF8E1) : context.surfaceColor,
@@ -479,9 +528,9 @@ class _FlashSection extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Offre Flash',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      Text('Expire automatiquement après la durée choisie',
+                      Text(loc.offerFlashTitle,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text(loc.offerFlashSubtitle,
                           style: TextStyle(fontSize: 11, color: context.textSecondaryColor)),
                     ],
                   ),
@@ -497,7 +546,7 @@ class _FlashSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Durée de la mission',
+                  Text(loc.offerFlashDuration,
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondaryColor)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
@@ -508,20 +557,20 @@ class _FlashSection extends StatelessWidget {
                     ),
                     items: _durations.map((h) => DropdownMenuItem(
                       value: h,
-                      child: Text(h < 24 ? '$h heures' : '${h ~/ 24} jour${h >= 48 ? 's' : ''}'),
+                      child: Text(h < 24 ? loc.offerFlashDurationHours(h) : loc.offerFlashDurationDays(h ~/ 24)),
                     )).toList(),
                     onChanged: (v) { if (v != null) onDurationChanged(v); },
                   ),
                   const SizedBox(height: 16),
-                  Text("Niveau d'urgence",
+                  Text(loc.offerFlashUrgency,
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondaryColor)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    _UrgencyChip(label: 'Normal', value: 'normal', current: urgencyLevel, color: AppColors.green, onTap: onUrgencyChanged),
+                    _UrgencyChip(label: loc.offerFlashUrgencyNormal, value: 'normal', current: urgencyLevel, color: AppColors.green, onTap: onUrgencyChanged),
                     const SizedBox(width: 8),
-                    _UrgencyChip(label: 'Urgent', value: 'urgent', current: urgencyLevel, color: _amber, onTap: onUrgencyChanged),
+                    _UrgencyChip(label: loc.offerFlashUrgencyUrgent, value: 'urgent', current: urgencyLevel, color: _amber, onTap: onUrgencyChanged),
                     const SizedBox(width: 8),
-                    _UrgencyChip(label: 'Très urgent', value: 'very_urgent', current: urgencyLevel, color: AppColors.red, onTap: onUrgencyChanged),
+                    _UrgencyChip(label: loc.offerFlashUrgencyVeryUrgent, value: 'very_urgent', current: urgencyLevel, color: AppColors.red, onTap: onUrgencyChanged),
                   ]),
                   const SizedBox(height: 12),
                 ],

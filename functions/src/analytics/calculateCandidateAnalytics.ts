@@ -4,6 +4,26 @@ import { logger } from 'firebase-functions/v2';
 
 const HIGHLY_DEMANDED_THRESHOLD = 5;
 
+function parseYM(ym: string): Date {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, 1);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function computeStabilityMonths(workHistory: any): number | null {
+  if (!Array.isArray(workHistory) || workHistory.length < 2) return null;
+  const now = new Date();
+  const tenures = workHistory
+    .filter((e) => e?.startDate)
+    .map((e) => {
+      const start = parseYM(String(e.startDate));
+      const end = e.isCurrent || !e.endDate ? now : parseYM(String(e.endDate));
+      return Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+    });
+  if (tenures.length < 2) return null;
+  return Math.round(tenures.reduce((a, b) => a + b, 0) / tenures.length);
+}
+
 /**
  * Analyse de profil candidat approfondie (Pro) — calculée quotidiennement,
  * jamais en temps réel côté client. Les données sont anonymisées au sens où
@@ -26,11 +46,12 @@ export const calculateCandidateAnalytics = onSchedule(
 
     let processed = 0;
     for (const candidateDoc of candidatesSnap.docs) {
-      const candidateId = candidateDoc.data().userId as string;
+      const candidateData = candidateDoc.data();
+      const candidateId = candidateData.userId as string;
       if (!candidateId) continue;
 
       try {
-        const analytics = await computeForCandidate(db, candidateId, startOfMonth, startOfWeek);
+        const analytics = await computeForCandidate(db, candidateId, candidateData, startOfMonth, startOfWeek);
         await db.collection('candidate_analytics').doc(candidateId).set({
           ...analytics,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -45,9 +66,11 @@ export const calculateCandidateAnalytics = onSchedule(
   }
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function computeForCandidate(
   db: admin.firestore.Firestore,
   candidateId: string,
+  candidateData: Record<string, any>,
   startOfMonth: admin.firestore.Timestamp,
   startOfWeek: admin.firestore.Timestamp
 ) {
@@ -114,8 +137,6 @@ async function computeForCandidate(
     recruitersThisMonth,
     recruitersThisWeek,
     isHighlyDemanded: recruitersThisWeek > HIGHLY_DEMANDED_THRESHOLD,
-    // TODO: stabilité professionnelle — nécessite un historique d'expériences
-    // structuré (durées) qui n'existe pas encore dans candidate_profiles.
-    stabilityMonths: null,
+    stabilityMonths: computeStabilityMonths(candidateData.workHistory),
   };
 }

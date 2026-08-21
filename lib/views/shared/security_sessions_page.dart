@@ -6,6 +6,7 @@ import '../../models/active_session.dart';
 import '../../services/device_info_service.dart';
 import '../../services/session_security_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Accessible depuis Settings → Sécurité → "Gérer mes sessions actives".
 class SecuritySessionsPage extends ConsumerStatefulWidget {
@@ -47,18 +48,18 @@ class _SecuritySessionsPageState extends ConsumerState<SecuritySessionsPage> {
   }
 
   Future<void> _terminateAllOthers() async {
+    final loc = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Déconnecter tous les autres appareils'),
-        content: const Text(
-            'Tous les autres appareils connectés à votre compte seront déconnectés immédiatement.'),
+        title: Text(loc.secSessionsTerminateAllTitle),
+        content: Text(loc.secSessionsTerminateAllBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.secSessionsCancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Déconnecter', style: TextStyle(color: Colors.white)),
+            child: Text(loc.secSessionsDisconnect, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -67,8 +68,8 @@ class _SecuritySessionsPageState extends ConsumerState<SecuritySessionsPage> {
     final session = ref.read(sessionProvider);
     await ref.read(sessionSecurityServiceProvider).terminateAllOtherSessions(session.userId);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Tous les autres appareils ont été déconnectés.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.secSessionsAllDisconnected),
         backgroundColor: AppColors.green,
       ));
     }
@@ -77,8 +78,9 @@ class _SecuritySessionsPageState extends ConsumerState<SecuritySessionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sessions actives')),
+      appBar: AppBar(title: Text(loc.secSessionsTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -87,15 +89,14 @@ class _SecuritySessionsPageState extends ConsumerState<SecuritySessionsPage> {
                 padding: const EdgeInsets.all(20),
                 children: [
                   Text(
-                    'Liste des connexions des 30 derniers jours. Ville approximative '
-                    'uniquement — votre adresse IP complète n\'est jamais affichée.',
+                    loc.secSessionsDisclaimer,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 16),
                   if (_sessions.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: Text('Aucune session enregistrée.')),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: Text(loc.secSessionsNone)),
                     )
                   else
                     ..._sessions.map((s) => _SessionTile(
@@ -111,8 +112,8 @@ class _SecuritySessionsPageState extends ConsumerState<SecuritySessionsPage> {
                     child: OutlinedButton.icon(
                       onPressed: _terminateAllOthers,
                       icon: const Icon(Icons.logout, color: AppColors.red),
-                      label: const Text('Déconnecter tous les autres appareils',
-                          style: TextStyle(color: AppColors.red)),
+                      label: Text(loc.secSessionsDisconnectAllOthers,
+                          style: const TextStyle(color: AppColors.red)),
                       style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.red),
                           minimumSize: const Size(double.infinity, 50)),
@@ -138,6 +139,7 @@ class _SessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final dateLabel = DateFormat('d MMM yyyy à HH:mm', 'fr_FR').format(session.loginAt);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -173,15 +175,15 @@ class _SessionTile extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(
                           color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
-                      child: const Text('Cet appareil',
-                          style: TextStyle(fontSize: 9, color: AppColors.primary)),
+                      child: Text(loc.secSessionsThisDevice,
+                          style: const TextStyle(fontSize: 9, color: AppColors.primary)),
                     ),
                   ],
                 ]),
                 const SizedBox(height: 2),
                 Text('${session.deviceOS} · $dateLabel',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                Text(session.isActive ? 'Active' : 'Inactive',
+                Text(session.isActive ? loc.secSessionsActive : loc.secSessionsInactive,
                     style: TextStyle(
                         fontSize: 11,
                         color: session.isActive ? AppColors.green : Colors.grey,

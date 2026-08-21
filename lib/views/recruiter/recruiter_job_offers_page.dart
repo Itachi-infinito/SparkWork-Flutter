@@ -11,6 +11,7 @@ import '../../services/spark_boost_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/nav_bar.dart';
 import '../shared/quota_reached_bottom_sheet.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RecruiterJobOffersPage extends ConsumerStatefulWidget {
   const RecruiterJobOffersPage({super.key});
@@ -44,6 +45,7 @@ class _RecruiterJobOffersPageState
   }
 
   Future<void> _boost(JobOffer offer) async {
+    final loc = AppLocalizations.of(context)!;
     final session = ref.read(sessionProvider);
     final subSvc = ref.read(subscriptionServiceProvider);
 
@@ -73,19 +75,17 @@ class _RecruiterJobOffersPageState
           await showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('SparkBoost activé 🚀'),
-              content: Text(
-                  'Votre offre a été boostée auprès de ${result.targetCount} candidat${result.targetCount > 1 ? 's' : ''} '
-                  'qualifié${result.targetCount > 1 ? 's' : ''} dans un rayon de ${result.radiusKm} km.'),
-              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+              title: Text(loc.recOffersBoostActivatedTitle),
+              content: Text(loc.recOffersBoostActivatedBody(result.targetCount, result.radiusKm)),
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.recOffersOk))],
             ),
           );
         }
       } else {
         await subSvc.useBoost(session.userId, offer.jobOfferId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Offre boostée en tête de pile pour tous les candidats actifs.'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(loc.recOffersBoostSimple),
             backgroundColor: AppColors.green,
           ));
         }
@@ -97,19 +97,20 @@ class _RecruiterJobOffersPageState
   }
 
   Future<void> _delete(JobOffer offer) async {
+    final loc = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer l\'offre'),
-        content: Text('Supprimer "${offer.title}" ?'),
+        title: Text(loc.recOffersDeleteTitle),
+        content: Text(loc.recOffersDeleteConfirm(offer.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text(loc.recOffersCancel)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Supprimer',
-                  style: TextStyle(color: AppColors.red))),
+              child: Text(loc.recOffersDelete,
+                  style: const TextStyle(color: AppColors.red))),
         ],
       ),
     );
@@ -123,10 +124,11 @@ class _RecruiterJobOffersPageState
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Mes offres'),
+        title: Text(loc.recOffersTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -137,7 +139,7 @@ class _RecruiterJobOffersPageState
         },
         backgroundColor: AppColors.green,
         icon: const Icon(Icons.add),
-        label: const Text('Nouvelle offre'),
+        label: Text(loc.recOffersNewOffer),
       ),
       body: _loading
           ? const Center(
@@ -149,7 +151,9 @@ class _RecruiterJobOffersPageState
     );
   }
 
-  Widget _buildEmpty() => Center(
+  Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -163,14 +167,14 @@ class _RecruiterJobOffersPageState
                     color: AppColors.green, size: 40),
               ),
               const SizedBox(height: 20),
-              Text('Aucune offre',
+              Text(loc.recOffersEmptyTitle,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: context.textPrimaryColor)),
               const SizedBox(height: 8),
               Text(
-                  'Publiez votre première offre pour trouver des candidats.',
+                  loc.recOffersEmptySubtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.textSecondaryColor)),
               const SizedBox(height: 24),
@@ -180,7 +184,7 @@ class _RecruiterJobOffersPageState
                   _load();
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('Créer une offre'),
+                label: Text(loc.recOffersCreateOffer),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.green),
               ),
@@ -188,8 +192,11 @@ class _RecruiterJobOffersPageState
           ),
         ),
       );
+  }
 
-  Widget _buildList() => RefreshIndicator(
+  Widget _buildList() {
+    final loc = AppLocalizations.of(context)!;
+    return RefreshIndicator(
         onRefresh: _load,
         color: AppColors.green,
         child: ListView.separated(
@@ -267,11 +274,11 @@ class _RecruiterJobOffersPageState
                                     if (v == 'boost') _boost(offer);
                                   },
                                   itemBuilder: (_) => [
-                                    const PopupMenuItem(
+                                    PopupMenuItem(
                                         value: 'edit',
                                         child: ListTile(
-                                            leading: Icon(Icons.edit_outlined),
-                                            title: Text('Modifier'),
+                                            leading: const Icon(Icons.edit_outlined),
+                                            title: Text(loc.recOffersEdit),
                                             contentPadding: EdgeInsets.zero,
                                             dense: true)),
                                     PopupMenuItem(
@@ -279,17 +286,17 @@ class _RecruiterJobOffersPageState
                                         child: ListTile(
                                             leading: const Icon(Icons.rocket_launch_outlined,
                                                 color: AppColors.orange),
-                                            title: Text(offer.isBoosted ? 'Déjà boostée' : 'Booster',
+                                            title: Text(offer.isBoosted ? loc.recOffersAlreadyBoosted : loc.recOffersBoost,
                                                 style: const TextStyle(color: AppColors.orange)),
                                             contentPadding: EdgeInsets.zero,
                                             dense: true)),
-                                    const PopupMenuItem(
+                                    PopupMenuItem(
                                         value: 'delete',
                                         child: ListTile(
-                                            leading: Icon(Icons.delete_outline,
+                                            leading: const Icon(Icons.delete_outline,
                                                 color: AppColors.red),
-                                            title: Text('Supprimer',
-                                                style: TextStyle(
+                                            title: Text(loc.recOffersDelete,
+                                                style: const TextStyle(
                                                     color: AppColors.red)),
                                             contentPadding: EdgeInsets.zero,
                                             dense: true)),
@@ -312,11 +319,11 @@ class _RecruiterJobOffersPageState
                                   _Tag(offer.salaryDisplay,
                                       AppColors.primaryLight, AppColors.primary),
                                 if (offer.isFlash && offer.isFlashActive)
-                                  _Tag('⚡ Flash',
+                                  _Tag(loc.recOffersFlashTag,
                                       const Color(0xFFFFF3CD),
                                       const Color(0xFFB45309)),
                                 if (offer.isBoosted)
-                                  _Tag('🚀 Boostée',
+                                  _Tag(loc.recOffersBoostedTag,
                                       AppColors.primaryLight,
                                       AppColors.primary),
                               ],
@@ -333,6 +340,7 @@ class _RecruiterJobOffersPageState
           },
         ),
       );
+  }
 }
 
 class _Tag extends StatelessWidget {

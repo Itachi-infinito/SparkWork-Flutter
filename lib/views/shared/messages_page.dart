@@ -15,6 +15,7 @@ import '../../repositories/report_repository.dart';
 import '../../services/session_service.dart';
 import '../shared/nav_bar.dart';
 import '../../services/unread_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MessagesPage extends ConsumerStatefulWidget {
   const MessagesPage({super.key});
@@ -114,7 +115,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       final msgDay = DateTime(dt.year, dt.month, dt.day);
       if (msgDay == today) return DateFormat('HH:mm').format(dt);
       if (msgDay == today.subtract(const Duration(days: 1))) {
-        return 'Hier';
+        return AppLocalizations.of(context)!.msgYesterday;
       }
       return DateFormat('d MMM', 'fr_FR').format(dt);
     } catch (_) {
@@ -125,6 +126,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final loc = AppLocalizations.of(context)!;
     final isCandidate = session.isCandidate;
     final gradientColors = isCandidate
         ? const [Color(0xFF0D0117), Color(0xFF1E0A3C), AppColors.primary]
@@ -150,8 +152,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Messages',
-                        style: TextStyle(
+                    Text(loc.msgTitle,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold)),
@@ -160,7 +162,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                       controller: _searchCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'Rechercher...',
+                        hintText: loc.msgSearchHint,
                         hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
                         prefixIcon: Icon(Icons.search, size: 20,
                             color: Colors.white.withOpacity(0.7)),
@@ -203,7 +205,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     );
   }
 
-  Widget _buildEmpty() => Center(
+  Widget _buildEmpty() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -220,8 +224,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
               const SizedBox(height: 20),
               Text(
                 _searchQuery.isNotEmpty
-                    ? 'Aucun résultat'
-                    : 'Aucune conversation',
+                    ? loc.msgNoResults
+                    : loc.msgNoConversations,
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -230,8 +234,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
               const SizedBox(height: 8),
               Text(
                 _searchQuery.isNotEmpty
-                    ? 'Aucune conversation ne correspond à votre recherche.'
-                    : 'Vos conversations apparaîtront ici après un match.',
+                    ? loc.msgNoResultsSubtitle
+                    : loc.msgEmptySubtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.textSecondaryColor),
               ),
@@ -239,8 +243,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           ),
         ),
       );
+  }
 
-  Widget _buildList(String userId) => RefreshIndicator(
+  Widget _buildList(String userId) {
+    final loc = AppLocalizations.of(context)!;
+    return RefreshIndicator(
         onRefresh: _load,
         color: AppColors.primary,
         child: ListView.separated(
@@ -249,13 +256,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) {
             final item = _filtered[i];
-            final title = item.offer?.title ?? 'Offre supprimée';
+            final title = item.offer?.title ?? loc.candMatchesDeletedOffer;
             final company = item.offer?.companyName ?? '';
             final lastMsg = item.lastMessage;
             final isFromMe = lastMsg?.senderUserId == userId;
             final preview = lastMsg == null
-                ? 'Commencez la conversation !'
-                : '${isFromMe ? 'Vous : ' : ''}${lastMsg.content}';
+                ? loc.msgStartConversation
+                : '${isFromMe ? loc.msgYouPrefix : ''}${lastMsg.content}';
             final timeStr = _formatTime(lastMsg?.sentAt);
 
             return GestureDetector(
@@ -321,6 +328,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           },
         ),
       );
+  }
 }
 
 class _ConvItem {

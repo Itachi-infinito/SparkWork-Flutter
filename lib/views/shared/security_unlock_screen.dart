@@ -22,17 +22,9 @@ class _SecurityUnlockScreenState extends ConsumerState<SecurityUnlockScreen> {
   Future<void> _requestCode() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final devCode = await ref.read(sessionSecurityServiceProvider).requestUnlockOtp();
+      await ref.read(sessionSecurityServiceProvider).requestUnlockOtp();
       if (!mounted) return;
       setState(() { _codeSent = true; _loading = false; });
-      // TODO: l'envoi d'email réel n'est pas encore branché — le code est
-      // affiché ici temporairement pour permettre les tests de bout en bout.
-      if (devCode != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Code de test (dev uniquement) : $devCode'),
-          duration: const Duration(seconds: 10),
-        ));
-      }
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = 'Erreur lors de l\'envoi du code.'; });
     }

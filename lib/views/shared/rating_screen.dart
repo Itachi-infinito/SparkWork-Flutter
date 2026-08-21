@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
 import '../../services/rating_service.dart';
 import '../../services/session_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RatingScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -36,8 +37,9 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
   }
 
   Future<void> _submit() async {
+    final loc = AppLocalizations.of(context)!;
     if (_score == 0) {
-      setState(() => _error = 'Veuillez choisir une note');
+      setState(() => _error = loc.ratingScreenChooseScore);
       return;
     }
     setState(() { _submitting = true; _error = null; });
@@ -54,7 +56,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Évaluation envoyée — merci !'), backgroundColor: AppColors.green),
+          SnackBar(content: Text(loc.ratingScreenSentThanks), backgroundColor: AppColors.green),
         );
         context.pop();
       }
@@ -67,9 +69,10 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Évaluer'),
+        title: Text(loc.rateDialogTitle),
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
       ),
       body: SingleChildScrollView(
@@ -98,7 +101,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                     child: const Icon(Icons.star, color: Colors.white, size: 36),
                   ),
                   const SizedBox(height: 16),
-                  Text('Évaluer ${widget.targetName}',
+                  Text(loc.ratingScreenEvaluateName(widget.targetName),
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -106,8 +109,8 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                   const SizedBox(height: 6),
                   Text(
                     widget.isRecruiter
-                        ? 'Comment s\'est passée la collaboration avec ce candidat ?'
-                        : 'Comment s\'est passée votre expérience avec cet employeur ?',
+                        ? loc.ratingScreenSubtitleRecruiter
+                        : loc.ratingScreenSubtitleCandidate,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: context.textSecondaryColor, height: 1.4),
                   ),
@@ -137,12 +140,12 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
             const SizedBox(height: 8),
             Center(
               child: Text(
-                _score == 0 ? 'Sélectionnez une note'
-                    : _score == 1 ? 'Très insuffisant'
-                    : _score == 2 ? 'Insuffisant'
-                    : _score == 3 ? 'Satisfaisant'
-                    : _score == 4 ? 'Bien'
-                    : 'Excellent',
+                _score == 0 ? loc.ratingScreenSelectScore
+                    : _score == 1 ? loc.ratingScreenScore1
+                    : _score == 2 ? loc.ratingScreenScore2
+                    : _score == 3 ? loc.ratingScreenScore3
+                    : _score == 4 ? loc.ratingScreenScore4
+                    : loc.ratingScreenScore5,
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -150,7 +153,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Commentaire (optionnel)',
+            Text(loc.rateCommentHint,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.textPrimaryColor)),
             const SizedBox(height: 8),
             TextField(
@@ -159,7 +162,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
               maxLength: 300,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                hintText: 'Partagez votre expérience...',
+                hintText: loc.ratingScreenCommentHint,
                 hintStyle: TextStyle(color: context.textHintColor),
               ),
             ),
@@ -191,8 +194,8 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Envoyer l\'évaluation',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    : Text(loc.ratingScreenSubmitButton,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             ),
           ],

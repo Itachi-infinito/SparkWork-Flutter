@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Fiche de candidature synthétique générée automatiquement à la création
 /// du match (Pro uniquement). Exportable en PDF pour archivage/partage.
@@ -42,21 +43,23 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
   /// manque (recruteur passé Pro après coup, ou échec ponctuel), on
   /// propose de le générer maintenant via la Cloud Function dédiée.
   Future<void> _regenerate() async {
+    final loc = AppLocalizations.of(context)!;
     setState(() { _regenerating = true; _regenerateError = null; });
     try {
       final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
       await functions.httpsCallable('regenerateMatchReport').call({'matchId': widget.matchId});
       await _load();
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _regenerateError = e.message ?? 'Échec de la génération.');
+      if (mounted) setState(() => _regenerateError = e.message ?? loc.matchReportGenerationFailed);
     } catch (e) {
-      if (mounted) setState(() => _regenerateError = 'Échec de la génération.');
+      if (mounted) setState(() => _regenerateError = loc.matchReportGenerationFailed);
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
   }
 
   Future<void> _exportPdf() async {
+    final loc = AppLocalizations.of(context)!;
     final r = _report;
     if (r == null) return;
     setState(() => _exporting = true);
@@ -76,7 +79,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('SparkWork — Rapport de candidature',
+                pw.Text(loc.matchReportPdfHeader,
                     style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600)),
                 pw.SizedBox(height: 12),
                 pw.Text(candidateName,
@@ -86,23 +89,23 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                       style: const pw.TextStyle(fontSize: 13, color: PdfColors.grey700)),
                 pw.SizedBox(height: 20),
                 pw.Row(children: [
-                  _pdfStat('SparkScore', '$sparkScore%'),
+                  _pdfStat(loc.matchReportSparkScore, '$sparkScore%'),
                   pw.SizedBox(width: 16),
-                  _pdfStat('Note moyenne', r['averageRating'] != null
+                  _pdfStat(loc.matchReportAverageRating, r['averageRating'] != null
                       ? '${(r['averageRating'] as num).toStringAsFixed(1)}/5 (${r['totalReviews']})'
-                      : 'Aucune'),
+                      : loc.matchReportNone),
                 ]),
                 pw.SizedBox(height: 10),
                 pw.Row(children: [
-                  _pdfStat('Vérification', verificationStatus == 'verified' ? 'Vérifié' : 'Non vérifié'),
+                  _pdfStat(loc.matchReportVerification, verificationStatus == 'verified' ? loc.matchReportVerified : loc.matchReportNotVerified),
                   pw.SizedBox(width: 16),
-                  _pdfStat('Recommandations', '${r['recommendationCount'] ?? 0}'),
+                  _pdfStat(loc.matchReportRecommendations, '${r['recommendationCount'] ?? 0}'),
                 ]),
                 pw.SizedBox(height: 10),
-                _pdfStat('Disponibilité', r['isAvailableNow'] == true ? 'Disponible maintenant' : 'À confirmer'),
+                _pdfStat(loc.matchReportAvailability, r['isAvailableNow'] == true ? loc.matchReportAvailableNow : loc.matchReportToConfirm),
                 pw.SizedBox(height: 24),
                 if (matchingSkills.isNotEmpty) ...[
-                  pw.Text('Compétences clés (correspondent à l\'offre)',
+                  pw.Text(loc.matchReportKeySkills,
                       style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 6),
                   pw.Wrap(spacing: 6, runSpacing: 6, children: matchingSkills
@@ -111,7 +114,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                   pw.SizedBox(height: 16),
                 ],
                 if (otherSkills.isNotEmpty) ...[
-                  pw.Text('Autres compétences',
+                  pw.Text(loc.matchReportOtherSkills,
                       style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 6),
                   pw.Wrap(spacing: 6, runSpacing: 6, children: otherSkills
@@ -121,7 +124,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                 pw.Spacer(),
                 pw.Divider(color: PdfColors.grey300),
                 pw.Text(
-                  'Généré automatiquement par SparkWork — usage interne au recrutement.',
+                  loc.matchReportFooter,
                   style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
                 ),
               ],
@@ -162,9 +165,10 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rapport de candidature'),
+        title: Text(loc.matchReportTitle),
         actions: [
           if (_report != null)
             IconButton(
@@ -174,7 +178,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.picture_as_pdf_outlined),
               onPressed: _exporting ? null : _exportPdf,
-              tooltip: 'Exporter en PDF',
+              tooltip: loc.matchReportExportPdf,
             ),
         ],
       ),
@@ -187,9 +191,8 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Rapport non disponible — il n\'a pas pu être généré au moment du match '
-                          '(par exemple si vous n\'étiez pas encore Pro à ce moment-là).',
+                        Text(
+                          loc.matchReportUnavailableBody,
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -206,7 +209,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
                                   width: 16, height: 16,
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                               : const Icon(Icons.refresh, size: 18),
-                          label: Text(_regenerating ? 'Génération...' : 'Générer maintenant'),
+                          label: Text(_regenerating ? loc.matchReportGenerating : loc.matchReportGenerateNow),
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                         ),
                       ],
@@ -218,6 +221,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
   }
 
   Widget _buildBody(Map<String, dynamic> r) {
+    final loc = AppLocalizations.of(context)!;
     final matchingSkills = (r['matchingSkills'] as List?)?.cast<String>() ?? [];
     final otherSkills = (r['otherSkills'] as List?)?.cast<String>() ?? [];
     final sparkScore = r['sparkScore'] as int? ?? 0;
@@ -243,41 +247,41 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
         const SizedBox(height: 24),
         Row(children: [
           Expanded(child: _StatChip(
-              icon: Icons.bolt, label: 'SparkScore', value: '$sparkScore%',
+              icon: Icons.bolt, label: loc.matchReportSparkScore, value: '$sparkScore%',
               color: sparkScore > 75 ? AppColors.green : sparkScore >= 50 ? AppColors.orange : AppColors.red)),
           const SizedBox(width: 10),
           Expanded(child: _StatChip(
-              icon: Icons.star, label: 'Note moyenne',
+              icon: Icons.star, label: loc.matchReportAverageRating,
               value: r['averageRating'] != null
                   ? '${(r['averageRating'] as num).toStringAsFixed(1)}/5 (${r['totalReviews']})'
-                  : 'Aucune',
+                  : loc.matchReportNone,
               color: Colors.amber)),
         ]),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: _StatChip(
               icon: verificationStatus == 'verified' ? Icons.verified_user : Icons.gpp_maybe_outlined,
-              label: 'Vérification',
-              value: verificationStatus == 'verified' ? 'Vérifié' : 'Non vérifié',
+              label: loc.matchReportVerification,
+              value: verificationStatus == 'verified' ? loc.matchReportVerified : loc.matchReportNotVerified,
               color: verificationStatus == 'verified' ? const Color(0xFF3B82F6) : Colors.grey)),
           const SizedBox(width: 10),
           Expanded(child: _StatChip(
               icon: Icons.star_outline,
-              label: 'Recommandations',
+              label: loc.matchReportRecommendations,
               value: '${r['recommendationCount'] ?? 0}',
               color: Colors.amber.shade700)),
         ]),
         const SizedBox(height: 10),
         _StatChip(
             icon: r['isAvailableNow'] == true ? Icons.flash_on : Icons.schedule,
-            label: 'Disponibilité',
-            value: r['isAvailableNow'] == true ? 'Disponible maintenant' : 'À confirmer',
+            label: loc.matchReportAvailability,
+            value: r['isAvailableNow'] == true ? loc.matchReportAvailableNow : loc.matchReportToConfirm,
             color: r['isAvailableNow'] == true ? AppColors.green : Colors.grey,
             fullWidth: true),
         const SizedBox(height: 24),
         if (matchingSkills.isNotEmpty) ...[
-          const Text('Compétences clés (correspondent à l\'offre)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(loc.matchReportKeySkills,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: matchingSkills.map((s) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -288,7 +292,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
           const SizedBox(height: 16),
         ],
         if (otherSkills.isNotEmpty) ...[
-          const Text('Autres compétences', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(loc.matchReportOtherSkills, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: otherSkills.map((s) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -302,7 +306,7 @@ class _MatchReportScreenState extends State<MatchReportScreen> {
           child: OutlinedButton.icon(
             onPressed: _exporting ? null : _exportPdf,
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-            label: const Text('Exporter en PDF'),
+            label: Text(loc.matchReportExportPdf),
           ),
         ),
       ],

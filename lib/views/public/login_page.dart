@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/auth_service.dart';
+import '../../services/session_service.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -34,35 +36,56 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       await ref
           .read(authServiceProvider)
           .signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
+      // signIn() n'assure que l'authentification Firebase — la session
+      // applicative (lecture du profil Firestore par SessionNotifier) se
+      // résout de façon asynchrone. Sans cette attente, un compte
+      // authentifié mais sans document Firestore (compte incomplet, App
+      // Check refusé, etc.) laisse l'utilisateur bloqué sur cette page sans
+      // aucun message ni redirection.
+      final loggedIn = await _waitForSession();
+      if (!loggedIn && mounted) {
+        setState(() =>
+            _error = AppLocalizations.of(context)!.loginErrorIncompleteAccount);
+      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = _errorMessage(e.code));
+      setState(() => _error = _errorMessage(AppLocalizations.of(context)!, e.code));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  Future<bool> _waitForSession() async {
+    for (var i = 0; i < 24; i++) {
+      final state = ref.read(sessionProvider);
+      if (!state.isLoading) return state.isLoggedIn;
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
+    return ref.read(sessionProvider).isLoggedIn;
+  }
+
   Future<void> _forgotPassword() async {
+    final loc = AppLocalizations.of(context)!;
     final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
     final sent = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mot de passe oublié'),
+        title: Text(loc.loginForgotPasswordTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Entrez votre email, nous vous enverrons un lien de réinitialisation.',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            Text(
+              loc.loginForgotPasswordBody,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: loc.loginEmail,
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
             ),
           ],
@@ -70,7 +93,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(loc.loginCancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -80,34 +103,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   await ref.read(authServiceProvider).sendPasswordReset(email);
               if (ctx.mounted) Navigator.pop(ctx, ok);
             },
-            child: const Text('Envoyer'),
+            child: Text(loc.loginSend),
           ),
         ],
       ),
     );
     if (sent == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Email envoyé ! Vérifiez votre boîte de réception.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.loginResetEmailSent),
         backgroundColor: AppColors.green,
       ));
     }
   }
 
-  String _errorMessage(String code) {
+  String _errorMessage(AppLocalizations loc, String code) {
     switch (code) {
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'Email ou mot de passe incorrect.';
+        return loc.loginErrorWrongCredentials;
       case 'too-many-requests':
-        return 'Trop de tentatives. Réessayez plus tard.';
+        return loc.loginErrorTooManyRequests;
       default:
-        return 'Erreur de connexion. Vérifiez vos identifiants.';
+        return loc.loginErrorGeneric;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -139,14 +163,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 20),
                   const Icon(Icons.bolt, color: Colors.white, size: 32),
                   const SizedBox(height: 10),
-                  const Text('Bon retour !',
-                      style: TextStyle(
+                  Text(loc.loginWelcomeBack,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 30,
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.5)),
                   const SizedBox(height: 4),
-                  Text('Connectez-vous à votre compte',
+                  Text(loc.loginSubtitle,
                       style: TextStyle(
                           color: Colors.white.withOpacity(0.75), fontSize: 14)),
                 ],
@@ -185,13 +209,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
+                      decoration: InputDecoration(
+                        labelText: loc.loginEmail,
+                        prefixIcon: const Icon(Icons.email_outlined),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Email requis';
-                        if (!v.contains('@')) return 'Email invalide';
+                        if (v == null || v.isEmpty) return loc.loginEmailRequired;
+                        if (!v.contains('@')) return loc.loginEmailInvalid;
                         return null;
                       },
                     ),
@@ -200,7 +224,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       decoration: InputDecoration(
-                        labelText: 'Mot de passe',
+                        labelText: loc.loginPassword,
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(_obscure
@@ -210,7 +234,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Mot de passe requis';
+                        if (v == null || v.isEmpty) return loc.loginPasswordRequired;
                         return null;
                       },
                     ),
@@ -222,8 +246,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
                             minimumSize: const Size(0, 32)),
-                        child: const Text('Mot de passe oublié ?',
-                            style: TextStyle(
+                        child: Text(loc.loginForgotPassword,
+                            style: const TextStyle(
                                 color: AppColors.primary, fontSize: 13)),
                       ),
                     ),
@@ -259,8 +283,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                         color: Colors.white, strokeWidth: 2))
-                                : const Text('Se connecter',
-                                    style: TextStyle(
+                                : Text(loc.loginSubmit,
+                                    style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700)),
@@ -274,13 +298,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: GestureDetector(
                         onTap: () => context.push('/register'),
                         child: RichText(
-                          text: const TextSpan(
-                            text: "Pas encore de compte ? ",
-                            style: TextStyle(color: AppColors.textSecondary),
+                          text: TextSpan(
+                            text: loc.loginNoAccount,
+                            style: const TextStyle(color: AppColors.textSecondary),
                             children: [
                               TextSpan(
-                                text: "S'inscrire",
-                                style: TextStyle(
+                                text: loc.loginSignUp,
+                                style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w600),
                               ),

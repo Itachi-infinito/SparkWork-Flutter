@@ -14,6 +14,7 @@ import '../../repositories/recruiter_candidate_like_repository.dart';
 import '../../services/compatibility_service.dart';
 import '../../services/session_service.dart';
 import '../../core/constants/app_skills.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class JobOfferDetailPage extends ConsumerStatefulWidget {
   final String jobOfferId;
@@ -67,6 +68,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
 
   Future<void> _handleLike() async {
     if (_offer == null || _alreadyLiked || _liking) return;
+    final loc = AppLocalizations.of(context)!;
     setState(() => _liking = true);
     try {
       final session = ref.read(sessionProvider);
@@ -101,8 +103,8 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Offre likée ! En attente du recruteur...'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(loc.candOfferDetailLikeSuccess),
             backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
           ));
@@ -110,8 +112,8 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Une erreur est survenue.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(loc.candOfferDetailError),
           backgroundColor: AppColors.red,
           behavior: SnackBarBehavior.floating,
         ));
@@ -126,6 +128,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
     final p = _candidateProfile;
     final o = _offer;
     if (p == null || o == null) return [];
+    final loc = AppLocalizations.of(context)!;
 
     final matchingSkills = p.skillList
         .where((s) => o.requiredSkillList.any(
@@ -135,17 +138,17 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
 
     return [
       _CompatCriteria(
-        label: 'Compétences',
+        label: loc.candOfferDetailCriteriaSkills,
         detail: totalRequired == 0
-            ? 'Aucune requise'
-            : '$matchingSkills/$totalRequired compétences',
+            ? loc.candOfferDetailCriteriaNoneRequired
+            : loc.candOfferDetailCriteriaSkillsCount(matchingSkills, totalRequired),
         match: totalRequired == 0 || matchingSkills >= (totalRequired / 2).ceil(),
         icon: Icons.star_outline,
       ),
       _CompatCriteria(
-        label: 'Type de contrat',
+        label: loc.candOfferDetailCriteriaContractType,
         detail: o.contractType.isEmpty
-            ? 'Non précisé'
+            ? loc.candOfferDetailCriteriaNotSpecified
             : (AppSkills.parseSkills(p.desiredContractType)
                     .any((t) => t.toLowerCase() == o.contractType.toLowerCase())
                 ? o.contractType
@@ -156,9 +159,9 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
         icon: Icons.work_outline,
       ),
       _CompatCriteria(
-        label: 'Niveau',
+        label: loc.candOfferDetailCriteriaLevel,
         detail: o.level.isEmpty
-            ? 'Non précisé'
+            ? loc.candOfferDetailCriteriaNotSpecified
             : (p.desiredLevel == o.level
                 ? o.level
                 : '${p.desiredLevel} ≠ ${o.level}'),
@@ -166,19 +169,19 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
         icon: Icons.trending_up,
       ),
       _CompatCriteria(
-        label: 'Salaire',
+        label: loc.candOfferDetailSalary,
         detail: !o.hasSalary
-            ? 'Non précisé'
+            ? loc.candOfferDetailCriteriaNotSpecified
             : (p.desiredSalaryMin <= o.salaryMax
                 ? o.salaryDisplay
-                : 'En dessous de vos attentes'),
+                : loc.candOfferDetailCriteriaBelowExpectations),
         match: !o.hasSalary || p.desiredSalaryMin <= o.salaryMax,
         icon: Icons.euro,
       ),
       _CompatCriteria(
-        label: 'Télétravail',
+        label: loc.candOfferDetailCriteriaRemote,
         detail: o.remoteMode.isEmpty
-            ? 'Non précisé'
+            ? loc.candOfferDetailCriteriaNotSpecified
             : (p.remotePreference == o.remoteMode
                 ? o.remoteMode
                 : '${p.remotePreference} ≠ ${o.remoteMode}'),
@@ -189,6 +192,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
   }
 
   Widget _buildStickyBar() {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       decoration: BoxDecoration(
@@ -207,13 +211,13 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
               decoration: BoxDecoration(
                   color: AppColors.greenLight,
                   borderRadius: BorderRadius.circular(12)),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, color: AppColors.green, size: 20),
-                  SizedBox(width: 8),
-                  Text('Déjà liké',
-                      style: TextStyle(
+                  const Icon(Icons.check_circle, color: AppColors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Text(loc.candOfferDetailAlreadyLiked,
+                      style: const TextStyle(
                           color: AppColors.green,
                           fontWeight: FontWeight.w600,
                           fontSize: 16)),
@@ -231,7 +235,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : const Icon(Icons.favorite, size: 20),
-                label: const Text("J'aime cette offre",
+                label: Text(loc.candOfferDetailLikeButton,
                     style:
                         TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
@@ -248,16 +252,17 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Détail de l'offre"), elevation: 0),
+        appBar: AppBar(title: Text(loc.candOfferDetailTitle), elevation: 0),
         body: const Center(
             child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Détail de l'offre"), elevation: 0),
+        appBar: AppBar(title: Text(loc.candOfferDetailTitle), elevation: 0),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -269,7 +274,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   textAlign: TextAlign.center),
               const SizedBox(height: 20),
               OutlinedButton(
-                  onPressed: _loadData, child: const Text('Réessayer')),
+                  onPressed: _loadData, child: Text(loc.candOfferDetailRetry)),
             ]),
           ),
         ),
@@ -277,9 +282,9 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
     }
     if (_offer == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Détail de l'offre"), elevation: 0),
+        appBar: AppBar(title: Text(loc.candOfferDetailTitle), elevation: 0),
         body: Center(
-            child: Text('Offre introuvable.',
+            child: Text(loc.candOfferDetailNotFound,
                 style: TextStyle(color: context.textSecondaryColor))),
       );
     }
@@ -356,7 +361,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.bolt, color: Colors.white, size: 16),
                           const SizedBox(width: 4),
-                          Text('$_score% compatible',
+                          Text(loc.candOfferDetailScore(_score ?? 0),
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -414,7 +419,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   if (offer.hasSalary) ...[
                     const SizedBox(height: 16),
                     _SectionCard(
-                      title: 'Salaire',
+                      title: loc.candOfferDetailSalary,
                       child: Row(children: [
                         const Icon(Icons.euro,
                             size: 20, color: AppColors.green),
@@ -432,7 +437,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   if (breakdown.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _SectionCard(
-                      title: 'Compatibilité détaillée',
+                      title: loc.candOfferDetailCompatBreakdown,
                       child: Column(
                         children: breakdown
                             .map((c) => _CompatRow(criteria: c))
@@ -445,7 +450,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   if (offer.requiredSkillList.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _SectionCard(
-                      title: 'Compétences requises',
+                      title: loc.candOfferDetailRequiredSkills,
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -468,7 +473,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   if (offer.niceSkillList.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _SectionCard(
-                      title: 'Compétences appréciées',
+                      title: loc.candOfferDetailNiceSkills,
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -486,7 +491,7 @@ class _JobOfferDetailPageState extends ConsumerState<JobOfferDetailPage> {
                   if (offer.description.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _SectionCard(
-                      title: 'Description du poste',
+                      title: loc.candOfferDetailDescription,
                       child: Text(offer.description,
                           style: TextStyle(
                               color: context.textSecondaryColor,

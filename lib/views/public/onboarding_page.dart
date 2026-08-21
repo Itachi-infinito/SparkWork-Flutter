@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -13,29 +14,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final _controller = PageController();
   int _currentPage = 0;
 
-  static const _slides = [
-    _OnboardingSlide(
-      gradient: [Color(0xFF7C4DFF), Color(0xFF5E35B1)],
-      icon: Icons.swipe,
-      title: 'Swipez',
-      subtitle:
-          'Découvrez des offres d\'emploi et des candidats Horeca en quelques glissements.',
-    ),
-    _OnboardingSlide(
-      gradient: [Color(0xFF10B981), Color(0xFF059669)],
-      icon: Icons.favorite_rounded,
-      title: 'Matchez',
-      subtitle:
-          'Quand l\'intérêt est mutuel, c\'est un SparkWork Match ! Simple et efficace.',
-    ),
-    _OnboardingSlide(
-      gradient: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-      icon: Icons.chat_bubble_rounded,
-      title: 'Échangez',
-      subtitle:
-          'Discutez directement avec vos matches et décrochez votre prochain poste.',
-    ),
-  ];
+  List<_OnboardingSlide> _slides(AppLocalizations loc) => [
+        _OnboardingSlide(
+          gradient: const [Color(0xFF7C4DFF), Color(0xFF5E35B1)],
+          icon: Icons.swipe,
+          title: loc.onboardingSwipeTitle,
+          subtitle: loc.onboardingSwipeSubtitle,
+        ),
+        _OnboardingSlide(
+          gradient: const [Color(0xFF10B981), Color(0xFF059669)],
+          icon: Icons.favorite_rounded,
+          title: loc.onboardingMatchTitle,
+          subtitle: loc.onboardingMatchSubtitle,
+        ),
+        _OnboardingSlide(
+          gradient: const [Color(0xFF3B82F6), Color(0xFF2563EB)],
+          icon: Icons.chat_bubble_rounded,
+          title: loc.onboardingChatTitle,
+          subtitle: loc.onboardingChatSubtitle,
+        ),
+      ];
 
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,8 +41,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
     if (mounted) context.go('/welcome');
   }
 
+  static const _slideCount = 3;
+
   void _next() {
-    if (_currentPage < _slides.length - 1) {
+    if (_currentPage < _slideCount - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOutCubic,
@@ -62,27 +62,29 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final slides = _slides(loc);
     return Scaffold(
       body: Stack(
         children: [
           // Pages
           PageView.builder(
             controller: _controller,
-            itemCount: _slides.length,
+            itemCount: slides.length,
             onPageChanged: (i) => setState(() => _currentPage = i),
             itemBuilder: (context, i) =>
-                _SlidePage(slide: _slides[i]),
+                _SlidePage(slide: slides[i]),
           ),
 
           // Skip button
-          if (_currentPage < _slides.length - 1)
+          if (_currentPage < slides.length - 1)
             Positioned(
               top: MediaQuery.of(context).padding.top + 12,
               right: 20,
               child: TextButton(
                 onPressed: _finish,
-                child: const Text('Passer',
-                    style: TextStyle(
+                child: Text(loc.onboardingSkip,
+                    style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
                         fontWeight: FontWeight.w500)),
@@ -100,7 +102,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    _slides.length,
+                    slides.length,
                     (i) => AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -126,15 +128,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor:
-                          _slides[_currentPage].gradient[0],
+                          slides[_currentPage].gradient[0],
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
                     ),
                     child: Text(
-                      _currentPage < _slides.length - 1
-                          ? 'Suivant'
-                          : 'Commencer',
+                      _currentPage < slides.length - 1
+                          ? loc.onboardingNext
+                          : loc.onboardingStart,
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),

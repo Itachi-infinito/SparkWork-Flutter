@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_theme_ext.dart';
+import '../../core/constants/app_sectors.dart';
 import '../../core/constants/app_skills.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/recommendation_count_badge.dart';
 import '../../models/candidate_profile.dart';
 import '../../repositories/candidate_profile_repository.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class BrowseCandidatesPage extends ConsumerStatefulWidget {
   const BrowseCandidatesPage({super.key});
@@ -27,12 +29,14 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
   String _filterContractType = '';
   String _filterLocation = '';
   String _filterSkill = '';
+  String _filterSector = '';
 
   bool get _hasActiveFilters =>
       _filterLevel.isNotEmpty ||
       _filterContractType.isNotEmpty ||
       _filterLocation.isNotEmpty ||
-      _filterSkill.isNotEmpty;
+      _filterSkill.isNotEmpty ||
+      _filterSector.isNotEmpty;
 
   @override
   void initState() {
@@ -90,16 +94,21 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
         if (_filterSkill.isNotEmpty && !p.skillList.contains(_filterSkill)) {
           return false;
         }
+        if (_filterSector.isNotEmpty && !p.sectors.contains(_filterSector)) {
+          return false;
+        }
         return true;
       }).toList();
     });
   }
 
   void _showFilterSheet() {
+    final loc = AppLocalizations.of(context)!;
     String tmpLevel = _filterLevel;
     String tmpContract = _filterContractType;
     String tmpLocation = _filterLocation;
     String tmpSkill = _filterSkill;
+    String tmpSector = _filterSector;
     final locationCtrl = TextEditingController(text: tmpLocation);
 
     showModalBottomSheet(
@@ -126,24 +135,39 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Filtrer les candidats',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(loc.browseCandFilterTitle,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
 
-              const Text('Ville', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(loc.recSwipeCity, style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: locationCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'ex: Paris, Lyon...',
-                  prefixIcon: Icon(Icons.location_on_outlined),
+                decoration: InputDecoration(
+                  hintText: loc.recSwipeCityHint,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
                 ),
                 onChanged: (v) => tmpLocation = v,
               ),
               const SizedBox(height: 20),
 
-              const Text('Niveau d\'expérience',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(loc.recSwipeSector,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8, runSpacing: 6,
+                children: AppSectors.all.map((s) => FilterChip(
+                  label: Text(s.label),
+                  selected: tmpSector == s.id,
+                  onSelected: (v) => setSheet(() => tmpSector = v ? s.id : ''),
+                  selectedColor: AppColors.primaryLight,
+                  checkmarkColor: AppColors.primary,
+                )).toList(),
+              ),
+              const SizedBox(height: 20),
+
+              Text(loc.recSwipeLevel,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8, runSpacing: 6,
@@ -157,8 +181,8 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
               ),
               const SizedBox(height: 20),
 
-              const Text('Type de contrat',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(loc.recSwipeContractType,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8, runSpacing: 6,
@@ -172,12 +196,12 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
               ),
               const SizedBox(height: 20),
 
-              const Text('Compétence',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(loc.recSwipeSkill,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: tmpSkill.isEmpty ? null : tmpSkill,
-                hint: const Text('Toutes les compétences'),
+                hint: Text(loc.recSwipeAllSkills),
                 decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.star_outline)),
                 isExpanded: true,
@@ -196,11 +220,12 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                       tmpContract = '';
                       tmpLocation = '';
                       tmpSkill = '';
+                      tmpSector = '';
                       locationCtrl.clear();
                     }),
                     style: OutlinedButton.styleFrom(
                         side: BorderSide(color: context.textSecondaryColor)),
-                    child: Text('Réinitialiser',
+                    child: Text(loc.recSwipeReset,
                         style: TextStyle(color: context.textSecondaryColor)),
                   ),
                 ),
@@ -213,14 +238,15 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                         _filterContractType = tmpContract;
                         _filterLocation = tmpLocation;
                         _filterSkill = tmpSkill;
+                        _filterSector = tmpSector;
                       });
                       _filter();
                       Navigator.pop(ctx);
                     },
                     style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary),
-                    child: const Text('Appliquer',
-                        style: TextStyle(color: Colors.white)),
+                    child: Text(loc.recSwipeApply,
+                        style: const TextStyle(color: Colors.white)),
                   ),
                 ),
               ]),
@@ -251,6 +277,10 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
       chips.add(_Chip(_filterSkill,
           () => remove(() => setState(() => _filterSkill = ''))));
     }
+    if (_filterSector.isNotEmpty) {
+      chips.add(_Chip(AppSectors.labelFor(_filterSector),
+          () => remove(() => setState(() => _filterSector = ''))));
+    }
     return SizedBox(
       height: 44,
       child: ListView(
@@ -263,10 +293,11 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Candidats'),
+        title: Text(loc.browseCandTitle),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [
@@ -294,7 +325,7 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Nom, ville, compétence...',
+                hintText: loc.browseCandSearchHint,
                 prefixIcon: Icon(Icons.search, color: context.textHintColor),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -322,7 +353,7 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
               child: Row(
                 children: [
                   Text(
-                    '${_filtered.length} candidat${_filtered.length > 1 ? 's' : ''}',
+                    loc.browseCandCount(_filtered.length),
                     style: TextStyle(
                         fontSize: 13,
                         color: context.textSecondaryColor,
@@ -340,8 +371,8 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                         });
                         _filter();
                       },
-                      child: const Text('Effacer les filtres',
-                          style: TextStyle(
+                      child: Text(loc.browseCandClearFilters,
+                          style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.primary,
                               fontWeight: FontWeight.w500)),
@@ -368,15 +399,15 @@ class _BrowseCandidatesPageState extends ConsumerState<BrowseCandidatesPage> {
                                   color: AppColors.primary, size: 36),
                             ),
                             const SizedBox(height: 16),
-                            Text('Aucun candidat trouvé',
+                            Text(loc.browseCandNoneFound,
                                 style: TextStyle(
                                     color: context.textPrimaryColor,
                                     fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
                             Text(
                               _hasActiveFilters
-                                  ? 'Modifiez vos filtres'
-                                  : 'Revenez plus tard',
+                                  ? loc.browseCandModifyFilters
+                                  : loc.browseCandComeBackLater,
                               style: TextStyle(
                                   color: context.textSecondaryColor,
                                   fontSize: 13),
